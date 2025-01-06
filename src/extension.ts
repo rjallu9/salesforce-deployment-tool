@@ -27,8 +27,6 @@ export function activate(context: vscode.ExtensionContext) {
 
 			panel.webview.html = getWebviewContent(context.extensionPath, scriptUri, cssUri);
 
-			let userInfo = {"accessToken":"", "instanceUrl":"", "username":"", "orgId":""};
-
 			let orgsList: any[] = [];
 
 			let isCancelDeploy = false;
@@ -39,8 +37,6 @@ export function activate(context: vscode.ExtensionContext) {
 						getAuthOrgs().then((result:any) => {	
 							orgsList = result;		
 							panel.webview.postMessage({command: 'orgsList', orgs: result});				
-						}).catch((error) => {
-							vscode.window.showErrorMessage(`Error: ${error}`);
 						});
 						break;
 					case 'loadTypes':
@@ -48,9 +44,6 @@ export function activate(context: vscode.ExtensionContext) {
 						getTypes(sourceOrg.accessToken, sourceOrg.instanceUrl, favorites)
                         .then((data) => {
                             panel.webview.postMessage({ command: 'types', types: data });
-                        })
-                        .catch((error) => {
-                            vscode.window.showErrorMessage(`Error: ${JSON.stringify(error)}`);
                         });
 						break;
 					case 'loadComponents':
@@ -60,9 +53,6 @@ export function activate(context: vscode.ExtensionContext) {
 							getComponents(sourceOrg.accessToken, sourceOrg.instanceUrl, message.type)
 							.then((data) => {
 								panel.webview.postMessage({ command: 'components', components: data, type: message.type });
-							})
-							.catch((error) => {
-								vscode.window.showErrorMessage(`Error: ${JSON.stringify(error)}`);
 							});
 						}
 						break;
@@ -76,13 +66,14 @@ export function activate(context: vscode.ExtensionContext) {
 						}
 						break;					
 					case 'deploy':
-						panel.webview.postMessage({ command: 'deployStatus', result: {stage:"retrieve", message: 'Retrieve components Initiated'}});	
-						var destOrg = orgsList.find((org:any) => org.orgId === message.orgId);													
-						retrieve(userInfo.accessToken, userInfo.instanceUrl, message.packagexml).then((result:any) => {	
+						panel.webview.postMessage({ command: 'deployStatus', result: {stage:"retrieve", message: 'Retrieve components Initiated'}});
+						var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);		
+						var destOrg = orgsList.find((org:any) => org.orgId === message.destOrgId);													
+						retrieve(sourceOrg.accessToken, sourceOrg.instanceUrl, message.packagexml).then((result:any) => {	
 							panel.webview.postMessage({ command: 'deployStatus', result: {stage:"retrieveStatus", message: 'Retrieve components Inprogress'}});	
 							let retrieveJobId = result;
 							let intervalId = setInterval(() => {
-								retrieveStatus(userInfo.accessToken, userInfo.instanceUrl, retrieveJobId).then((result:any) => {	
+								retrieveStatus(sourceOrg.accessToken, sourceOrg.instanceUrl, retrieveJobId).then((result:any) => {	
 									if(result.done	=== 'true') {
 										panel.webview.postMessage({ command: 'deployStatus', result: {stage:"retrieveStatus", message: 'Retrieve components Completed'}});
 										clearInterval(intervalId);
@@ -103,7 +94,6 @@ export function activate(context: vscode.ExtensionContext) {
 														}	
 														result['stage']	= "deploymentStatus";	
 														panel.webview.postMessage({ command: 'deployStatus', result: result});	
-													}).catch((error) => {
 													});
 												}, 2000);	
 											});
@@ -115,12 +105,10 @@ export function activate(context: vscode.ExtensionContext) {
 								}).catch((error) => {
 								});
 							}, 1000);			
-						}).catch((error) => {
-							vscode.window.showErrorMessage(`Query Error: ${error}`);
 						});
 						break;
 					case 'quickDeploy':
-						var destOrg = orgsList.find((org:any) => org.orgId === message.orgId);		
+						var destOrg = orgsList.find((org:any) => org.orgId === message.destOrgId);		
 						panel.webview.postMessage({ command: 'deployStatus', result: {stage:"deployment", message: 'Deployment Initiated'}});
 						quickDeploy(destOrg.accessToken, destOrg.instanceUrl, message.id).then((result:any) => {
 							let deployJobId = result;
@@ -134,8 +122,6 @@ export function activate(context: vscode.ExtensionContext) {
 								}).catch((error) => {
 								});
 							}, 2000);	
-						}).catch((error) => {
-							vscode.window.showErrorMessage(`Query Error: ${error}`);
 						});
 						break;
 					case 'cancelDeploy':
@@ -336,7 +322,11 @@ function sendSoapReuest(accessToken:string,  endPoint:string, body:string) {
 			});
 		})
 		.catch((error:any) => {
-			reject(error);			
+			parser.parseString(error.response.data, (err:any, result:any) => {	
+				vscode.window.showWarningMessage('Unable to connect to the Org. Message: '+
+					result['soapenv:Envelope']['soapenv:Body']['soapenv:Fault']['faultstring']);
+				reject(result['soapenv:Envelope']['soapenv:Body']['soapenv:Fault']['faultstring']);
+			});		
 		});
 	});
 }
@@ -398,9 +388,9 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 			<body>	
 				<div style="margin: 20px;">
 					<h1>Salesforce Deployment Tool</h1>
-					<div id="source-org" >	
-						<label for="text" for="source-org-field" class="top-label">Source Org: </label>
-						<select type="text" class="source-org-field" id="source-org-field" style="height:36px;width:350px;">
+					<div id="source-org" style="float:left;margin-right:5px">	
+						<label for="text" for="source-org-field" class="top-label vs-font">Source Org: </label>
+						<select type="text" class="source-org-field vs-font" id="source-org-field" style="height:36px;width:350px;">
 						</select>		
 					</div>
 					<div id="selection" style="display:none">
@@ -424,11 +414,11 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 							</div>
 							<div>	
 								<label for="text" for="date-field" class="top-label">Modified-Since: </label>
-								<input type="text" class="date-field" id="date-field" style="height:30px;" readonly></input>		
+								<input type="text" class="date-field vs-font" id="date-field" style="height:30px;" readonly></input>		
 							</div>
 							<div>	
 								<label for="text" for="state-field" class="top-label">State: </label>
-								<select type="text" class="state-field" id="state-field" style="height:36px;">
+								<select type="text" class="state-field vs-font" id="state-field" style="height:36px;">
 									<option value="unmanaged">Unmanaged</option>
 									<option value="installed">Installed</option>
 								</select>		
@@ -450,8 +440,8 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 								<p id="total-components">0 Components selected</p>
 								<p style="color:#f14c4c;" id="errors"></p>
 							</div>
-							<button type="button" style="padding: 7px; width: 75px;float:right;" id="next" disabled>Next</button>
-							<button type="button" style="padding: 7px; width:100px;float:right;margin-right:5px" id="packagexml" disabled>Package.xml</button>
+							<button type="button" style="padding: 7px; width: 75px;float:right;" class="vs-font" id="next" disabled>Next</button>
+							<button type="button" style="padding: 7px; width:100px;float:right;margin-right:5px" id="packagexml" class="vs-font" disabled>Package.xml</button>
 						</div>						
 					</div>
 					<div id="preview" style="display:none">
@@ -470,20 +460,22 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 								</tr>
 							</thead>
 						</table>
-						<div style="padding-top: 10px;" id="deploy-buttons">
-							<button type="button" style="padding: 7px; width: 75px;margin-top:22px;" id="previous">Previous</button>						
-							<button type="button" style="padding: 7px; width: 75px;float:right;margin-top:22px;" id="deploy">Deploy</button>
-							<button type="button" style="padding: 7px; width: 75px;float:right;margin-top:22px;" id="validate">Validate</button>	
-							<div style="float:right;">
-								<label for="text" for="testoption-field" class="top-label">Test Options:&nbsp;&nbsp;
-									<a href="#" id="view-classes" style="display:none">Classes</a>
-								</label>							
-								<select type="text" class="testoption-field" id="testoption-field" style="height:33px;width:150px;">
-									<option value="NoTestRun">Default</option>
-									<option value="RunLocalTests">Run local tests</option>
-									<option value="RunAllTestsInOrg">Run all tests</option>
-									<option value="RunSpecifiedTests">Run specified tests</option>
-								</select>	
+						<div style="padding-top: 10px;display:flex;justify-content:space-between;">
+							<button type="button" style="padding: 7px; width: 75px;margin-top:22px;" id="previous">Previous</button>
+							<div id="deploy-buttons">						
+								<button type="button" style="padding: 7px; width: 75px;float:right;margin-top:22px;" id="deploy">Deploy</button>
+								<button type="button" style="padding: 7px; width: 75px;float:right;margin-top:22px;" id="validate">Validate</button>	
+								<div style="float:right;">
+									<label for="text" for="testoption-field" class="top-label">Test Options:&nbsp;&nbsp;
+										<a href="#" id="view-classes" style="display:none">Classes</a>
+									</label>							
+									<select type="text" class="testoption-field" id="testoption-field" style="height:33px;width:150px;">
+										<option value="NoTestRun">Default</option>
+										<option value="RunLocalTests">Run local tests</option>
+										<option value="RunAllTestsInOrg">Run all tests</option>
+										<option value="RunSpecifiedTests">Run specified tests</option>
+									</select>	
+							</div>
 							</div>
 						</div>						
 						<div id="deploystatus">

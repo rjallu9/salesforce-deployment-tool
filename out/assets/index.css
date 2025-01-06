@@ -5,7 +5,6 @@
 .form-panel {
     display: flex;
     gap: 10px;
-    padding-top: 20px;
 }
 .dd-text-field {
     width:300px;
@@ -47,9 +46,6 @@
     justify-content: center;
     margin-top:5px;
 }
-.ui-dialog-titlebar-close {
-    display: none;
-}
 .coverage-error {
     border: 1px solid #dddddd;
     background: #e7bc49;
@@ -81,4 +77,9 @@ table tbody tr:hover{
 ::placeholder {
     color: black;
     opacity: 1;
-  }
+}
+.vs-font {
+    font-family: var(--vscode-font-family);
+    font-weight: var(--vscode-font-weight);
+    font-size: var(--vscode-font-size);
+}

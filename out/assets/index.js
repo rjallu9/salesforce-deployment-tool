@@ -20,7 +20,8 @@ $(document).ready(function () {
             orgs = event.data.orgs; 
             loadSourceOrgs();
         } else if(event.data.command === 'types') {
-            types = event.data.types;            
+            types = event.data.types;   
+            $("#selection").show(); 
             refreshTypes(true);       
         } else if(event.data.command === 'components') {
             componentsMap.set(event.data.type, event.data.components);
@@ -39,14 +40,22 @@ $(document).ready(function () {
     } 
 
     $('#source-org-field').on("change", function(e){
-        if($('#source-org-field').val() === '') {
-            $("#selection").hide(); 
-        } else {
-            $("#selection").show(); 
-            types = [];
-            selectedTypes = [];
-            componentsMap = new Map();
-            selectedComps = new Map();
+        types = [];
+        selectedTypes = [];
+        componentsMap = new Map();
+        selectedComps = new Map();
+        $('.dd-options ui').empty();
+        $('.dd-text-field').val('');
+        $('.dd-select-all').prop('checked', false);
+        $('.dd-text-field').attr("placeholder", 'No Types selected');      
+        $('#datatable').DataTable().clear().rows.add([]).draw();
+        $('#next').prop('disabled', true);
+        $('#packagexml').prop('disabled', true);
+        $('#errors').text('');
+        $('#total-components').text(selectedComps.size + ' component(s) selected');
+
+        $("#selection").hide(); 
+        if($('#source-org-field').val() !== '') {
             vscode.postMessage({ command: 'loadTypes', sourceOrgId: $(this).val()});
     
             $('#dest-org-field').empty();
@@ -57,8 +66,7 @@ $(document).ready(function () {
                 }
             });
             $("#deploystatus").hide();
-        }
-        
+        }       
     });
 
     $('#datatable').DataTable({
@@ -97,7 +105,7 @@ $(document).ready(function () {
         },
         language: {
             emptyTable: 'No components are matched to the selected criteria',
-            info: ''
+            info: "Total: _TOTAL_ component(s) available"
         }
     });
 
@@ -278,7 +286,7 @@ $(document).ready(function () {
             $('#packagexml').prop('disabled', false);
         } else {
             $('#next').prop('disabled', true);
-            $('#packagexml').prop('disabled', false);
+            $('#packagexml').prop('disabled', true);
         }
         $("#deploystatus").hide();
     });
@@ -324,7 +332,10 @@ $(document).ready(function () {
             $("#selection").hide();
             $("#source-org").hide();
             $("#preview").show();
-            $('#previewtable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw();     
+            $('#previewtable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
+            if($('#dest-org-field').val() === '') {
+                $('#deploy-buttons').hide();        
+            }
         }
     });
 
@@ -342,6 +353,11 @@ $(document).ready(function () {
 
     $('#dest-org-field').on("change", function(e){
         $("#deploystatus").hide(); 
+        if($('#dest-org-field').val() === '') {
+            $('#deploy-buttons').hide();        
+        } else {
+            $('#deploy-buttons').show();
+        }
     });
 
     $('#test-classes-dialog').dialog({autoOpen: false, modal: true, closeOnEscape: false});
@@ -349,9 +365,15 @@ $(document).ready(function () {
     $(".testoption-field").on("change", function(e){
         if($(this).val() === 'RunSpecifiedTests') {
             $('#test-classes-dialog').dialog("open"); 
-            $('#view-classes').show();        
+            $('#view-classes').show(); 
+            if(testClasses === '') {
+                $('#deploy').prop('disabled', true);
+                $('#validate').prop('disabled', true);
+            }
         } else {
             $('#view-classes').hide();  
+            $('#deploy').prop('disabled', false);
+            $('#validate').prop('disabled', false);
         }
     });
 
@@ -362,6 +384,8 @@ $(document).ready(function () {
     $('#save-classes').on('click', function (e) {
         if($('#test-classes').val().trim() !== '') {
             testClasses = $('#test-classes').val().trim();
+            $('#deploy').prop('disabled', false);
+            $('#validate').prop('disabled', false);
             $('#test-classes').css('border' ,'');
             $('#test-classes-dialog').dialog("close");
         } else {
@@ -387,7 +411,7 @@ $(document).ready(function () {
             });
         }
 
-        vscode.postMessage({ command: 'deploy', packagexml:packagexml, orgId: $("#dest-org-field").val(), 
+        vscode.postMessage({ command: 'deploy', packagexml:packagexml, sourceOrgId: $('#source-org-field').val(), destOrgId: $("#dest-org-field").val(), 
             checkOnly: checkOnly, testLevel: $(".testoption-field").val(), testClasses: runTests});
         $("#deploystatus").show();
         $("#deploy-buttons").hide();
@@ -540,7 +564,7 @@ $(document).ready(function () {
     
     let quickdeployId = '';
     $("#quick-deploy").on('click', function (e) {
-        vscode.postMessage({ command: 'quickDeploy', id: quickdeployId, orgId: $("#dest-org-field").val()});
+        vscode.postMessage({ command: 'quickDeploy', id: quickdeployId, destOrgId: $("#dest-org-field").val()});
         $("#deploy-buttons").hide();
     });
 
