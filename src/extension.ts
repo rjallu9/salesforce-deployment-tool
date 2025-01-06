@@ -149,7 +149,7 @@ export function activate(context: vscode.ExtensionContext) {
 						isCancelDeploy = true;
 						break;
 					case 'toastMessage':
-						vscode.window.showInformationMessage(`${JSON.stringify(message.message)}`);	
+						vscode.window.showInformationMessage(`${message.message}`);	
 						break;
 					default:
 						console.log('Unknown command:', message.command);
@@ -411,8 +411,8 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 					<h1>Salesforce Deployment Tool</h1>
 					
 					<div id="source-org" style="float:left;margin-right:5px">	
-						<label for="text" for="source-org-field" class="top-label vs-font">Source Org: </label>
-						<select type="text" class="source-org-field vs-font" id="source-org-field" style="height:36px;width:350px;">
+						<label for="text" for="source-org-field" class="top-label">Source Org: </label>
+						<select type="text" class="source-org-field" id="source-org-field" style="height:36px;width:350px;">
 						</select>		
 					</div>
 					<div id="selection" style="display:none">
@@ -437,11 +437,11 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 								</div>
 								<div style="float:left;padding-left:10px;">	
 									<label for="text" for="date-field" class="top-label">Modified-Since: </label>
-									<input type="text" class="date-field vs-font" id="date-field" style="height:30px;" readonly></input>		
+									<input type="text" class="date-field" id="date-field" style="height:30px;" readonly></input>		
 								</div>
 								<div style="float:left;padding-left:5px;">	
 									<label for="text" for="state-field" class="top-label">State: </label>
-									<select type="text" class="state-field vs-font" id="state-field" style="height:36px;">
+									<select type="text" class="state-field" id="state-field" style="height:36px;">
 										<option value="unmanaged">Unmanaged</option>
 										<option value="installed">Installed</option>
 									</select>		
@@ -451,8 +451,8 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 								<div style="float:left;" >
 									<p style="color:#f14c4c;" id="errors"></p>
 								</div>
-								<button type="button" style="padding: 7px; width: 75px;float:right;" class="vs-font" id="next" disabled>Next</button>
-								<button type="button" style="padding: 7px; width:100px;float:right;margin-right:5px" id="packagexml" class="vs-font" disabled>Package.xml</button>
+								<button type="button" style="padding: 7px; width: 75px;float:right;" id="next" disabled>Next</button>
+								<button type="button" style="padding: 7px; width:100px;float:right;margin-right:5px" id="packagexml" disabled>Package.xml</button>
 							</div>
 						</div>	
 						<div style="margin-top:10px;">

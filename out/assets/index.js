@@ -305,11 +305,9 @@ $(document).ready(function () {
         $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
         if(selectedComps.size > 0) {
             $('#next').prop('disabled', false);
-            $('.path-last').removeClass('path-inactive');
             $('#packagexml').prop('disabled', false);
         } else {
             $('#next').prop('disabled', true);
-            $('.path-last').addClass('path-inactive');
             $('#packagexml').prop('disabled', true);
         }
         $("#deploystatus").hide();

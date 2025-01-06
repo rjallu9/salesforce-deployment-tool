@@ -9,9 +9,6 @@
 .dd-text-field {
     width:300px;
     height:30px;
-    font-family: var(--vscode-font-family);
-    font-weight: var(--vscode-font-weight);
-    font-size: var(--vscode-font-size);
     padding-left: 10px;
 }
 .dd-option-box {
@@ -66,12 +63,10 @@
     color: black;
     opacity: 1;
 }
-.vs-font {
-    font-family: var(--vscode-font-family);
-    font-weight: var(--vscode-font-weight);
-    font-size: var(--vscode-font-size);
+label {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 1em;
 }
-
 .path-list {				
     color:white;
     list-style: none;
