@@ -469,8 +469,8 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 						</div>					
 						<div id="tabs" style="margin-top:10px;">
 							<ul>
-								<li><a href="#available" class="available">Available (0)</a></li>
-								<li><a href="#selected" class="selected">Selected (0)</a></li>
+								<li class="tab" name="datatable"><a href="#available" class="available">Available (0)</a></li>
+								<li class="tab" name="selecteddatatable"><a href="#selected" class="selected">Selected (0)</a></li>
 							</ul>
 							<div id="available">
 								<table id="datatable" class="display" style="width:100%">
@@ -541,9 +541,9 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 						</div>
 						<div id="previewtabs" style="margin-top:10px;">
 							<ul>
-								<li><a href="#preview">Selected</a></li>
-								<li><a href="#deployerrors">Deployment Errors</a></li>
-								<li><a href="#testfailures">Test Class Failures</a></li>
+								<li class="tab" name="previewtable"><a href="#preview" class='preview'>Selected</a></li>
+								<li class="tab" name="errortable"><a href="#deployerrors" class='deployerrors'>Deployment Errors</a></li>
+								<li class="tab" name="testerrortable"><a href="#testfailures" class='testfailures'>Test Class Failures</a></li>
 							</ul>
 							<div id="preview">
 								<table id="previewtable" class="display" style="width:100%">

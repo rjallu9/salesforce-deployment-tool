@@ -357,6 +357,7 @@ $(document).ready(function () {
             $("#source-org").hide();
             $("#preview").show();
             $('#previewtable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
+            $('.preview').text('Selected ('+selectedComps.size+')');
             if($('#dest-org-field').val() === '') {
                 $('#deploy-buttons').hide();        
             }
@@ -504,12 +505,14 @@ $(document).ready(function () {
                 $("#progressbar").find(".ui-progressbar-value").css({"background": "#F28C28"});
                 $("#errortable_wrapper").show();
                 if(result.details.componentFailures.length > 0) {
+                    $('.deployerrors').text('Deployment Errors ('+result.details.componentFailures.size+')');
                     $('#errortable').DataTable().clear().rows.add(result.details.componentFailures).draw(); 
                 }
             } else if(result.status === "SucceededPartial") {
                 $("#progressbar").find(".ui-progressbar-value").css({"background": "#FFBF00"});
                 $("#errortable_wrapper").show();
                 if(result.details.componentFailures.length > 0) {
+                    $('.deployerrors').text('Deployment Errors ('+result.details.componentFailures.length+')');
                     $('#errortable').DataTable().clear().rows.add(result.details.componentFailures).draw(); 
                 }
             } else {
@@ -518,6 +521,7 @@ $(document).ready(function () {
 
             if(result.details.runTestResult.numFailures > 0) {
                 $("#testerrortable_wrapper").show();
+                $('.testfailures').text('Test Class Failures ('+result.details.runTestResult.numFailures+')');
                 $('#testerrortable').DataTable().clear().rows.add(result.details.runTestResult.failures).draw(); 
             }
             if(result.details.runTestResult.codeCoverageWarnings && result.status !== "Canceled ") {
@@ -601,6 +605,10 @@ $(document).ready(function () {
         $('.tab-link').removeClass('active');
         $('#'+e.currentTarget.name).show();
         $(e).addClass('active');
+    });
+
+    $(".tab").on('click', function (e) {
+        $('#'+e.currentTarget.attributes.name.value).DataTable().draw(); 
     });
 });
 
