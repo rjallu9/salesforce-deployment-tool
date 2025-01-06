@@ -1,0 +1,49 @@
+{
+  "name": "salesforce-deployment-tool",
+  "displayName": "Salesforce Deployment Tool",
+  "description": "",
+  "publisher": "RamuJallu",
+  "version": "0.0.1",
+  "icon": "logo.png",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "salesforce-deployment-tool.build",
+        "title": "Salesforce Deployment Tool"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test",
+    "package": "npm run compile && esbuild src/assets/index.js --minify --outfile=out/assets/index.js && esbuild src/assets/index.css --minify --outfile=out/assets/index.css && esbuild out/extension.js --minify --outfile=out/extension-min.js && vsce package",
+    "build": "npm run compile && xcopy .\\src\\assets .\\out\\assets /s /y" 
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.95.0",
+    "@typescript-eslint/eslint-plugin": "^8.17.0",
+    "@typescript-eslint/parser": "^8.17.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1",
+    "esbuild": "^0.24.2",
+    "eslint": "^9.16.0",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "xml2js": "^0.6.2"
+  }
+}

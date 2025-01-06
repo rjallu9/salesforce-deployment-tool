@@ -1,0 +1,84 @@
+.top-label {
+    display:flex;
+    padding-bottom:5px;
+}
+.form-panel {
+    display: flex;
+    gap: 10px;
+    padding-top: 20px;
+}
+.dd-text-field {
+    width:300px;
+    height:30px;
+    font-family: var(--vscode-font-family);
+    font-weight: var(--vscode-font-weight);
+    font-size: var(--vscode-font-size);
+    padding-left: 10px;
+}
+.dd-option-box {
+    background: white;
+    color: black;
+    border-radius: 0px;
+    position: absolute;
+    z-index: 1;
+    display: none;
+}
+.dd-options {
+    max-height: 400px;
+    overflow-y: scroll;
+    scrollbar-width: thin;
+}
+.dd-option {
+    padding: 5px 10px 5px 10px;
+    display:flex;
+}
+.dd-option:hover {
+    background-color: #f7f5f4;
+}
+.dd-option-fav {
+    margin-left: auto;
+    font-size: medium;
+    cursor: pointer;
+}
+.progress-label {
+    position: absolute;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-top:5px;
+}
+.ui-dialog-titlebar-close {
+    display: none;
+}
+.coverage-error {
+    border: 1px solid #dddddd;
+    background: #e7bc49;
+    color: #333333;
+    margin-top: 10px;
+    border-radius: 3px;
+    font-family: Arial, Helvetica, sans-serif;
+}
+.coverage-error-label {
+    margin: 8px;
+    display: flex;
+    justify-content: center;
+}
+
+table tbody tr .even{
+    background-color: #8882;
+}
+
+table tbody tr .odd{
+    background-color: #8881;
+} 
+
+table tbody tr:hover{
+    background-color: #8883;
+} 
+::-ms-input-placeholder {
+    color: black;
+}
+::placeholder {
+    color: black;
+    opacity: 1;
+  }
