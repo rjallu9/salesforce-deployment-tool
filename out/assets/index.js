@@ -101,7 +101,7 @@ $(document).ready(function () {
         ],
         rowCallback: function(row, data, dataIndex){
             if (selectedComps.has(data.type + "." + data.name)) {
-                $(row).css('background', '#4e94ce');     
+                $(row).css('background', 'lightgray');     
             } else {
                 $(row).css('background', '');     
             }
@@ -109,6 +109,23 @@ $(document).ready(function () {
         language: {
             emptyTable: 'No components are matched to the selected criteria',
             info: "Total: _TOTAL_ component(s) available"
+        }
+    });
+
+    $('#selecteddatatable').DataTable({
+        paging: false,
+        scrollY: '400px',
+        scrollCollapse: true, 
+        fixedColumns: true,
+        order: [[1, 'asc']],
+        columns: [
+            { data: 'type' },
+            { data: 'name' },            
+            { data: 'lastModifiedByName' },
+            { data: 'lastModifiedDate', "type": "date", width:'200px' }
+        ],
+        language: {
+            info: "Total: _TOTAL_ component(s)"
         }
     });
 
@@ -266,6 +283,7 @@ $(document).ready(function () {
         components = components.filter(cmp => new Date(cmp.lastModifiedDate).getTime() >= date.getTime() && 
                 cmp.manageableState === $(".state-field").val());
         $('#datatable').DataTable().clear().rows.add(components).draw();
+        $('.available').text('Available ('+components.length+')');
         if($('.all-row-chk').is(':checked')) {
             $('.all-row-chk').prop('checked', false);
         }        
@@ -275,7 +293,7 @@ $(document).ready(function () {
         let val = $(this).val();
         if ($(this).is(':checked')) {
             selectedComps.set(val, $('#datatable').DataTable().row($(this).closest('tr')).data());  
-            $(this).parent().parent().css('background', '#4e94ce');       
+            $(this).parent().parent().css('background', 'lightgray');       
         } else {
             selectedComps.delete(val);
             $(this).parent().parent().css('background', '');
@@ -283,12 +301,15 @@ $(document).ready(function () {
                 $('.all-row-chk').prop('checked', false);
             }
         } 
-        $('#total-components').text(selectedComps.size + ' component(s) selected');
+        $('.selected').text('Selected ('+selectedComps.size+')');
+        $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
         if(selectedComps.size > 0) {
             $('#next').prop('disabled', false);
+            $('.path-last').removeClass('path-inactive');
             $('#packagexml').prop('disabled', false);
         } else {
             $('#next').prop('disabled', true);
+            $('.path-last').addClass('path-inactive');
             $('#packagexml').prop('disabled', true);
         }
         $("#deploystatus").hide();

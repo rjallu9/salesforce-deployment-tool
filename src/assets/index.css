@@ -4,7 +4,7 @@
 }
 .form-panel {
     display: flex;
-    gap: 10px;
+    justify-content: space-between;
 }
 .dd-text-field {
     width:300px;
@@ -70,4 +70,52 @@
     font-family: var(--vscode-font-family);
     font-weight: var(--vscode-font-weight);
     font-size: var(--vscode-font-size);
+}
+
+.path-list {				
+    color:white;
+    list-style: none;
+    padding: 0px;
+    display:flex;
+}
+.path {
+    background-color: #50C878;
+    height: 2rem;
+    position: relative;
+    flex:1;
+    margin-left:.375rem;
+    margin-right:.4375rem;
+    justify-content: space-around;
+    align-items: center;
+    display:flex;
+}
+.path:before {
+    top:0;
+    height:1rem;
+    transform:skew(28deg) translate3d(0,0,0);
+}
+.path:before, .path:after {
+    content:'';
+    position:absolute;
+    left:-.25rem;
+    right:-.3125rem;
+    background-color: #50C878;
+}
+.path:after {
+    bottom:0;
+    height:1rem;
+    transform:skew(-30deg) translate3d(0,0,0);
+}			
+.path-first:before, .path-first:after {
+    left:1.125rem !important;
+}
+.path-last:before, .path-last:after {
+    right:.625rem !important;
+}
+.path-inactive {
+    background-color: lightgray;
+    cursor: not-allowed !important;
+}
+.path-inactive:after, .path-inactive:before {
+    background-color: lightgray;
 }

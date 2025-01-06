@@ -47,7 +47,7 @@ const fs = require('fs');
 function activate(context) {
     const disposable = vscode.commands.registerCommand('salesforce-deployment-tool.build', () => {
         const panel = vscode.window.createWebviewPanel('packageBuilder', 'Salesforce Deployment Tool', vscode.ViewColumn.One, { enableScripts: true });
-        const scriptPath = vscode.Uri.file(path.join(context.extensionPath, 'src', 'assets/index.js'));
+        const scriptPath = vscode.Uri.file(path.join(context.extensionPath, 'out', 'assets/index.js'));
         const scriptUri = panel.webview.asWebviewUri(scriptPath);
         const cssPath = vscode.Uri.file(path.join(context.extensionPath, 'out', 'assets/index.css'));
         const cssUri = panel.webview.asWebviewUri(cssPath);
@@ -419,6 +419,14 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 			<body>	
 				<div style="margin: 20px;">
 					<h1>Salesforce Deployment Tool</h1>
+					<ul class="path-list">
+						<li class="path path-first" style="border-top-left-radius: 1rem;border-bottom-left-radius: 1rem;cursor: pointer;">
+							<p style="position: relative;z-index: 5;">Home</p>
+						</li>
+						<li class="path path-last path-inactive" style="border-top-right-radius: 1rem;border-bottom-right-radius: 1rem;cursor: pointer;">
+							<p style="position: relative;z-index: 5;">Preview</p>
+						</li>
+					</ul>
 					<div id="source-org" style="float:left;margin-right:5px">	
 						<label for="text" for="source-org-field" class="top-label vs-font">Source Org: </label>
 						<select type="text" class="source-org-field vs-font" id="source-org-field" style="height:36px;width:350px;">
@@ -427,38 +435,52 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 					<div id="selection" style="display:none">
 						<div class="form-panel">
 							<div>
-								<div>	
-									<label for="text" for="dd-text-field" class="top-label">Type: </label>
-									<input type="text" class="dd-text-field" id="dd-text-field"></input>								
-									<span style="margin-left:-20px;pointer-events: none;color: #888;">▼</span>
-								</div>
-								<div class="dd-option-box">
-									<div style="padding:5px 10px 5px 10px;">
-										<input type="checkbox" value="All" class="dd-select-all">
-										<label for="select-all">All</label>
+								<div style="float:left;" >
+									<div>	
+										<label for="text" for="dd-text-field" class="top-label">Type: </label>
+										<input type="text" class="dd-text-field" id="dd-text-field"></input>								
+										<span style="margin-left:-20px;pointer-events: none;color: #888;">▼</span>
 									</div>
-									<div class="dd-options">
-										<ui style="list-style-type: none;">                       
-										</ui>
+									<div class="dd-option-box">
+										<div style="padding:5px 10px 5px 10px;">
+											<input type="checkbox" value="All" class="dd-select-all">
+											<label for="select-all">All</label>
+										</div>
+										<div class="dd-options">
+											<ui style="list-style-type: none;">                       
+											</ui>
+										</div>
 									</div>
 								</div>
+								<div style="float:left;padding-left:10px;">	
+									<label for="text" for="date-field" class="top-label">Modified-Since: </label>
+									<input type="text" class="date-field vs-font" id="date-field" style="height:30px;" readonly></input>		
+								</div>
+								<div style="float:left;padding-left:5px;">	
+									<label for="text" for="state-field" class="top-label">State: </label>
+									<select type="text" class="state-field vs-font" id="state-field" style="height:36px;">
+										<option value="unmanaged">Unmanaged</option>
+										<option value="installed">Installed</option>
+									</select>		
+								</div>
 							</div>
-							<div>	
-								<label for="text" for="date-field" class="top-label">Modified-Since: </label>
-								<input type="text" class="date-field vs-font" id="date-field" style="height:30px;" readonly></input>		
+							<div style="margin-top:22px;">
+								<div style="float:left;" >
+									<p style="color:#f14c4c;" id="errors"></p>
+								</div>
+								<button type="button" style="padding: 7px; width: 75px;float:right;" class="vs-font" id="next" disabled>Next</button>
+								<button type="button" style="padding: 7px; width:100px;float:right;margin-right:5px" id="packagexml" class="vs-font" disabled>Package.xml</button>
 							</div>
-							<div>	
-								<label for="text" for="state-field" class="top-label">State: </label>
-								<select type="text" class="state-field vs-font" id="state-field" style="height:36px;">
-									<option value="unmanaged">Unmanaged</option>
-									<option value="installed">Installed</option>
-								</select>		
-							</div>
-						</div>
+						</div>	
+						<div style="margin-top:10px;">
+							<div style="float:left;" >
+								<p style="color:#f14c4c;" id="errors"></p>
+							</div>								
+						</div>					
 						<div id="tabs" style="margin-top:10px;">
 							<ul>
-								<li><a href="#available">Available</a></li>
-								<li><a href="#selected">Selected</a></li>
+								<li><a href="#available" class="available">Available (0)</a></li>
+								<li><a href="#selected" class="selected">Selected (0)</a></li>
 							</ul>
 							<div id="available">
 								<table id="datatable" class="display" style="width:100%">
@@ -473,26 +495,30 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 									</thead>
 								</table>
 							</div>
-						</div>						
-						<div style="margin-top:10px;">
-							<div style="float:left;" >
-								<p id="total-components">0 Components selected</p>
-								<p style="color:#f14c4c;" id="errors"></p>
+							<div id="selected">
+								<table id="selecteddatatable" class="display" style="width:100%">
+									<thead>
+										<tr>	
+											<th>Type</th>
+											<th>Name</th>
+											<th>Last Modified By</th>
+											<th>Last Modified Date</th>
+										</tr>
+									</thead>
+								</table>
 							</div>
-							<button type="button" style="padding: 7px; width: 75px;float:right;" class="vs-font" id="next" disabled>Next</button>
-							<button type="button" style="padding: 7px; width:100px;float:right;margin-right:5px" id="packagexml" class="vs-font" disabled>Package.xml</button>
-						</div>						
+						</div>							
 					</div>
 					<div id="preview" style="display:none">
-						<div style="display:flex;justify-content:space-between;">
-							<div>	
+						<div style="display:flex;">
+							<div style="flex:1">	
 								<label for="text" for="dest-org-field" class="top-label">Destination Org: </label>
 								<select type="text" class="dest-org-field" id="dest-org-field" style="height:36px;width:300px;">
 								</select>		
 							</div>
-							<div id="deploy-buttons">						
-								<button type="button" style="padding: 7px; width: 75px;float:right;margin-top:22px;" id="deploy">Deploy</button>
-								<button type="button" style="padding: 7px; width: 75px;float:right;margin-top:22px;" id="validate">Validate</button>	
+							<div id="deploy-buttons">													
+								<button type="button" style="padding: 7px; width: 75px;float:right;margin-top:22px;margin-left: 5px;" id="deploy">Deploy</button>
+								<button type="button" style="padding: 7px; width: 75px;float:right;margin-top:22px;margin-left: 5px;" id="validate">Validate</button>	
 								<div style="float:right;">
 									<label for="text" for="testoption-field" class="top-label">Test Options:&nbsp;&nbsp;
 										<a href="#" id="view-classes" style="display:none">Classes</a>
@@ -504,7 +530,10 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 										<option value="RunSpecifiedTests">Run specified tests</option>
 									</select>	
 								</div>
-							</div>
+							</div>							
+							<div style="margin-left: 5px;">
+								<button type="button" style="padding: 7px; width: 75px;margin-top:22px;" id="previous">Back</button>							
+							</div>	
 						</div>
 						<div id="deploystatus">
 							<p>Deployment Status: &nbsp;&nbsp; 
@@ -562,10 +591,7 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 									</thead>
 								</table>
 							</div>
-						</div>	
-						<div style="padding-top: 10px;">
-							<button type="button" style="padding: 7px; width: 75px;margin-top:22px;" id="previous">Previous</button>							
-						</div>	
+						</div>							
 					</div>
 				</div>
 			</body>
