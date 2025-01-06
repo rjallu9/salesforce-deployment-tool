@@ -47,7 +47,7 @@ const fs = require('fs');
 function activate(context) {
     const disposable = vscode.commands.registerCommand('salesforce-deployment-tool.build', () => {
         const panel = vscode.window.createWebviewPanel('packageBuilder', 'Salesforce Deployment Tool', vscode.ViewColumn.One, { enableScripts: true });
-        const scriptPath = vscode.Uri.file(path.join(context.extensionPath, 'out', 'assets/index.js'));
+        const scriptPath = vscode.Uri.file(path.join(context.extensionPath, 'src', 'assets/index.js'));
         const scriptUri = panel.webview.asWebviewUri(scriptPath);
         const cssPath = vscode.Uri.file(path.join(context.extensionPath, 'out', 'assets/index.css'));
         const cssUri = panel.webview.asWebviewUri(cssPath);
@@ -69,10 +69,12 @@ function activate(context) {
                                 resolve(null);
                                 return;
                             });
-                            for (let i = 1; i < 90; i++) {
+                            let countr = 90;
+                            for (let i = 1; i < countr; i++) {
                                 progress.report({ increment: 1, message: `Loading Authorized Orgs...` });
                                 await new Promise((resolve) => { setTimeout(resolve, 1000); });
                                 getAuthOrgs().then((result) => {
+                                    countr = 0;
                                     token.cancel();
                                     orgsList = result;
                                     panel.webview.postMessage({ command: 'orgsList', orgs: result });
@@ -453,18 +455,26 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 								</select>		
 							</div>
 						</div>
-						<table id="datatable" class="display" style="width:100%">
-							<thead>
-								<tr>
-									<th><input type="checkbox" id="all-row-chk" class='all-row-chk'/></th>	
-									<th>Name</th>
-									<th>Type</th>
-									<th>Last Modified By</th>
-									<th>Last Modified Date</th>
-								</tr>
-							</thead>
-						</table>
-						<div style="">
+						<div id="tabs" style="margin-top:10px;">
+							<ul>
+								<li><a href="#available">Available</a></li>
+								<li><a href="#selected">Selected</a></li>
+							</ul>
+							<div id="available">
+								<table id="datatable" class="display" style="width:100%">
+									<thead>
+										<tr>
+											<th><input type="checkbox" id="all-row-chk" class='all-row-chk'/></th>	
+											<th>Name</th>
+											<th>Type</th>
+											<th>Last Modified By</th>
+											<th>Last Modified Date</th>
+										</tr>
+									</thead>
+								</table>
+							</div>
+						</div>						
+						<div style="margin-top:10px;">
 							<div style="float:left;" >
 								<p id="total-components">0 Components selected</p>
 								<p style="color:#f14c4c;" id="errors"></p>
@@ -474,23 +484,12 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 						</div>						
 					</div>
 					<div id="preview" style="display:none">
-						<div>	
-							<label for="text" for="dest-org-field" class="top-label">Destination Org: </label>
-							<select type="text" class="dest-org-field" id="dest-org-field" style="height:36px;width:300px;">
-							</select>		
-						</div>
-						<table id="previewtable" class="display" style="width:100%">
-							<thead>
-								<tr>	
-									<th>Type</th>
-									<th>Name</th>
-									<th>Last Modified By</th>
-									<th>Last Modified Date</th>
-								</tr>
-							</thead>
-						</table>
-						<div style="padding-top: 10px;display:flex;justify-content:space-between;">
-							<button type="button" style="padding: 7px; width: 75px;margin-top:22px;" id="previous">Previous</button>
+						<div style="display:flex;justify-content:space-between;">
+							<div>	
+								<label for="text" for="dest-org-field" class="top-label">Destination Org: </label>
+								<select type="text" class="dest-org-field" id="dest-org-field" style="height:36px;width:300px;">
+								</select>		
+							</div>
 							<div id="deploy-buttons">						
 								<button type="button" style="padding: 7px; width: 75px;float:right;margin-top:22px;" id="deploy">Deploy</button>
 								<button type="button" style="padding: 7px; width: 75px;float:right;margin-top:22px;" id="validate">Validate</button>	
@@ -504,9 +503,9 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 										<option value="RunAllTestsInOrg">Run all tests</option>
 										<option value="RunSpecifiedTests">Run specified tests</option>
 									</select>	
+								</div>
 							</div>
-							</div>
-						</div>						
+						</div>
 						<div id="deploystatus">
 							<p>Deployment Status: &nbsp;&nbsp; 
 								<a href="#" id="quick-deploy" style="display:none">Quick Deploy</a>
@@ -514,26 +513,6 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 							</p>
 							<div id="progressbar"><div class="progress-label"></div></div>
 							<div class="coverage-error"><p class="coverage-error-label"></p></div>
-							<table id="errortable">
-								<thead>
-									<tr>	
-										<th>API Name</th>
-										<th>Type</th>
-										<th>Line</th>
-										<th>Column</th>
-										<th>Error Message</th>
-									</tr>
-								</thead>
-							</table>
-							<table id="testerrortable">
-								<thead>
-									<tr>	
-										<th>Class Name</th>
-										<th>Method Name</th>
-										<th>Error Message</th>
-									</tr>
-								</thead>
-							</table>
 							<div id="test-classes-dialog" title="Test Classes">
 								<p>Provide the names of the test classes in a comma-seprated list.</p>
 								<textarea id="test-classes" name="test-classes" rows="15" cols="35">
@@ -541,6 +520,52 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 								<button type="button" style="padding:2px; width:50px;float:right;" id="save-classes">Save</button>
 							</div>
 						</div>
+						<div id="previewtabs" style="margin-top:10px;">
+							<ul>
+								<li><a href="#preview">Selected</a></li>
+								<li><a href="#deployerrors">Deployment Errors</a></li>
+								<li><a href="#testfailures">Test Class Failures</a></li>
+							</ul>
+							<div id="preview">
+								<table id="previewtable" class="display" style="width:100%">
+									<thead>
+										<tr>	
+											<th>Type</th>
+											<th>Name</th>
+											<th>Last Modified By</th>
+											<th>Last Modified Date</th>
+										</tr>
+									</thead>
+								</table>
+							</div>
+							<div id="deployerrors">
+								<table id="errortable">
+									<thead>
+										<tr>	
+											<th>API Name</th>
+											<th>Type</th>
+											<th>Line</th>
+											<th>Column</th>
+											<th>Error Message</th>
+										</tr>
+									</thead>
+								</table>
+							</div>
+							<div id="testfailures">
+								<table id="testerrortable">
+									<thead>
+										<tr>	
+											<th>Class Name</th>
+											<th>Method Name</th>
+											<th>Error Message</th>
+										</tr>
+									</thead>
+								</table>
+							</div>
+						</div>	
+						<div style="padding-top: 10px;">
+							<button type="button" style="padding: 7px; width: 75px;margin-top:22px;" id="previous">Previous</button>							
+						</div>	
 					</div>
 				</div>
 			</body>

@@ -59,18 +59,6 @@
     display: flex;
     justify-content: center;
 }
-
-table tbody tr .even{
-    background-color: #8882;
-}
-
-table tbody tr .odd{
-    background-color: #8881;
-} 
-
-table tbody tr:hover{
-    background-color: #8883;
-} 
 ::-ms-input-placeholder {
     color: black;
 }

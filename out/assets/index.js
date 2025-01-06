@@ -69,6 +69,9 @@ $(document).ready(function () {
         }       
     });
 
+    $("#tabs").tabs();
+    $("#previewtabs").tabs();
+
     $('#datatable').DataTable({
         paging: false,
         /*searching: false,*/
@@ -570,6 +573,13 @@ $(document).ready(function () {
 
     $("#cancel-deploy").on('click', function (e) {
         vscode.postMessage({ command: 'cancelDeploy'});        
+    });
+
+    $(".tab-link").on('click', function (e) {
+        $('.tab-content').hide();
+        $('.tab-link').removeClass('active');
+        $('#'+e.currentTarget.name).show();
+        $(e).addClass('active');
     });
 });
 

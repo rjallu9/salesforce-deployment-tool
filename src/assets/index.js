@@ -69,6 +69,9 @@ $(document).ready(function () {
         }       
     });
 
+    $("#tabs").tabs();
+    $("#previewtabs").tabs();
+
     $('#datatable').DataTable({
         paging: false,
         /*searching: false,*/
@@ -98,7 +101,7 @@ $(document).ready(function () {
         ],
         rowCallback: function(row, data, dataIndex){
             if (selectedComps.has(data.type + "." + data.name)) {
-                $(row).css('background', '#4e94ce');     
+                $(row).css('background', 'lightgray');     
             } else {
                 $(row).css('background', '');     
             }
@@ -272,7 +275,7 @@ $(document).ready(function () {
         let val = $(this).val();
         if ($(this).is(':checked')) {
             selectedComps.set(val, $('#datatable').DataTable().row($(this).closest('tr')).data());  
-            $(this).parent().parent().css('background', '#4e94ce');       
+            $(this).parent().parent().css('background', 'lightgray');       
         } else {
             selectedComps.delete(val);
             $(this).parent().parent().css('background', '');
@@ -570,6 +573,13 @@ $(document).ready(function () {
 
     $("#cancel-deploy").on('click', function (e) {
         vscode.postMessage({ command: 'cancelDeploy'});        
+    });
+
+    $(".tab-link").on('click', function (e) {
+        $('.tab-content').hide();
+        $('.tab-link').removeClass('active');
+        $('#'+e.currentTarget.name).show();
+        $(e).addClass('active');
     });
 });
 
