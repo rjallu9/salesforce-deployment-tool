@@ -409,14 +409,7 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 			<body>	
 				<div style="margin: 20px;">
 					<h1>Salesforce Deployment Tool</h1>
-					<ul class="path-list">
-						<li class="path path-first" style="border-top-left-radius: 1rem;border-bottom-left-radius: 1rem;cursor: pointer;">
-							<p style="position: relative;z-index: 5;">Home</p>
-						</li>
-						<li class="path path-last path-inactive" style="border-top-right-radius: 1rem;border-bottom-right-radius: 1rem;cursor: pointer;">
-							<p style="position: relative;z-index: 5;">Preview</p>
-						</li>
-					</ul>
+					
 					<div id="source-org" style="float:left;margin-right:5px">	
 						<label for="text" for="source-org-field" class="top-label vs-font">Source Org: </label>
 						<select type="text" class="source-org-field vs-font" id="source-org-field" style="height:36px;width:350px;">
