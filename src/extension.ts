@@ -34,10 +34,29 @@ export function activate(context: vscode.ExtensionContext) {
 			panel.webview.onDidReceiveMessage((message) => {
 				switch (message.command) {
 					case 'getAuthOrgs':
-						getAuthOrgs().then((result:any) => {	
-							orgsList = result;		
-							panel.webview.postMessage({command: 'orgsList', orgs: result});				
+						vscode.window.withProgress({
+							location: vscode.ProgressLocation.Notification,
+							cancellable: false
+						}, async (progress) => {
+							return new Promise((async (resolve) => {	
+								let token = new vscode.CancellationTokenSource();
+								token.token.onCancellationRequested(() => {
+									token?.dispose();
+									resolve(null);
+									return;
+								});
+								for(let i=1; i<90; i++) {
+									progress.report({ increment:1, message: `Loading Authorized Orgs...` });
+									await new Promise((resolve) => {setTimeout(resolve, 1000);});
+									getAuthOrgs().then((result:any) => {	
+										token.cancel();
+										orgsList = result;		
+										panel.webview.postMessage({command: 'orgsList', orgs: result});				
+									});
+								}
+							}));
 						});
+						
 						break;
 					case 'loadTypes':
 						var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);		
@@ -49,7 +68,7 @@ export function activate(context: vscode.ExtensionContext) {
 					case 'loadComponents':
 						if(message.type) {
 							var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);
-							vscode.window.showInformationMessage(`Loading: ${message.type}`);	
+							//vscode.window.showInformationMessage(`Loading: ${message.type}`);	
 							getComponents(sourceOrg.accessToken, sourceOrg.instanceUrl, message.type)
 							.then((data) => {
 								panel.webview.postMessage({ command: 'components', components: data, type: message.type });
