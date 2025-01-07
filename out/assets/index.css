@@ -80,7 +80,6 @@ label {
     flex:1;
     margin-left:.375rem;
     margin-right:.4375rem;
-    justify-content: space-around;
     align-items: center;
     display:flex;
 }
@@ -100,17 +99,47 @@ label {
     bottom:0;
     height:1rem;
     transform:skew(-30deg) translate3d(0,0,0);
+}
+.path:first-child {
+    border-top-left-radius: 1rem;border-bottom-left-radius: 1rem;
+}
+.path:last-child {
+    border-top-right-radius: 1rem;border-bottom-right-radius: 1rem;
 }			
-.path-first:before, .path-first:after {
+.path:first-child:before, .path:first-child:after {
     left:1.125rem !important;
 }
-.path-last:before, .path-last:after {
+.path:last-child:before, .path:last-child:after {
     right:.625rem !important;
 }
-.path-inactive {
-    background-color: lightgray;
-    cursor: not-allowed !important;
+.path-running, .path-running:after, .path-running:before {
+    background-color: #F28C28;
 }
-.path-inactive:after, .path-inactive:before {
-    background-color: lightgray;
+.path-notstarted, .path-notstarted:after, .path-notstarted:before {
+    background-color: #888785;
+}
+.path-partial, .path-partial:after, .path-partial:before {
+    background-color: #FFBF00;
+}
+.path-failed, .path-failed:after, .path-failed:before {
+    background-color: #7c0404;
+}
+.path p {
+    position:relative;
+    z-index:5;
+    left: 50%;
+}
+.path-running span::after {
+    content: ".";
+    animation: dots 1.5s steps(4, end) infinite;
+}
+@keyframes dots {
+    0% { content: "."; }
+    25% { content: ".."; }
+    50% { content: "..."; }
+    75% { content: "...."; }
+    100% { content: ""; }
+}
+.ui-progressbar-value {
+    background: #121ec7;
 }

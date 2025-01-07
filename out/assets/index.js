@@ -18,6 +18,7 @@ $(document).ready(function () {
     window.addEventListener('message', (event) => {
         if(event.data.command === 'orgsList') {
             orgs = event.data.orgs; 
+            $(".init").hide();
             loadSourceOrgs();
         } else if(event.data.command === 'types') {
             types = event.data.types;   
@@ -52,7 +53,8 @@ $(document).ready(function () {
         $('#next').prop('disabled', true);
         $('#packagexml').prop('disabled', true);
         $('#errors').text('');
-        $('#total-components').text(selectedComps.size + ' component(s) selected');
+        $('.selected').text('Selected (0)');
+        $('#selecteddatatable').DataTable().clear().draw(); 
 
         $("#selection").hide(); 
         if($('#source-org-field').val() !== '') {
@@ -311,6 +313,10 @@ $(document).ready(function () {
             $('#packagexml').prop('disabled', true);
         }
         $("#deploystatus").hide();
+        $('.deployerrors').text('Deployment Errors (0)');
+        $('#errortable').DataTable().clear().draw(); 
+        $('.testfailures').text('Test Class Failures (0)');
+        $('#testerrortable').DataTable().clear().draw(); 
     });
 
     $('.all-row-chk').on('change', function() {
@@ -376,6 +382,10 @@ $(document).ready(function () {
 
     $('#dest-org-field').on("change", function(e){
         $("#deploystatus").hide(); 
+        $('.deployerrors').text('Deployment Errors (0)');
+        $('#errortable').DataTable().clear().draw(); 
+        $('.testfailures').text('Test Class Failures (0)');
+        $('#testerrortable').DataTable().clear().draw(); 
         if($('#dest-org-field').val() === '') {
             $('#deploy-buttons').hide();        
         } else {
@@ -439,6 +449,11 @@ $(document).ready(function () {
         $("#deploystatus").show();
         $("#deploy-buttons").hide();
         $("#dest-org-field").prop('disabled', true);
+
+        $('.path-list').empty();
+        $('.path-list').append('<li class="path path-notstarted retrieve"><p>Retrieve<span/></p></li>');
+        $('.path-list').append('<li class="path path-notstarted deployment"><p>'+(checkOnly ? 'Validation' : 'Deployment')+'<span/></p></li>');
+        $('.path-list').append('<li class="path path-notstarted testclasses"><p>Test Classes<span/></p></li>');  
     }
 
     function getPackageXml() {
@@ -466,8 +481,10 @@ $(document).ready(function () {
     $("#progressbar").progressbar({"value": 0}); 
 
     function updateDeploymentStatus(result) {
-        $("#errortable_wrapper").hide();
-        $("#testerrortable_wrapper").hide();
+        $('.deployerrors').text('Deployment Errors (0)');
+        $('#errortable').DataTable().clear().draw(); 
+        $('.testfailures').text('Test Class Failures (0)');
+        $('#testerrortable').DataTable().clear().draw(); 
         $(".coverage-error").hide();
         $("#quick-deploy").hide();
         $("#cancel-deploy").show();
@@ -477,72 +494,78 @@ $(document).ready(function () {
             let total = Number(result.numberComponentsTotal);
             let completed = Number(result.numberComponentsDeployed);
             let errors = Number(result.numberComponentErrors);
-            $("#progressbar").progressbar({"value": (completed + errors) / total*100});  
+            //$("#progressbar").progressbar({"value": (completed + errors) / total*100});  
             
             let progressLabel = (result.checkOnly === 'true' ? "Validation" : "Deployment") + " "+ result.status;
             progressLabel += " ("+ (completed + errors) + "/" + total + ")";
             if(errors > 0) {
                 progressLabel += " - Errors("+errors+")";
             }
-            if(result.numberTestsTotal > 0) {
-                let totaltcs = Number(result.numberTestsTotal);
-                let completedtcs = Number(result.numberTestsCompleted);
-                let errorstcs = Number(result.numberTestErrors);
-                $("#progressbar").progressbar({"value": (completedtcs + errorstcs) / totaltcs*100});
-                progressLabel += (((completedtcs + errorstcs) === totaltcs) ? " - [Completed" : " - [Running")+" Tests ("+ (completedtcs + errorstcs) + "/" + totaltcs + ")";
-                if(errorstcs > 0) {
-                    progressLabel += " - Failures("+errorstcs+")]";
-                } else {
-                    progressLabel += "]";
-                }
-            }
 
-            $(".progress-label").text(progressLabel);
-
-            if(result.status === "Failed") {
-                $("#progressbar").find(".ui-progressbar-value").css({"background": "#F28C28"});
-                $("#errortable_wrapper").show();
-                if(result.details.componentFailures.length > 0) {
-                    $('.deployerrors').text('Deployment Errors ('+result.details.componentFailures.size+')');
-                    $('#errortable').DataTable().clear().rows.add(result.details.componentFailures).draw(); 
-                }
-            } else if(result.status === "SucceededPartial") {
-                $("#progressbar").find(".ui-progressbar-value").css({"background": "#FFBF00"});
-                $("#errortable_wrapper").show();
-                if(result.details.componentFailures.length > 0) {
-                    $('.deployerrors').text('Deployment Errors ('+result.details.componentFailures.length+')');
-                    $('#errortable').DataTable().clear().rows.add(result.details.componentFailures).draw(); 
-                }
-            } else {
-                $("#progressbar").find(".ui-progressbar-value").css({"background": "#50C878"});                
-            }
-
-            if(result.details.runTestResult.numFailures > 0) {
-                $("#testerrortable_wrapper").show();
-                $('.testfailures').text('Test Class Failures ('+result.details.runTestResult.numFailures+')');
-                $('#testerrortable').DataTable().clear().rows.add(result.details.runTestResult.failures).draw(); 
-            }
-            if(result.details.runTestResult.codeCoverageWarnings && result.status !== "Canceled ") {
-                $(".coverage-error").show();
-                $(".coverage-error-label").text(result.details.runTestResult.codeCoverageWarnings.message);
-            }
+            $($(".deployment")[0].childNodes[0]).text(progressLabel);
+            $($(".deployment")[0].childNodes[0]).append('<span/>');
 
             if(result.done === 'true') {
                 $("#deploy-buttons").show();
                 $("#dest-org-field").prop('disabled', false);
+                $("#cancel-deploy").hide();
                 if(result.checkOnly === 'true' && result.status === 'Succeeded' && result.runTestsEnabled === 'true') {
                     quickdeployId = result.id;
                     $("#quick-deploy").show();
+                }  
+                if(result.status === "Succeeded") {
+                    $(".deployment").removeClass("path-running");
+                } else if(result.status === "SucceededPartial") {
+                    $(".deployment").removeClass("path-running").addClass("path-partial");
+                }  else if(result.status === "Failed") {
+                    $(".deployment").removeClass("path-running").addClass("path-failed");
+                } 
+                if(result.details?.componentFailures?.length > 0) {
+                    $('.deployerrors').text('Deployment Errors ('+result.details.componentFailures.length+')');
+                    $('#errortable').DataTable().clear().rows.add(result.details.componentFailures).draw(); 
+                } else if(result.details?.runTestResult?.numFailures > 0) {
+                    $('.testfailures').text('Test Class Failures ('+result.details.runTestResult.numFailures+')');
+                    $('#testerrortable').DataTable().clear().rows.add(result.details.runTestResult.failures).draw(); 
+                }    
+                if(result.details?.runTestResult?.codeCoverageWarnings && result.status !== "Canceled ") {
+                    $(".coverage-error").show();
+                    $(".coverage-error-label").text(result.details.runTestResult.codeCoverageWarnings.message);
+                }         
+            } else {
+                if(result.status === "Canceling") {
+                    $("#cancel-deploy").hide();
                 }
-                $("#cancel-deploy").hide();
             }
-            if(result.status === "Canceling") {
-                $("#cancel-deploy").hide();
+
+            if(result.numberTestsTotal > 0) {
+                let totaltcs = Number(result.numberTestsTotal);
+                let completedtcs = Number(result.numberTestsCompleted);
+                let errorstcs = Number(result.numberTestErrors);                    
+                let processtcs = completedtcs + errorstcs;
+                if(processtcs === totaltcs) {
+                    $($(".testclasses")[0].childNodes[0]).text("Completed Tests ("+processtcs+ "/" + totaltcs + ") "+(errorstcs > 0 ? "- Failures("+errorstcs+")" : ""));
+                    $(".testclasses").removeClass("path-running");
+                    if(errorstcs > 0) {
+                        $(".testclasses").addClass("path-failed");
+                    }
+                } else {
+                    $($(".testclasses")[0].childNodes[0]).text("Running Tests ("+processtcs+ "/" + totaltcs + ") "+(errorstcs > 0 ? "- Failures("+errorstcs+")" : ""));
+                    $($(".testclasses")[0].childNodes[0]).append('<span/>');
+                    $(".testclasses").removeClass("path-notstarted").addClass("path-running");
+                }
             }
         } else {
-            $("#progressbar").progressbar({"value": 100});            
-            $("#progressbar").find(".ui-progressbar-value").css({"background": "#50C878"});
-            $(".progress-label").text(result.message);            
+            $("#progressbar").progressbar({"value": 100});                        
+            if(result.stage === "retrieve") {
+                $(".retrieve").removeClass("path-notstarted").addClass("path-running");
+                $($(".retrieve")[0].childNodes[0]).text('Retrieve InProgress');
+                $($(".retrieve")[0].childNodes[0]).append('<span/>');
+            } else if(result.stage === "retrieveCompleted") {
+                $(".retrieve").removeClass("path-running");
+                $($(".retrieve")[0].childNodes[0]).text('Retrieve Completed');
+            } else if(result.stage === "deployment") {
+                $(".deployment").removeClass("path-notstarted").addClass("path-running");
+            }
         } 
     }   
 

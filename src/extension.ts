@@ -15,11 +15,11 @@ export function activate(context: vscode.ExtensionContext) {
 				{ enableScripts: true }
 			);
 			const scriptPath = vscode.Uri.file(
-				path.join(context.extensionPath, 'out', 'assets/index.js')
+				path.join(context.extensionPath, 'src', 'assets/index.js')
 			);
 			const scriptUri = panel.webview.asWebviewUri(scriptPath);
 			const cssPath = vscode.Uri.file(
-				path.join(context.extensionPath, 'out', 'assets/index.css')
+				path.join(context.extensionPath, 'src', 'assets/index.css')
 			);
 			const cssUri = panel.webview.asWebviewUri(cssPath);
 
@@ -34,31 +34,10 @@ export function activate(context: vscode.ExtensionContext) {
 			panel.webview.onDidReceiveMessage((message) => {
 				switch (message.command) {
 					case 'getAuthOrgs':
-						vscode.window.withProgress({
-							location: vscode.ProgressLocation.Notification,
-							cancellable: false
-						}, async (progress) => {
-							return new Promise((async (resolve) => {	
-								let token = new vscode.CancellationTokenSource();
-								token.token.onCancellationRequested(() => {
-									token?.dispose();
-									resolve(null);
-									return;
-								});
-								let countr = 90;
-								for(let i=1; i<countr; i++) {
-									progress.report({ increment:1, message: `Loading Authorized Orgs...` });
-									await new Promise((resolve) => {setTimeout(resolve, 1000);});
-									getAuthOrgs().then((result:any) => {
-										countr = 0;	
-										token.cancel();
-										orgsList = result;		
-										panel.webview.postMessage({command: 'orgsList', orgs: result});				
-									});
-								}
-							}));
-						});
-						
+						getAuthOrgs().then((result:any) => {
+							orgsList = result;		
+							panel.webview.postMessage({command: 'orgsList', orgs: result});				
+						});						
 						break;
 					case 'loadTypes':
 						var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);		
@@ -91,12 +70,12 @@ export function activate(context: vscode.ExtensionContext) {
 						var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);		
 						var destOrg = orgsList.find((org:any) => org.orgId === message.destOrgId);													
 						retrieve(sourceOrg.accessToken, sourceOrg.instanceUrl, message.packagexml).then((result:any) => {	
-							panel.webview.postMessage({ command: 'deployStatus', result: {stage:"retrieveStatus", message: 'Retrieve components Inprogress'}});	
+							panel.webview.postMessage({ command: 'deployStatus', result: {stage:"retrieve", message: 'Retrieve components Inprogress'}});	
 							let retrieveJobId = result;
 							let intervalId = setInterval(() => {
 								retrieveStatus(sourceOrg.accessToken, sourceOrg.instanceUrl, retrieveJobId).then((result:any) => {	
 									if(result.done	=== 'true') {
-										panel.webview.postMessage({ command: 'deployStatus', result: {stage:"retrieveStatus", message: 'Retrieve components Completed'}});
+										panel.webview.postMessage({ command: 'deployStatus', result: {stage:"retrieveCompleted", message: 'Retrieve components Completed'}});
 										clearInterval(intervalId);
 										if(!isCancelDeploy) {
 											panel.webview.postMessage({ command: 'deployStatus', result: {stage:"deployment", 
@@ -415,6 +394,7 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 						<select type="text" class="source-org-field" id="source-org-field" style="height:36px;width:350px;">
 						</select>		
 					</div>
+					<div class='init'><p style="padding-top: 27px;">Loading Authorized Orgs<span class="loading"></span></p></div>
 					<div id="selection" style="display:none">
 						<div class="form-panel">
 							<div>
@@ -523,7 +503,9 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 								<a href="#" id="quick-deploy" style="display:none">Quick Deploy</a>
 								<a href="#" id="cancel-deploy">Cancel Deployment</a>
 							</p>
-							<div id="progressbar"><div class="progress-label"></div></div>
+							<ul class="path-list">
+							</ul>							
+							<div id="progressbar" style="height:2px;border:none;"></div>
 							<div class="coverage-error"><p class="coverage-error-label"></p></div>
 							<div id="test-classes-dialog" title="Test Classes">
 								<p>Provide the names of the test classes in a comma-seprated list.</p>
