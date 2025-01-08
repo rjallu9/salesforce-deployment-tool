@@ -123,7 +123,7 @@ label {
     background-color: #FFBF00;
 }
 .path-failed, .path-failed:after, .path-failed:before {
-    background-color: #7c0404;
+    background-color:#f14c4c;
 }
 .path p {
     position:relative;
@@ -146,4 +146,11 @@ label {
 .ui-state-active {
     border: 1px solid #4daafc !important;
     background: #4daafc !important;
+}
+.progressbar {
+    height:2px;
+    border:none !important;    
+    margin-top: -10px;
+    margin-left: 1rem;
+    margin-right: 1rem;
 }

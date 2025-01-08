@@ -74,13 +74,14 @@ label {
     display:flex;
 }
 .path {
-    background-color: #50C878;
+    background-color: #4daafc;
     height: 2rem;
     position: relative;
     flex:1;
     margin-left:.375rem;
     margin-right:.4375rem;
     align-items: center;
+    justify-content: center;
     display:flex;
 }
 .path:before {
@@ -93,7 +94,7 @@ label {
     position:absolute;
     left:-.25rem;
     right:-.3125rem;
-    background-color: #50C878;
+    background-color: #4daafc;
 }
 .path:after {
     bottom:0;
@@ -122,24 +123,34 @@ label {
     background-color: #FFBF00;
 }
 .path-failed, .path-failed:after, .path-failed:before {
-    background-color: #7c0404;
+    background-color:#f14c4c;
 }
 .path p {
     position:relative;
     z-index:5;
-    left: 50%;
 }
 .path-running span::after {
     content: ".";
     animation: dots 1.5s steps(4, end) infinite;
 }
 @keyframes dots {
-    0% { content: "."; }
-    25% { content: ".."; }
-    50% { content: "..."; }
+    0% { content: ".    "; }
+    25% { content: "..  "; }
+    50% { content: "... "; }
     75% { content: "...."; }
     100% { content: ""; }
 }
 .ui-progressbar-value {
-    background: #121ec7;
+    background: #4daafc;
+}
+.ui-state-active {
+    border: 1px solid #4daafc !important;
+    background: #4daafc !important;
+}
+.progressbar {
+    height:2px;
+    border:none;    
+    margin-top: -10px;
+    margin-left: 1rem;
+    margin-right: 1rem;
 }

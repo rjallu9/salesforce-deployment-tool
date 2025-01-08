@@ -449,6 +449,7 @@ $(document).ready(function () {
         $("#deploystatus").show();
         $("#deploy-buttons").hide();
         $("#dest-org-field").prop('disabled', true);
+        $("#previous").prop('disabled', true);
 
         $('.path-list').empty();
         $('.path-list').append('<li class="path path-notstarted retrieve"><p>Retrieve</p><p style="width:0px;"><span/></p></li>');
@@ -500,7 +501,7 @@ $(document).ready(function () {
             let progressLabel = (result.checkOnly === 'true' ? "Validation" : "Deployment") + " "+ result.status;
             progressLabel += " ("+ (completed + errors) + "/" + total + ")";
             if(errors > 0) {
-                progressLabel += " - Errors("+errors+")";
+                progressLabel += " - "+errors+" Errors";
             }
 
             $($(".deployment")[0].childNodes[0]).text(progressLabel);
@@ -509,22 +510,23 @@ $(document).ready(function () {
                 $("#progressbar").hide();
                 $("#deploy-buttons").show();
                 $("#dest-org-field").prop('disabled', false);
+                $("#previous").prop('disabled', false);
                 $("#cancel-deploy").hide();
                 if(result.checkOnly === 'true' && result.status === 'Succeeded' && result.runTestsEnabled === 'true') {
                     quickdeployId = result.id;
                     $("#quick-deploy").show();
                 }  
-                if(result.status === "Succeeded") {
-                    $(".deployment").removeClass("path-running");
-                } else if(result.status === "SucceededPartial") {
+                $(".deployment").removeClass("path-running");
+                /*if(result.status === "SucceededPartial") {
                     $(".deployment").removeClass("path-running").addClass("path-partial");
                 }  else if(result.status === "Failed") {
                     $(".deployment").removeClass("path-running").addClass("path-failed");
-                } 
+                }*/ 
                 if(result.details?.componentFailures?.length > 0) {
                     $('.deployerrors').text('Deployment Errors ('+result.details.componentFailures.length+')');
                     $('#errortable').DataTable().clear().rows.add(result.details.componentFailures).draw(); 
-                } else if(result.details?.runTestResult?.numFailures > 0) {
+                } 
+                if(result.details?.runTestResult?.numFailures > 0) {
                     $('.testfailures').text('Test Class Failures ('+result.details.runTestResult.numFailures+')');
                     $('#testerrortable').DataTable().clear().rows.add(result.details.runTestResult.failures).draw(); 
                 }    
@@ -535,6 +537,7 @@ $(document).ready(function () {
             } else {
                 if(result.status === "Canceling") {
                     $("#cancel-deploy").hide();
+                    $("#progressbar").hide(); 
                 }
             }
 
@@ -545,14 +548,21 @@ $(document).ready(function () {
                 let processtcs = completedtcs + errorstcs;
                 $("#progressbar").progressbar({"value": (processtcs) / totaltcs*100});  
                 if(processtcs === totaltcs) {
-                    $($(".testclasses")[0].childNodes[0]).text("Completed Tests ("+processtcs+ "/" + totaltcs + ") "+(errorstcs > 0 ? "- Failures("+errorstcs+")" : ""));
+                    $($(".testclasses")[0].childNodes[0]).text("Completed Tests ("+processtcs+ "/" + totaltcs + ")"+(errorstcs > 0 ? " - "+errorstcs+" Failures" : ""));
                     $(".testclasses").removeClass("path-running");
-                    if(errorstcs > 0) {
+                    /*if(errorstcs > 0) {
                         $(".testclasses").addClass("path-failed");
-                    }
+                    }*/
                 } else {
-                    $($(".testclasses")[0].childNodes[0]).text("Running Tests ("+processtcs+ "/" + totaltcs + ") "+(errorstcs > 0 ? "- Failures("+errorstcs+")" : ""));
+                    $($(".testclasses")[0].childNodes[0]).text("Running Tests ("+processtcs+ "/" + totaltcs + ")"+(errorstcs > 0 ? " - "+errorstcs+" Failures" : ""));
                     $(".testclasses").removeClass("path-notstarted").addClass("path-running");
+                }
+
+                if(result.status === "Canceled") {
+                    $(".testclasses").removeClass("path-running");
+                    $($(".testclasses")[0].childNodes[0]).text("Canceled Tests");
+                } else if (result.status === "Canceling") {
+                    $($(".testclasses")[0].childNodes[0]).text("Cancelling Tests");
                 }
             }
         } else {                      

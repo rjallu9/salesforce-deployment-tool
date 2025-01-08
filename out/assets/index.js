@@ -451,9 +451,10 @@ $(document).ready(function () {
         $("#dest-org-field").prop('disabled', true);
 
         $('.path-list').empty();
-        $('.path-list').append('<li class="path path-notstarted retrieve"><p>Retrieve<span/></p></li>');
-        $('.path-list').append('<li class="path path-notstarted deployment"><p>'+(checkOnly ? 'Validation' : 'Deployment')+'<span/></p></li>');
-        $('.path-list').append('<li class="path path-notstarted testclasses"><p>Test Classes<span/></p></li>');  
+        $('.path-list').append('<li class="path path-notstarted retrieve"><p>Retrieve</p><p style="width:0px;"><span/></p></li>');
+        $('.path-list').append('<li class="path path-notstarted deployment"><p>'+(checkOnly ? 'Validation' : 'Deployment')+'</p><p style="width:0px;"><span/></p></li>');
+        $('.path-list').append('<li class="path path-notstarted testclasses"><p>Test Classes</p><p style="width:0px;"><span/></p></li>');  
+        $("#progressbar").show();
     }
 
     function getPackageXml() {
@@ -494,18 +495,18 @@ $(document).ready(function () {
             let total = Number(result.numberComponentsTotal);
             let completed = Number(result.numberComponentsDeployed);
             let errors = Number(result.numberComponentErrors);
-            //$("#progressbar").progressbar({"value": (completed + errors) / total*100});  
+            $("#progressbar").progressbar({"value": (completed + errors) / total*100});  
             
             let progressLabel = (result.checkOnly === 'true' ? "Validation" : "Deployment") + " "+ result.status;
             progressLabel += " ("+ (completed + errors) + "/" + total + ")";
             if(errors > 0) {
-                progressLabel += " - Errors("+errors+")";
+                progressLabel += " - "+errors+" Errors";
             }
 
             $($(".deployment")[0].childNodes[0]).text(progressLabel);
-            $($(".deployment")[0].childNodes[0]).append('<span/>');
 
             if(result.done === 'true') {
+                $("#progressbar").hide();
                 $("#deploy-buttons").show();
                 $("#dest-org-field").prop('disabled', false);
                 $("#cancel-deploy").hide();
@@ -513,17 +514,17 @@ $(document).ready(function () {
                     quickdeployId = result.id;
                     $("#quick-deploy").show();
                 }  
-                if(result.status === "Succeeded") {
-                    $(".deployment").removeClass("path-running");
-                } else if(result.status === "SucceededPartial") {
+                $(".deployment").removeClass("path-running");
+                /*if(result.status === "SucceededPartial") {
                     $(".deployment").removeClass("path-running").addClass("path-partial");
                 }  else if(result.status === "Failed") {
                     $(".deployment").removeClass("path-running").addClass("path-failed");
-                } 
+                }*/ 
                 if(result.details?.componentFailures?.length > 0) {
                     $('.deployerrors').text('Deployment Errors ('+result.details.componentFailures.length+')');
                     $('#errortable').DataTable().clear().rows.add(result.details.componentFailures).draw(); 
-                } else if(result.details?.runTestResult?.numFailures > 0) {
+                } 
+                if(result.details?.runTestResult?.numFailures > 0) {
                     $('.testfailures').text('Test Class Failures ('+result.details.runTestResult.numFailures+')');
                     $('#testerrortable').DataTable().clear().rows.add(result.details.runTestResult.failures).draw(); 
                 }    
@@ -542,29 +543,30 @@ $(document).ready(function () {
                 let completedtcs = Number(result.numberTestsCompleted);
                 let errorstcs = Number(result.numberTestErrors);                    
                 let processtcs = completedtcs + errorstcs;
+                $("#progressbar").progressbar({"value": (processtcs) / totaltcs*100});  
                 if(processtcs === totaltcs) {
-                    $($(".testclasses")[0].childNodes[0]).text("Completed Tests ("+processtcs+ "/" + totaltcs + ") "+(errorstcs > 0 ? "- Failures("+errorstcs+")" : ""));
+                    $($(".testclasses")[0].childNodes[0]).text("Completed Tests ("+processtcs+ "/" + totaltcs + ")"+(errorstcs > 0 ? " - "+errorstcs+" Failures" : ""));
                     $(".testclasses").removeClass("path-running");
-                    if(errorstcs > 0) {
+                    /*if(errorstcs > 0) {
                         $(".testclasses").addClass("path-failed");
-                    }
+                    }*/
                 } else {
-                    $($(".testclasses")[0].childNodes[0]).text("Running Tests ("+processtcs+ "/" + totaltcs + ") "+(errorstcs > 0 ? "- Failures("+errorstcs+")" : ""));
-                    $($(".testclasses")[0].childNodes[0]).append('<span/>');
+                    $($(".testclasses")[0].childNodes[0]).text("Running Tests ("+processtcs+ "/" + totaltcs + ")"+(errorstcs > 0 ? " - "+errorstcs+" Failures" : ""));
                     $(".testclasses").removeClass("path-notstarted").addClass("path-running");
                 }
             }
-        } else {
-            $("#progressbar").progressbar({"value": 100});                        
+        } else {                      
             if(result.stage === "retrieve") {
                 $(".retrieve").removeClass("path-notstarted").addClass("path-running");
-                $($(".retrieve")[0].childNodes[0]).text('Retrieve InProgress');
-                $($(".retrieve")[0].childNodes[0]).append('<span/>');
+                $($(".retrieve")[0].childNodes[0]).text('Retrieve InProgress');               
+                $("#progressbar").progressbar({"value": 30});  
             } else if(result.stage === "retrieveCompleted") {
                 $(".retrieve").removeClass("path-running");
                 $($(".retrieve")[0].childNodes[0]).text('Retrieve Completed');
+                $("#progressbar").progressbar({"value": 100});  
             } else if(result.stage === "deployment") {
                 $(".deployment").removeClass("path-notstarted").addClass("path-running");
+                $("#progressbar").progressbar({"value": 0});  
             }
         } 
     }   

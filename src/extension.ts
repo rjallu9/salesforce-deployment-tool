@@ -505,7 +505,7 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 							</p>
 							<ul class="path-list">
 							</ul>							
-							<div id="progressbar" style="height:2px;border:none;"></div>
+							<div id="progressbar" class="progressbar"></div>
 							<div class="coverage-error"><p class="coverage-error-label"></p></div>
 							<div id="test-classes-dialog" title="Test Classes">
 								<p>Provide the names of the test classes in a comma-seprated list.</p>
