@@ -29,7 +29,10 @@ $(document).ready(function () {
             refreshComponents();
         } else if(event.data.command === 'deployStatus') {
             updateDeploymentStatus(event.data.result);
+        } else if(event.data.command === 'compareStatus') {
+            updateCompareStatus(event.data.result.stage);
         } else if(event.data.command === 'compareResults') {
+            updateCompareStatus("completed");
             console.log(event.data.files);
             event.data.files.forEach(file => {
                let filename = file.name;
@@ -387,7 +390,7 @@ $(document).ready(function () {
                 orderable: false,
                 render: function (data, type, row) {
                     if (row.dest) {
-                        return '<a href="#" class="fileview" data-name="'+row.type+"."+row.name+'">View</a>';
+                        return '<a href="#" class="fileview" data-name="'+row.type+"."+row.name+'" style="color:#4daafc">View</a>';
                     } else {
                         return 'N/A';
                     }
@@ -496,6 +499,7 @@ $(document).ready(function () {
         $("#deploy-buttons").hide();
         $("#dest-org-field").prop('disabled', true);
         $("#previous").prop('disabled', true);
+        $("#deploylabel").text('Deployment Status');
 
         $('.path-list').empty();
         $('.path-list').append('<li class="path path-notstarted retrieve"><p>Retrieve</p><p style="width:0px;"><span/></p></li>');
@@ -690,6 +694,17 @@ $(document).ready(function () {
     });
 
     $("#compare").on('click', function (e) {
+        $("#deploystatus").show();
+        $("#deploy-buttons").hide();
+        $("#dest-org-field").prop('disabled', true);
+        $("#previous").prop('disabled', true);
+        $("#deploylabel").text('Compare Status');
+
+        $('.path-list').empty();
+        $('.path-list').append('<li class="path path-notstarted source"><p>Retrieve Source</p><p style="width:0px;"><span/></p></li>');
+        $('.path-list').append('<li class="path path-notstarted target"><p>Retrieve Target</p><p style="width:0px;"><span/></p></li>');
+        $('.path-list').append('<li class="path path-notstarted complete"><p>Compare</p><p style="width:0px;"><span/></p></li>');  
+        $("#progressbar").show();
         let packagexml = getPackageXml();
         vscode.postMessage({ command: 'compare', sourceOrgId: $('#source-org-field').val(), 
             packagexml:packagexml, destOrgId: $("#dest-org-field").val()});  
@@ -702,8 +717,37 @@ $(document).ready(function () {
         let files = selectedComps.get(filename).files;
         source.forEach((element, index) => {
             vscode.postMessage({ command: 'filePreview', source: element,  dest: dest[index], file: files[index]}); 
-        });        
-        
+        }); 
     });
+
+    function updateCompareStatus(stage) {
+        if(stage === 'sourceInit') {
+            $(".source").removeClass("path-notstarted").addClass("path-running");
+            $($(".source")[0].childNodes[0]).text('Retrieve(Source) Initiated');               
+            $("#progressbar").progressbar({"value": 20});  
+        } else if(stage === 'destInit') {
+            $(".target").removeClass("path-notstarted").addClass("path-running");
+            $($(".target")[0].childNodes[0]).text('Retrieve(Target) Initiated');               
+            $("#progressbar").progressbar({"value": 40});  
+        } else if(stage === 'sourceInprogress') {
+            $($(".source")[0].childNodes[0]).text('Retrieve(Source) Running');               
+            $("#progressbar").progressbar({"value": 60});  
+        } else if(stage === 'destInprogress') {
+            $($(".target")[0].childNodes[0]).text('Retrieve(Target) Running');               
+            $("#progressbar").progressbar({"value": 80});  
+        } else if(stage === 'completed') {
+            $(".complete").removeClass("path-notstarted");
+            $(".source").removeClass("path-running");
+            $($(".source")[0].childNodes[0]).text('Retrieve(Source) Completed');
+            $(".target").removeClass("path-running");
+            $($(".target")[0].childNodes[0]).text('Retrieve(Target) Completed');  
+            $($(".complete")[0].childNodes[0]).text('Comparison Completed');               
+            $("#progressbar").progressbar({"value": 100});  
+
+            $("#deploy-buttons").show();
+            $("#dest-org-field").prop('disabled', false);
+            $("#previous").prop('disabled', false);
+        }
+    }
 });
 

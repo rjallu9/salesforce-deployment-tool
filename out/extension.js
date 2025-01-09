@@ -106,17 +106,19 @@ function activate(context) {
                                                 message: message.checkOnly ? 'Validation Initiated' : 'Deployment Initiated' } });
                                         deploy(destOrg.accessToken, destOrg.instanceUrl, result.zipFile, message.checkOnly, message.testLevel, message.testClasses).then((result) => {
                                             let deployJobId = result;
-                                            intervalId = setInterval(() => {
+                                            let deployIntervalId = setInterval(() => {
                                                 if (isCancelDeploy) {
                                                     cancelDeploy(destOrg.accessToken, destOrg.instanceUrl, deployJobId);
                                                     isCancelDeploy = false;
                                                 }
                                                 deployStatus(destOrg.accessToken, destOrg.instanceUrl, deployJobId).then((result) => {
                                                     if (result.done === 'true') {
-                                                        clearInterval(intervalId);
+                                                        clearInterval(deployIntervalId);
                                                     }
                                                     result['stage'] = "deploymentStatus";
                                                     panel.webview.postMessage({ command: 'deployStatus', result: result });
+                                                }).catch((error) => {
+                                                    clearInterval(deployIntervalId);
                                                 });
                                             }, 2000);
                                         });
@@ -127,6 +129,7 @@ function activate(context) {
                                     }
                                 }
                             }).catch((error) => {
+                                clearInterval(intervalId);
                             });
                         }, 1000);
                     });
@@ -144,6 +147,7 @@ function activate(context) {
                                 result['stage'] = "deploymentStatus";
                                 panel.webview.postMessage({ command: 'deployStatus', result: result });
                             }).catch((error) => {
+                                clearInterval(intervalId);
                             });
                         }, 2000);
                     });
@@ -159,10 +163,12 @@ function activate(context) {
                     let destOrgFiles = new Map();
                     var sourceOrg = orgsList.find((org) => org.orgId === message.sourceOrgId);
                     var destOrg = orgsList.find((org) => org.orgId === message.destOrgId);
+                    panel.webview.postMessage({ command: 'compareStatus', result: { stage: "sourceInit" } });
                     retrieve(sourceOrg.accessToken, sourceOrg.instanceUrl, message.packagexml).then((result) => {
                         let retrieveJobId = result;
                         let intervalId = setInterval(() => {
                             retrieveStatus(sourceOrg.accessToken, sourceOrg.instanceUrl, retrieveJobId).then((result) => {
+                                panel.webview.postMessage({ command: 'compareStatus', result: { stage: "sourceInprogress" } });
                                 if (result.done === 'true') {
                                     clearInterval(intervalId);
                                     sourceOrgFiles = result.fileNames;
@@ -173,13 +179,16 @@ function activate(context) {
                                 }
                             }).catch((error) => {
                                 vscode.window.showErrorMessage(`Error: ${JSON.stringify(error)}`);
+                                clearInterval(intervalId);
                             });
                         }, 1000);
                     });
+                    panel.webview.postMessage({ command: 'compareStatus', result: { stage: "destInit" } });
                     retrieve(destOrg.accessToken, destOrg.instanceUrl, message.packagexml).then((result) => {
                         let retrieveJobId = result;
                         let intervalId = setInterval(() => {
                             retrieveStatus(destOrg.accessToken, destOrg.instanceUrl, retrieveJobId).then((result) => {
+                                panel.webview.postMessage({ command: 'compareStatus', result: { stage: "destInprogress" } });
                                 if (result.done === 'true') {
                                     clearInterval(intervalId);
                                     destOrgFiles = result.fileNames;
@@ -190,6 +199,7 @@ function activate(context) {
                                 }
                             }).catch((error) => {
                                 vscode.window.showErrorMessage(`Error: ${JSON.stringify(error)}`);
+                                clearInterval(intervalId);
                             });
                         }, 1000);
                     });
@@ -593,14 +603,14 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 							</div>	
 						</div>
 						<div id="deploystatus">
-							<p>Deployment Status: &nbsp;&nbsp; 
+							<p><span id="deploylabel">Deployment Status:</span> &nbsp;&nbsp; 
 								<a href="#" id="quick-deploy" style="display:none">Quick Deploy</a>
-								<a href="#" id="cancel-deploy">Cancel Deployment</a>
+								<a href="#" id="cancel-deploy" style="display:none">Cancel Deployment</a>
 							</p>
 							<ul class="path-list">
 							</ul>							
 							<div id="progressbar" class="progressbar"></div>
-							<div class="coverage-error"><p class="coverage-error-label"></p></div>
+							<div class="coverage-error" style="display:none;"><p class="coverage-error-label"></p></div>
 							<div id="test-classes-dialog" title="Test Classes">
 								<p>Provide the names of the test classes in a comma-seprated list.</p>
 								<textarea id="test-classes" name="test-classes" rows="15" cols="35">
