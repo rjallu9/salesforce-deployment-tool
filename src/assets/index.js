@@ -29,6 +29,15 @@ $(document).ready(function () {
             refreshComponents();
         } else if(event.data.command === 'deployStatus') {
             updateDeploymentStatus(event.data.result);
+        } else if(event.data.command === 'compareResults') {
+            console.log(event.data.files);
+            event.data.files.forEach(file => {
+               if(selectedComps.has(file.name)) {
+                    selectedComps.get(file.name)['source'] = file.source;
+                    selectedComps.get(file.name)['dest'] = file.dest;
+               }
+            });
+            $('#previewtable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
         } 
     });
 
@@ -346,11 +355,23 @@ $(document).ready(function () {
             { data: 'type' },
             { data: 'name' },            
             { data: 'lastModifiedByName' },
-            { data: 'lastModifiedDate', "type": "date", width:'200px' }
+            { data: 'lastModifiedDate', "type": "date", width:'200px' },
+            { data: 'source' }
         ],
         language: {
             info: "Total: _TOTAL_ component(s)"
-        }
+        },
+        columnDefs: [
+            {
+                orderable: false,
+                render: function (data, type, row) {
+                    if (row.dest) {
+                        return '<a href="#" class="fileview" data-source="'+row.source+'" data-dest="'+row.dest+'">View</a>';
+                    }
+                },
+                targets: 4
+            }
+        ],
     });
 
     $('#next').on('click', function (e) {        
@@ -466,8 +487,7 @@ $(document).ready(function () {
             } else {
                 comps.set(comp.type, [comp.name]);
             }
-        }
-        );
+        });
         let packagexml = '';
         Array.from(comps.keys()).forEach(type => {
             packagexml += '\t<types>\n';
@@ -642,6 +662,18 @@ $(document).ready(function () {
 
     $(".tab").on('click', function (e) {
         $('#'+e.currentTarget.attributes.name.value).DataTable().draw(); 
+    });
+
+    $("#compare").on('click', function (e) {
+        let packagexml = getPackageXml();
+        vscode.postMessage({ command: 'compare', sourceOrgId: $('#source-org-field').val(), 
+            packagexml:packagexml, destOrgId: $("#dest-org-field").val()});  
+    });
+
+    $("#previewtable").on('click', 'a.fileview', function (e) {
+        vscode.postMessage({ command: 'filePreview', source: e.currentTarget.dataset.source, 
+            dest: e.currentTarget.dataset.dest}); 
+        
     });
 });
 

@@ -5,6 +5,8 @@ const xml2js = require('xml2js');
 const { exec } = require('child_process');
 import favorites from './assets/favorites.json';
 const fs = require('fs');
+const unzipper = require('unzipper');
+const AdmZip = require('adm-zip');
 
 export function activate(context: vscode.ExtensionContext) {
 	const disposable = vscode.commands.registerCommand('salesforce-deployment-tool.build', () => {
@@ -130,14 +132,98 @@ export function activate(context: vscode.ExtensionContext) {
 					case 'toastMessage':
 						vscode.window.showInformationMessage(`${message.message}`);	
 						break;
+					case 'compare':
+						let sourceOrgFiles = new Map();
+						let destOrgFiles = new Map();
+						var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);	
+						var destOrg = orgsList.find((org:any) => org.orgId === message.destOrgId);																		
+						retrieve(sourceOrg.accessToken, sourceOrg.instanceUrl, message.packagexml).then((result:any) => {	
+							let retrieveJobId = result;
+							let intervalId = setInterval(() => {
+								retrieveStatus(sourceOrg.accessToken, sourceOrg.instanceUrl, retrieveJobId).then((result:any) => {	
+									if(result.done	=== 'true') {
+										clearInterval(intervalId);	
+										sourceOrgFiles = result.fileNames;
+										extractComponents(result.zipFile, context.extensionPath+"/tmp", sourceOrg.alias);
+										if(destOrgFiles.size > 0) {
+											postCompareResults(sourceOrgFiles, destOrgFiles, context.extensionPath+"/tmp/"+sourceOrg.alias, 
+												context.extensionPath+"/tmp/"+destOrg.alias, panel);
+										}
+									}		
+								}).catch((error) => {
+									vscode.window.showErrorMessage(`Error: ${JSON.stringify(error)}`);
+								});
+							}, 1000);			
+						});
+
+						retrieve(destOrg.accessToken, destOrg.instanceUrl, message.packagexml).then((result:any) => {	
+							let retrieveJobId = result;
+							let intervalId = setInterval(() => {
+								retrieveStatus(destOrg.accessToken, destOrg.instanceUrl, retrieveJobId).then((result:any) => {	
+									if(result.done	=== 'true') {
+										clearInterval(intervalId);	
+										destOrgFiles = result.fileNames;
+										extractComponents(result.zipFile, context.extensionPath+"/tmp", destOrg.alias);
+										if(sourceOrgFiles.size > 0) {
+											postCompareResults(sourceOrgFiles, destOrgFiles, context.extensionPath+"/tmp/"+sourceOrg.alias, 
+												context.extensionPath+"/tmp/"+destOrg.alias, panel);
+										}
+									}		
+								}).catch((error) => {
+									vscode.window.showErrorMessage(`Error: ${JSON.stringify(error)}`);
+								});
+							}, 1000);			
+						});
+						break;
+					case 'filePreview':
+						vscode.commands.executeCommand('vscode.diff', 
+							vscode.Uri.file(message.source), 
+							vscode.Uri.file(message.dest), 
+							'Diff: Source ↔ Target'
+						);
+						break;
 					default:
-						console.log('Unknown command:', message.command);
+					console.log('Unknown command:', message.command);
 				}
 			});
 		
 	});
 
 	context.subscriptions.push(disposable);
+}
+
+function postCompareResults(sourceOrgFiles:Map<string, string>, destOrgFiles:Map<string, string>, sourceOrgPath:string, destOrgPath:string, panel:vscode.WebviewPanel) {
+	let files: { name: string; source: string; dest: string }[] = [];
+	sourceOrgFiles.forEach((value, key) => {
+		let tmp = { name: key, source: sourceOrgPath+"/"+value, dest:"" };
+		if(destOrgFiles.has(key)) {
+			tmp.dest = destOrgPath+"/"+destOrgFiles.get(key);
+		}
+		files.push(tmp);
+	});
+	panel.webview.postMessage({ command: 'compareResults', files: files});    
+}
+
+function extractComponents(zipfile:string, tmpPath:string, directory:string) {
+	const buffer = Buffer.from(zipfile, 'base64');
+	if (!fs.existsSync(tmpPath)) {
+		fs.mkdirSync(tmpPath);
+	}
+	const zipFilePath = path.join(tmpPath, directory+'.zip');
+	fs.writeFileSync(zipFilePath, buffer);	
+	
+	if (!fs.existsSync(tmpPath+"/"+directory)) {
+		fs.mkdirSync(tmpPath+"/"+directory);
+	}
+	/*const zipStream = fs.createReadStream(zipFilePath)
+		.pipe(unzipper.Extract({ path: tmp+"/output" }));
+
+	zipStream.on('close', () => {
+		vscode.window.showInformationMessage(`Files unzipped`);
+	});*/
+	const zip = new AdmZip(zipFilePath);
+	zip.extractAllTo(tmpPath+"/"+directory, true);
+    
 }
 
 function cancelDeploy(accessToken:string, endPoint:string, deployJobId:string) {
@@ -203,9 +289,16 @@ function retrieveStatus(accessToken:string, endPoint:string, retrieveJobId:strin
 			'</met:asyncProcessId><met:includeZip>true</met:includeZip></met:checkRetrieveStatus>')
 		.then((result:any) => {
 			const res = result['soapenv:Envelope']['soapenv:Body']['checkRetrieveStatusResponse']['result'];	
+			let fileNames = new Map();
+			if(res['done'] === 'true') {
+				res['fileProperties'].forEach((file: any) => {
+					fileNames.set(file.type+"."+file.fullName, file.fileName);
+				});	
+			}
 			resolve({
 				done: res['done'],
-				zipFile: res['zipFile']
+				zipFile: res['zipFile'],
+				fileNames: fileNames
 			});	
         })
         .catch((error:any) => {
@@ -347,6 +440,7 @@ function getAuthOrgs() {
 						if(org.connectedStatus === 'Connected' && orgIds.indexOf(org['orgId']) < 0) {
 							orgList.push({
 								name: org['alias']+'('+org['username']+')',
+								alias: org['alias'],
 								orgId: org['orgId'],
 								accessToken: org['accessToken'],
 								instanceUrl: org['instanceUrl']
@@ -360,9 +454,9 @@ function getAuthOrgs() {
                 }
             }
         });*/
-		resolve([{"name": "SiriApp(ramu.jallu@yahoo.in)", "orgId": "00D6g00000360OaEAI","instanceUrl": "https://siriapp-dev-ed.my.salesforce.com",
+		resolve([{"alias": "SiriApp", "name": "SiriApp(ramu.jallu@yahoo.in)", "orgId": "00D6g00000360OaEAI","instanceUrl": "https://siriapp-dev-ed.my.salesforce.com",
 			"accessToken": "00D6g00000360Oa!AQcAQL6XtB3m9I9K8h4G9.jKix2ILTp31lAQxusejh5Z97Rf6Q8CmKr4Y2E65HAeCX_BQRG5rBrYzH9aKZX68.ITCqq4l.nt"},
-			{"name": "ICE(ramu.jallu@gmail.com)", "orgId": "00D3t000004pIgVEAU","instanceUrl": "https://ice7-dev-ed.my.salesforce.com",
+			{"alias": "ICE", "name": "ICE(ramu.jallu@gmail.com)", "orgId": "00D3t000004pIgVEAU","instanceUrl": "https://ice7-dev-ed.my.salesforce.com",
 				"accessToken": "00D3t000004pIgV!AQgAQN2Rop2gVzrvqsKCH_.O5jinKNkn5CtJApXLXLWLhyxe6m.MjUDKwem1UmTEHJA34h6mbxPo0JW0BX07rUy_EB2FO7wa"},
 			{"name": "AgentForce(epic.321e1730601128842@orgfarm.th)", "orgId": "00D6P000000kU2zUAE","instanceUrl": "https://d6p000000ku2zuae-dev-ed.develop.my.salesforce.com",
 				"accessToken": "00D6P000000kU2z!AQ4AQLxrh..1SoO2EBAoNX0hENqctA5D1BgXb6VS4_MS22WQRQ2eUH1HDgsbH0Bipe8cLIXyobtiv8geE_xG6.iAsUhE3ODv"}]);
@@ -479,7 +573,8 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 								<select type="text" class="dest-org-field" id="dest-org-field" style="height:36px;width:300px;">
 								</select>		
 							</div>
-							<div id="deploy-buttons">													
+							<div id="deploy-buttons">	
+								<button type="button" style="padding: 7px; width: 75px;float:right;margin-top:22px;margin-left: 5px;" id="compare">Compare</button>											
 								<button type="button" style="padding: 7px; width: 75px;float:right;margin-top:22px;margin-left: 5px;" id="deploy">Deploy</button>
 								<button type="button" style="padding: 7px; width: 75px;float:right;margin-top:22px;margin-left: 5px;" id="validate">Validate</button>	
 								<div style="float:right;">
@@ -528,6 +623,7 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 											<th>Name</th>
 											<th>Last Modified By</th>
 											<th>Last Modified Date</th>
+											<th>Compare</th>
 										</tr>
 									</thead>
 								</table>

@@ -29,6 +29,15 @@ $(document).ready(function () {
             refreshComponents();
         } else if(event.data.command === 'deployStatus') {
             updateDeploymentStatus(event.data.result);
+        } else if(event.data.command === 'compareResults') {
+            console.log(event.data.files);
+            event.data.files.forEach(file => {
+               if(selectedComps.has(file.name)) {
+                    selectedComps.get(file.name)['source'] = file.source;
+                    selectedComps.get(file.name)['dest'] = file.dest;
+               }
+            });
+            $('#previewtable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
         } 
     });
 
@@ -346,11 +355,23 @@ $(document).ready(function () {
             { data: 'type' },
             { data: 'name' },            
             { data: 'lastModifiedByName' },
-            { data: 'lastModifiedDate', "type": "date", width:'200px' }
+            { data: 'lastModifiedDate', "type": "date", width:'200px' },
+            { data: 'source' }
         ],
         language: {
             info: "Total: _TOTAL_ component(s)"
-        }
+        },
+        columnDefs: [
+            {
+                orderable: false,
+                render: function (data, type, row) {
+                    if (row.dest) {
+                        return '<a href="#" class="fileview" data-source="'+row.source+'" data-dest="'+row.dest+'">View</a>';
+                    }
+                },
+                targets: 4
+            }
+        ],
     });
 
     $('#next').on('click', function (e) {        
@@ -449,6 +470,7 @@ $(document).ready(function () {
         $("#deploystatus").show();
         $("#deploy-buttons").hide();
         $("#dest-org-field").prop('disabled', true);
+        $("#previous").prop('disabled', true);
 
         $('.path-list').empty();
         $('.path-list').append('<li class="path path-notstarted retrieve"><p>Retrieve</p><p style="width:0px;"><span/></p></li>');
@@ -465,8 +487,7 @@ $(document).ready(function () {
             } else {
                 comps.set(comp.type, [comp.name]);
             }
-        }
-        );
+        });
         let packagexml = '';
         Array.from(comps.keys()).forEach(type => {
             packagexml += '\t<types>\n';
@@ -509,6 +530,7 @@ $(document).ready(function () {
                 $("#progressbar").hide();
                 $("#deploy-buttons").show();
                 $("#dest-org-field").prop('disabled', false);
+                $("#previous").prop('disabled', false);
                 $("#cancel-deploy").hide();
                 if(result.checkOnly === 'true' && result.status === 'Succeeded' && result.runTestsEnabled === 'true') {
                     quickdeployId = result.id;
@@ -535,6 +557,7 @@ $(document).ready(function () {
             } else {
                 if(result.status === "Canceling") {
                     $("#cancel-deploy").hide();
+                    $("#progressbar").hide(); 
                 }
             }
 
@@ -553,6 +576,13 @@ $(document).ready(function () {
                 } else {
                     $($(".testclasses")[0].childNodes[0]).text("Running Tests ("+processtcs+ "/" + totaltcs + ")"+(errorstcs > 0 ? " - "+errorstcs+" Failures" : ""));
                     $(".testclasses").removeClass("path-notstarted").addClass("path-running");
+                }
+
+                if(result.status === "Canceled") {
+                    $(".testclasses").removeClass("path-running");
+                    $($(".testclasses")[0].childNodes[0]).text("Canceled Tests");
+                } else if (result.status === "Canceling") {
+                    $($(".testclasses")[0].childNodes[0]).text("Cancelling Tests");
                 }
             }
         } else {                      
@@ -632,6 +662,18 @@ $(document).ready(function () {
 
     $(".tab").on('click', function (e) {
         $('#'+e.currentTarget.attributes.name.value).DataTable().draw(); 
+    });
+
+    $("#compare").on('click', function (e) {
+        let packagexml = getPackageXml();
+        vscode.postMessage({ command: 'compare', sourceOrgId: $('#source-org-field').val(), 
+            packagexml:packagexml, destOrgId: $("#dest-org-field").val()});  
+    });
+
+    $("#previewtable").on('click', 'a.fileview', function (e) {
+        vscode.postMessage({ command: 'filePreview', source: e.currentTarget.dataset.source, 
+            dest: e.currentTarget.dataset.dest}); 
+        
     });
 });
 
