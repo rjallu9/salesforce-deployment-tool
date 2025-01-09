@@ -367,6 +367,8 @@ $(document).ready(function () {
                 render: function (data, type, row) {
                     if (row.dest) {
                         return '<a href="#" class="fileview" data-source="'+row.source+'" data-dest="'+row.dest+'">View</a>';
+                    } else {
+                        return 'Not Available in Target Org.';
                     }
                 },
                 targets: 4

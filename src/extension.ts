@@ -5,7 +5,6 @@ const xml2js = require('xml2js');
 const { exec } = require('child_process');
 import favorites from './assets/favorites.json';
 const fs = require('fs');
-const unzipper = require('unzipper');
 const AdmZip = require('adm-zip');
 
 export function activate(context: vscode.ExtensionContext) {
@@ -17,11 +16,11 @@ export function activate(context: vscode.ExtensionContext) {
 				{ enableScripts: true }
 			);
 			const scriptPath = vscode.Uri.file(
-				path.join(context.extensionPath, 'src', 'assets/index.js')
+				path.join(context.extensionPath, 'out', 'assets/index.js')
 			);
 			const scriptUri = panel.webview.asWebviewUri(scriptPath);
 			const cssPath = vscode.Uri.file(
-				path.join(context.extensionPath, 'src', 'assets/index.css')
+				path.join(context.extensionPath, 'out', 'assets/index.css')
 			);
 			const cssUri = panel.webview.asWebviewUri(cssPath);
 
@@ -51,7 +50,6 @@ export function activate(context: vscode.ExtensionContext) {
 					case 'loadComponents':
 						if(message.type) {
 							var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);
-							//vscode.window.showInformationMessage(`Loading: ${message.type}`);	
 							getComponents(sourceOrg.accessToken, sourceOrg.instanceUrl, message.type)
 							.then((data) => {
 								panel.webview.postMessage({ command: 'components', components: data, type: message.type });
@@ -426,7 +424,7 @@ function sendSoapReuest(accessToken:string,  endPoint:string, body:string) {
 
 function getAuthOrgs() {
     return new Promise((resolve, reject) => {
-        /*exec('sf org list --json', (error:any, stdout:any, stderr:any) => {
+        exec('sf org list --json', (error:any, stdout:any, stderr:any) => {
             if (error) {
                 reject(`Error: ${error}`);
             } else {
@@ -453,13 +451,8 @@ function getAuthOrgs() {
                     reject(`Parse Error: ${parseError.message}`);
                 }
             }
-        });*/
-		resolve([{"alias": "SiriApp", "name": "SiriApp(ramu.jallu@yahoo.in)", "orgId": "00D6g00000360OaEAI","instanceUrl": "https://siriapp-dev-ed.my.salesforce.com",
-			"accessToken": "00D6g00000360Oa!AQcAQL6XtB3m9I9K8h4G9.jKix2ILTp31lAQxusejh5Z97Rf6Q8CmKr4Y2E65HAeCX_BQRG5rBrYzH9aKZX68.ITCqq4l.nt"},
-			{"alias": "ICE", "name": "ICE(ramu.jallu@gmail.com)", "orgId": "00D3t000004pIgVEAU","instanceUrl": "https://ice7-dev-ed.my.salesforce.com",
-				"accessToken": "00D3t000004pIgV!AQgAQN2Rop2gVzrvqsKCH_.O5jinKNkn5CtJApXLXLWLhyxe6m.MjUDKwem1UmTEHJA34h6mbxPo0JW0BX07rUy_EB2FO7wa"},
-			{"name": "AgentForce(epic.321e1730601128842@orgfarm.th)", "orgId": "00D6P000000kU2zUAE","instanceUrl": "https://d6p000000ku2zuae-dev-ed.develop.my.salesforce.com",
-				"accessToken": "00D6P000000kU2z!AQ4AQLxrh..1SoO2EBAoNX0hENqctA5D1BgXb6VS4_MS22WQRQ2eUH1HDgsbH0Bipe8cLIXyobtiv8geE_xG6.iAsUhE3ODv"}]);
+        });
+
     });
 }
 

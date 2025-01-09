@@ -44,7 +44,6 @@ const xml2js = require('xml2js');
 const { exec } = require('child_process');
 const favorites_json_1 = __importDefault(require("./assets/favorites.json"));
 const fs = require('fs');
-const unzipper = require('unzipper');
 const AdmZip = require('adm-zip');
 function activate(context) {
     const disposable = vscode.commands.registerCommand('salesforce-deployment-tool.build', () => {
