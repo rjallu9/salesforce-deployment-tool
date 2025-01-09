@@ -13,7 +13,9 @@ $(document).ready(function () {
     let testClasses = '';
     
     let componentsMap = new Map();  
-    let selectedComps = new Map();   
+    let selectedComps = new Map();  
+    
+    let refreshComps = [];
 
     window.addEventListener('message', (event) => {
         if(event.data.command === 'orgsList') {
@@ -27,6 +29,12 @@ $(document).ready(function () {
             refreshTypes(true);       
         } else if(event.data.command === 'components') {
             componentsMap.set(event.data.type, event.data.components);
+            refreshComps = $.grep(refreshComps, function(type) {
+                return type !== event.data.type;
+            });
+            if(refreshComps.length === 0) {
+                $("#overlay").hide();
+            }            
             refreshComponents();
         } else if(event.data.command === 'deployStatus') {
             updateDeploymentStatus(event.data.result);
@@ -185,18 +193,42 @@ $(document).ready(function () {
 
     //'All' checkbox
     $(document).on('change', '.dd-select-all', function() {
+        $(".spinnerlabel").text("Refreshing Components");
+        $("#overlay").show();
         if ($(this).is(':checked')) {
+            let apiCallSent = false;
+            let needRefresh = false;
             $('.dd-option-chk').each(function(indx, chxbox) {
                 if(!$(chxbox).prop('checked')) {
-                    $(chxbox).prop('checked', true).trigger('change');
+                    $(chxbox).prop('checked', true);
+                    $(chxbox).parent().parent().css("background",'LightGray');
+                    const selectedValue = $(chxbox).val();
+                    selectedTypes.push(selectedValue);
+                    if(!componentsMap.has(selectedValue)) {
+                        vscode.postMessage({ command: 'loadComponents', type:selectedValue, sourceOrgId: $('#source-org-field').val()});
+                        refreshComps.push(selectedValue);
+                        apiCallSent = true;
+                    } else {
+                        needRefresh = true;
+                    }
                 }                
-            });                
+            });   
+            if(!apiCallSent && needRefresh) {
+                refreshComponents();
+                $("#overlay").hide();
+            }            
+            $('.dd-text-field').attr("placeholder", selectedTypes.length+' Type(s) selected');  
         } else {
             $('.dd-option-chk').each(function(indx, chxbox) {
                 if($(chxbox).prop('checked')) {
-                    $(chxbox).prop('checked', false).trigger('change');
+                    $(chxbox).prop('checked', false);
+                    $(chxbox).parent().parent().css("background",'');
                 }                
             });  
+            selectedTypes = [];
+            refreshComponents();
+            $('.dd-text-field').attr("placeholder", '0 Type(s) selected');  
+            $("#overlay").hide();
         }        
     });
 
@@ -210,6 +242,9 @@ $(document).ready(function () {
                 refreshComponents();
             } else {
                 vscode.postMessage({ command: 'loadComponents', type:selectedValue, sourceOrgId: $('#source-org-field').val()});
+                refreshComps.push(selectedValue);
+                $("#overlay").show();
+                $(".spinnerlabel").text("Refreshing Components");
             }            
         } else {
             $(this).parent().parent().css("background",'');

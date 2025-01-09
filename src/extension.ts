@@ -665,7 +665,7 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 				<div id="overlay">
 					<div class="cv-spinner">
 						<span class="spinner"></span>
-						<p style="margin-left: 5px;">Initializing</p>
+						<p style="margin-left: 5px;" class="spinnerlabel">Initializing</p>
 					</div>
 				</div>
 			</body>
