@@ -47,7 +47,7 @@ const fs = require('fs');
 const AdmZip = require('adm-zip');
 function activate(context) {
     const disposable = vscode.commands.registerCommand('salesforce-deployment-tool.build', () => {
-        const panel = vscode.window.createWebviewPanel('packageBuilder', 'Salesforce Deployment Tool', vscode.ViewColumn.One, { enableScripts: true });
+        const panel = vscode.window.createWebviewPanel('packageBuilder', 'Salesforce Deployment Tool', vscode.ViewColumn.One, { enableScripts: true, retainContextWhenHidden: true });
         const scriptPath = vscode.Uri.file(path.join(context.extensionPath, 'src', 'assets/index.js'));
         const scriptUri = panel.webview.asWebviewUri(scriptPath);
         const cssPath = vscode.Uri.file(path.join(context.extensionPath, 'src', 'assets/index.css'));
@@ -74,7 +74,6 @@ function activate(context) {
                 case 'loadComponents':
                     if (message.type) {
                         var sourceOrg = orgsList.find((org) => org.orgId === message.sourceOrgId);
-                        //vscode.window.showInformationMessage(`Loading: ${message.type}`);	
                         getComponents(sourceOrg.accessToken, sourceOrg.instanceUrl, message.type)
                             .then((data) => {
                             panel.webview.postMessage({ command: 'components', components: data, type: message.type });
@@ -196,7 +195,8 @@ function activate(context) {
                     });
                     break;
                 case 'filePreview':
-                    vscode.commands.executeCommand('vscode.diff', vscode.Uri.file(message.source), vscode.Uri.file(message.dest), 'Diff: Source ↔ Target');
+                    let title = message.file + ': Source ↔ Target';
+                    vscode.commands.executeCommand('vscode.diff', vscode.Uri.file(message.source), vscode.Uri.file(message.dest), title, { preview: false });
                     break;
                 default:
                     console.log('Unknown command:', message.command);
@@ -576,7 +576,7 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 								<button type="button" style="padding: 7px; width: 75px;float:right;margin-top:22px;margin-left: 5px;" id="compare">Compare</button>											
 								<button type="button" style="padding: 7px; width: 75px;float:right;margin-top:22px;margin-left: 5px;" id="deploy">Deploy</button>
 								<button type="button" style="padding: 7px; width: 75px;float:right;margin-top:22px;margin-left: 5px;" id="validate">Validate</button>	
-								<div style="float:right;">
+								<div style="float:right;margin-top:2px;">
 									<label for="text" for="testoption-field" class="top-label">Test Options:&nbsp;&nbsp;
 										<a href="#" id="view-classes" style="display:none">Classes</a>
 									</label>							

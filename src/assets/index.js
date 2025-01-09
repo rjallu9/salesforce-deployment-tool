@@ -32,12 +32,33 @@ $(document).ready(function () {
         } else if(event.data.command === 'compareResults') {
             console.log(event.data.files);
             event.data.files.forEach(file => {
-               if(selectedComps.has(file.name)) {
-                    selectedComps.get(file.name)['source'] = file.source;
-                    selectedComps.get(file.name)['dest'] = file.dest;
+               let filename = file.name;
+               if(filename.indexOf("/") >= 0){
+                    filename = filename.substring(0, filename.indexOf('/'));
+               }
+               if(selectedComps.has(filename)) {
+                    if(selectedComps.get(filename).hasOwnProperty('source')) {
+                        selectedComps.get(filename).source.push(file.source);
+                    } else {
+                        selectedComps.get(filename)['source'] = [file.source];
+                    }
+                    if(selectedComps.get(filename).hasOwnProperty('files')) {
+                        selectedComps.get(filename).files.push(file.name);
+                    } else {
+                        selectedComps.get(filename)['files'] = [file.name];
+                    }
+                    if(file.dest !== '') {
+                        if(selectedComps.get(filename).hasOwnProperty('dest')) {
+                            selectedComps.get(filename).dest.push(file.dest);
+                        } else {
+                            selectedComps.get(filename)['dest'] = [file.dest];
+                        }
+                    }
                }
             });
             $('#previewtable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
+            let column = $('#previewtable').DataTable().column(4); //Compare Results Column
+            column.visible(true);
         } 
     });
 
@@ -366,9 +387,9 @@ $(document).ready(function () {
                 orderable: false,
                 render: function (data, type, row) {
                     if (row.dest) {
-                        return '<a href="#" class="fileview" data-source="'+row.source+'" data-dest="'+row.dest+'">View</a>';
+                        return '<a href="#" class="fileview" data-name="'+row.type+"."+row.name+'">View</a>';
                     } else {
-                        return 'Not Available in Target Org.';
+                        return 'N/A';
                     }
                 },
                 targets: 4
@@ -383,8 +404,10 @@ $(document).ready(function () {
             $("#selection").hide();
             $("#source-org").hide();
             $("#preview").show();
+            $('.preview').text('Selected ('+selectedComps.size+')');            
             $('#previewtable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
-            $('.preview').text('Selected ('+selectedComps.size+')');
+            let column = $('#previewtable').DataTable().column(4); //Compare Results Column
+            column.visible(false);
             if($('#dest-org-field').val() === '') {
                 $('#deploy-buttons').hide();        
             }
@@ -673,8 +696,13 @@ $(document).ready(function () {
     });
 
     $("#previewtable").on('click', 'a.fileview', function (e) {
-        vscode.postMessage({ command: 'filePreview', source: e.currentTarget.dataset.source, 
-            dest: e.currentTarget.dataset.dest}); 
+        let filename = e.currentTarget.dataset.name;
+        let source = selectedComps.get(filename).source;
+        let dest = selectedComps.get(filename).dest;
+        let files = selectedComps.get(filename).files;
+        source.forEach((element, index) => {
+            vscode.postMessage({ command: 'filePreview', source: element,  dest: dest[index], file: files[index]}); 
+        });        
         
     });
 });
