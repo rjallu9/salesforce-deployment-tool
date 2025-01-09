@@ -18,7 +18,8 @@ $(document).ready(function () {
     window.addEventListener('message', (event) => {
         if(event.data.command === 'orgsList') {
             orgs = event.data.orgs; 
-            $(".init").hide();
+            $("#source-org").show();
+            $(".overlay").hide();
             loadSourceOrgs();
         } else if(event.data.command === 'types') {
             types = event.data.types;   
@@ -30,9 +31,9 @@ $(document).ready(function () {
         } else if(event.data.command === 'deployStatus') {
             updateDeploymentStatus(event.data.result);
         } else if(event.data.command === 'compareStatus') {
-            updateCompareStatus(event.data.result);
+            updateCompareStatus(event.data.result.stage);
         } else if(event.data.command === 'compareResults') {
-            updateCompareStatus({stage:"completed"})
+            updateCompareStatus("completed");
             console.log(event.data.files);
             event.data.files.forEach(file => {
                let filename = file.name;
@@ -723,24 +724,30 @@ $(document).ready(function () {
     function updateCompareStatus(stage) {
         if(stage === 'sourceInit') {
             $(".source").removeClass("path-notstarted").addClass("path-running");
-            $($(".retrieve")[0].childNodes[0]).text('Retrieve(Source) Initiated');               
+            $($(".source")[0].childNodes[0]).text('Retrieve(Source) Initiated');               
             $("#progressbar").progressbar({"value": 20});  
         } else if(stage === 'destInit') {
             $(".target").removeClass("path-notstarted").addClass("path-running");
             $($(".target")[0].childNodes[0]).text('Retrieve(Target) Initiated');               
             $("#progressbar").progressbar({"value": 40});  
         } else if(stage === 'sourceInprogress') {
-            $($(".retrieve")[0].childNodes[0]).text('Retrieve(Source) Running');               
+            $($(".source")[0].childNodes[0]).text('Retrieve(Source) Running');               
             $("#progressbar").progressbar({"value": 60});  
         } else if(stage === 'destInprogress') {
             $($(".target")[0].childNodes[0]).text('Retrieve(Target) Running');               
             $("#progressbar").progressbar({"value": 80});  
-        } else if(stage === 'destInit') {
+        } else if(stage === 'completed') {
             $(".complete").removeClass("path-notstarted");
             $(".source").removeClass("path-running");
+            $($(".source")[0].childNodes[0]).text('Retrieve(Source) Completed');
             $(".target").removeClass("path-running");
+            $($(".target")[0].childNodes[0]).text('Retrieve(Target) Completed');  
             $($(".complete")[0].childNodes[0]).text('Comparison Completed');               
             $("#progressbar").progressbar({"value": 100});  
+
+            $("#deploy-buttons").show();
+            $("#dest-org-field").prop('disabled', false);
+            $("#previous").prop('disabled', false);
         }
     }
 });

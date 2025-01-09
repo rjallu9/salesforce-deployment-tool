@@ -18,7 +18,8 @@ $(document).ready(function () {
     window.addEventListener('message', (event) => {
         if(event.data.command === 'orgsList') {
             orgs = event.data.orgs; 
-            $(".init").hide();
+            $("#source-org").show();
+            $("#overlay").hide();
             loadSourceOrgs();
         } else if(event.data.command === 'types') {
             types = event.data.types;   

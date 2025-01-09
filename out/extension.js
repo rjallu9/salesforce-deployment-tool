@@ -492,12 +492,11 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 				<div style="margin: 20px;">
 					<h1>Salesforce Deployment Tool</h1>
 					
-					<div id="source-org" style="float:left;margin-right:5px">	
+					<div id="source-org" style="float:left;margin-right:5px;display:none;">	
 						<label for="text" for="source-org-field" class="top-label">Source Org: </label>
 						<select type="text" class="source-org-field" id="source-org-field" style="height:36px;width:350px;">
 						</select>		
 					</div>
-					<div class='init'><p style="padding-top: 27px;">Loading Authorized Orgs<span class="loading"></span></p></div>
 					<div id="selection" style="display:none">
 						<div class="form-panel">
 							<div>
@@ -662,6 +661,12 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 								</table>
 							</div>
 						</div>							
+					</div>
+				</div>
+				<div id="overlay">
+					<div class="cv-spinner">
+						<span class="spinner"></span>
+						<p style="margin-left: 5px;">Initializing</p>
 					</div>
 				</div>
 			</body>
