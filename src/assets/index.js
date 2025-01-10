@@ -42,34 +42,7 @@ $(document).ready(function () {
         } else if(event.data.command === 'compareResults') {
             $("#overlay").hide();
             console.log(event.data.files);
-            event.data.files.forEach(file => {
-               let filename = file.name;
-               if(filename.indexOf("/") >= 0){
-                    filename = filename.substring(0, filename.indexOf('/'));
-               }
-               if(selectedComps.has(filename)) {
-                    if(selectedComps.get(filename).hasOwnProperty('source')) {
-                        selectedComps.get(filename).source.push(file.source);
-                    } else {
-                        selectedComps.get(filename)['source'] = [file.source];
-                    }
-                    if(selectedComps.get(filename).hasOwnProperty('files')) {
-                        selectedComps.get(filename).files.push(file.name);
-                    } else {
-                        selectedComps.get(filename)['files'] = [file.name];
-                    }
-                    if(file.dest !== '') {
-                        if(selectedComps.get(filename).hasOwnProperty('dest')) {
-                            selectedComps.get(filename).dest.push(file.dest);
-                        } else {
-                            selectedComps.get(filename)['dest'] = [file.dest];
-                        }
-                    }
-               }
-            });
-            $('#previewtable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
-            let column = $('#previewtable').DataTable().column(4); //Compare Results Column
-            column.visible(true);
+            loadCompareResults(event.data.files);
         } 
     });
 
@@ -160,7 +133,7 @@ $(document).ready(function () {
         scrollY: '400px',
         scrollCollapse: true, 
         fixedColumns: true,
-        order: [[1, 'asc'],[2, 'asc']],
+        order: [[0, 'asc'],[1, 'asc']],
         columns: [
             { data: 'type' },
             { data: 'name' },            
@@ -434,7 +407,7 @@ $(document).ready(function () {
         scrollY: '400px',
         scrollCollapse: true, 
         fixedColumns: true,
-        order: [[[1, 'asc'],[2, 'asc']]],
+        order: [[[0, 'asc'],[1, 'asc']]],
         columns: [
             { data: 'type' },
             { data: 'name' },            
@@ -769,5 +742,36 @@ $(document).ready(function () {
             vscode.postMessage({ command: 'filePreview', source: element,  dest: dest[index], file: files[index]}); 
         }); 
     });
+
+    function loadCompareResults(files) {
+        files.forEach(file => {
+            let filename = file.name;
+            if(filename.indexOf("/") >= 0){
+                    filename = filename.substring(0, filename.indexOf('/'));
+            }
+            if(selectedComps.has(filename)) {
+                    if(selectedComps.get(filename).hasOwnProperty('source')) {
+                        selectedComps.get(filename).source.push(file.source);
+                    } else {
+                        selectedComps.get(filename)['source'] = [file.source];
+                    }
+                    if(selectedComps.get(filename).hasOwnProperty('files')) {
+                        selectedComps.get(filename).files.push(file.name);
+                    } else {
+                        selectedComps.get(filename)['files'] = [file.name];
+                    }
+                    if(file.dest !== '') {
+                        if(selectedComps.get(filename).hasOwnProperty('dest')) {
+                            selectedComps.get(filename).dest.push(file.dest);
+                        } else {
+                            selectedComps.get(filename)['dest'] = [file.dest];
+                        }
+                    }
+            }
+        });        
+        let column = $('#previewtable').DataTable().column(4); //Compare Results Column
+        column.visible(true);
+        $('#previewtable').DataTable().clear().rows.add(Array.from(selectedComps.values())).order([[4, 'desc'],[0, 'asc'],[1, 'asc']]).draw();
+    }
 });
 
