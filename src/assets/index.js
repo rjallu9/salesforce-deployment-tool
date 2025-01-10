@@ -402,16 +402,31 @@ $(document).ready(function () {
         if ($(this).is(':checked')) {
             $('.row-chk').each(function(indx, chxbox) {
                 if(!$(chxbox).prop('checked')) {
-                    $(chxbox).prop('checked', true).trigger('change');
+                    $(chxbox).prop('checked', true);
+                    selectedComps.set($(chxbox).val(), $('#datatable').DataTable().row($(chxbox).closest('tr')).data());  
+                    $(chxbox).parent().parent().css('background', 'lightgray');    
                 }                
-            });        
+            });   
+            $('#next').prop('disabled', false);
+            $('#packagexml').prop('disabled', false);     
         } else {
+            selectedComps = new Map();
             $('.row-chk').each(function(indx, chxbox) {
                 if($(chxbox).prop('checked')) {
-                    $(chxbox).prop('checked', false).trigger('change');
+                    $(chxbox).prop('checked', false);                    
+                    $(chxbox).parent().parent().css('background', '');
                 }                
             }); 
-        }       
+            $('#next').prop('disabled', true);
+            $('#packagexml').prop('disabled', true);
+        }   
+        $('.selected').text('Selected ('+selectedComps.size+')');   
+        $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw();  
+        $("#deploystatus").hide();
+        $('.deployerrors').text('Deployment Errors (0)');
+        $('#errortable').DataTable().clear().draw(); 
+        $('.testfailures').text('Test Class Failures (0)');
+        $('#testerrortable').DataTable().clear().draw(); 
     });
 
     $('#previewtable').DataTable({
