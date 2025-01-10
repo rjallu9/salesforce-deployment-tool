@@ -54,7 +54,7 @@ export function activate(context: vscode.ExtensionContext) {
 					case 'loadComponents':
 						if(message.type) {
 							var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);
-							getComponents(sourceOrg.accessToken, sourceOrg.instanceUrl, message.type)
+							getComponents(sourceOrg.accessToken, sourceOrg.instanceUrl, message.type, message.isFolder)
 							.then((data) => {
 								panel.webview.postMessage({ command: 'components', components: data, type: message.type });
 							});
@@ -151,7 +151,7 @@ export function activate(context: vscode.ExtensionContext) {
 									if(result.done	=== 'true') {
 										clearInterval(intervalId);	
 										sourceOrgFiles = result.fileNames;
-										extractComponents(result.zipFile, tmpDirectory+"/"+time, sourceOrg.alias);
+										extractComponents(result.zipFile, tmpDirectory, ''+time, sourceOrg.alias);
 										if(destOrgFiles.size > 0) {
 											postCompareResults(sourceOrgFiles, destOrgFiles, tmpDirectory+"/"+time+"/"+sourceOrg.alias, 
 												tmpDirectory+"/"+time+"/"+destOrg.alias, panel);
@@ -171,7 +171,7 @@ export function activate(context: vscode.ExtensionContext) {
 									if(result.done	=== 'true') {
 										clearInterval(intervalId);	
 										destOrgFiles = result.fileNames;
-										extractComponents(result.zipFile, tmpDirectory+"/"+time, destOrg.alias);
+										extractComponents(result.zipFile, tmpDirectory, ''+time, destOrg.alias);
 										if(sourceOrgFiles.size > 0) {
 											postCompareResults(sourceOrgFiles, destOrgFiles, tmpDirectory+"/"+time+"/"+sourceOrg.alias, 
 												tmpDirectory+"/"+time+"/"+destOrg.alias, panel);
@@ -211,21 +211,24 @@ function postCompareResults(sourceOrgFiles:Map<string, string>, destOrgFiles:Map
 	panel.webview.postMessage({ command: 'compareResults', files: files});    
 }
 
-function extractComponents(zipfile:string, tmpPath:string, directory:string) {
+function extractComponents(zipfile:string, tmpPath:string, subDir:string, alias:string) {
 	const buffer = Buffer.from(zipfile, 'base64');
 	if (!fs.existsSync(tmpPath)) {
 		fs.mkdirSync(tmpPath);
 	}
+	if (!fs.existsSync(tmpPath+"/"+subDir)) {
+		fs.mkdirSync(tmpPath+"/"+subDir);
+	}
 
-	const zipFilePath = path.join(tmpPath, directory+'.zip');
+	const zipFilePath = path.join(tmpPath+"/"+subDir, alias+'.zip');
 	fs.writeFileSync(zipFilePath, buffer);	
 	
-	if (!fs.existsSync(tmpPath+"/"+directory)) {
-		fs.mkdirSync(tmpPath+"/"+directory);
+	if (!fs.existsSync(tmpPath+"/"+subDir+"/"+alias)) {
+		fs.mkdirSync(tmpPath+"/"+subDir+"/"+alias);
 	}
 
 	const zip = new AdmZip(zipFilePath);
-	zip.extractAllTo(tmpPath+"/"+directory, true);
+	zip.extractAllTo(tmpPath+"/"+subDir+"/"+alias, true);
 }
 
 function cancelDeploy(accessToken:string, endPoint:string, deployJobId:string) {
@@ -323,38 +326,59 @@ function retrieve(accessToken:string, endPoint:string, packagexml:string) {
     });
 }
 
-function getComponents(accessToken:string, endPoint:string, type:string) {
+function getComponents(accessToken:string, endPoint:string, type:string, isFolder:boolean) {
     return new Promise((resolve, reject) => {
-		sendSoapReuest(accessToken, endPoint, '<met:listMetadata><met:queries><met:type>'+type+'</met:type></met:queries></met:listMetadata>')
+		sendSoapReuest(accessToken, endPoint, '<met:listMetadata><met:queries><met:type>'+type+(isFolder ? 'Folder' : '')+'</met:type></met:queries></met:listMetadata>')
 		.then((result:any) => {
-			const comps = result['soapenv:Envelope']['soapenv:Body']['listMetadataResponse'];	
-			if(comps !== "") {
-				if(comps['result'] instanceof Array) {
-					const compsList = comps['result'].map((comp: any) => ({
-						name: comp['fullName'],
-						type: comp['type'],
-						lastModifiedByName: comp['lastModifiedByName'],
-						lastModifiedDate: new Date(comp['lastModifiedDate']).toLocaleDateString(),
-						manageableState: comp['manageableState']
-					}));			
-					resolve(compsList);
-				} else {	
-					resolve([{
-						name: comps['result']['fullName'],
-						type: comps['result']['type'],
-						lastModifiedByName: comps['result']['lastModifiedByName'],
-						lastModifiedDate: new Date(comps['lastModifiedDate']).toLocaleDateString(),
-						manageableState: comps['manageableState']
-					}]);
-				}
+			const comps = result['soapenv:Envelope']['soapenv:Body']['listMetadataResponse'];
+			let results = buildComponents(comps);	
+			if(isFolder) {
+				let folderresults:Object[] = [];	
+				const promises = results.map((element:any) => {
+					return sendSoapReuest(accessToken, endPoint, '<met:listMetadata><met:queries><met:type>'+type+
+						'</met:type><met:folder>'+element.name+'</met:folder></met:queries></met:listMetadata>')
+					.then((result:any) => {
+						const comps = result['soapenv:Envelope']['soapenv:Body']['listMetadataResponse'];
+						let fldresults = buildComponents(comps);	
+						folderresults = [...folderresults, ...fldresults];
+					});
+				});
+				Promise.all(promises)
+				.then(() => {
+					resolve(folderresults);
+				});
 			} else {
-				resolve([]);
-			}	
+				resolve(results);	
+			}			
         })
         .catch((error:any) => {
             reject(error);			
         });
     });
+}
+
+function buildComponents(comps:any) {
+	let results:Object[] = [];
+	if(comps !== "") {
+		if(comps['result'] instanceof Array) {
+			results = comps['result'].map((comp: any) => ({
+				name: comp['fullName'],
+				type: comp['type'],
+				lastModifiedByName: comp['lastModifiedByName'],
+				lastModifiedDate: new Date(comp['lastModifiedDate']).toLocaleDateString(),
+				manageableState: comp['manageableState']
+			}));	
+		} else {	
+			results.push({
+				name: comps['result']['fullName'],
+				type: comps['result']['type'],
+				lastModifiedByName: comps['result']['lastModifiedByName'],
+				lastModifiedDate: new Date(comps['lastModifiedDate']).toLocaleDateString(),
+				manageableState: comps['manageableState']
+			});
+		}		
+	}
+	return results;
 }
 
 function getTypes(accessToken:string, endPoint:string, favorites:string[]) {
@@ -367,7 +391,8 @@ function getTypes(accessToken:string, endPoint:string, favorites:string[]) {
 				typesList.push({
 					name: element['xmlName'],
 					isFavorite: favorites.indexOf(element['xmlName']) >= 0,
-					hidden: false
+					hidden: false,
+					inFolder: element['inFolder']
 				});
 				if(element['childXmlNames']) {
 					if(element['childXmlNames'] instanceof Array) {
@@ -375,14 +400,16 @@ function getTypes(accessToken:string, endPoint:string, favorites:string[]) {
 							typesList.push({
 								name: childname,
 								isFavorite: favorites.indexOf(element['xmlName']) >= 0,
-								hidden: false
+								hidden: false,
+								inFolder: 'false'
 							});
 						});			
 					} else {	
 						typesList.push({
 							name: element['childXmlNames'],
 							isFavorite: favorites.indexOf(element['xmlName']) >= 0,
-							hidden: false
+							hidden: false,
+							inFolder: 'false'
 						});
 					}
 				}

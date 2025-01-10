@@ -8,6 +8,7 @@ $(document).ready(function () {
     requestUserData();
 
     let types = [];
+    let foldertypes = [];
     let orgs = [];
     let selectedTypes = [];
     let testClasses = '';
@@ -25,7 +26,7 @@ $(document).ready(function () {
             loadSourceOrgs();
         } else if(event.data.command === 'types') {
             types = event.data.types;   
-            $("#selection").show(); 
+            $("#selection").show();
             refreshTypes(true);       
         } else if(event.data.command === 'components') {
             componentsMap.set(event.data.type, event.data.components);
@@ -120,7 +121,7 @@ $(document).ready(function () {
         scrollY: '400px',
         scrollCollapse: true, 
         fixedColumns: true,
-        order: [[1, 'asc']],
+        order: [[1, 'asc'],[2, 'asc']],
         columns: [
             { data: null, sortable: false },
             { data: 'type' },
@@ -159,7 +160,7 @@ $(document).ready(function () {
         scrollY: '400px',
         scrollCollapse: true, 
         fixedColumns: true,
-        order: [[1, 'asc']],
+        order: [[1, 'asc'],[2, 'asc']],
         columns: [
             { data: 'type' },
             { data: 'name' },            
@@ -203,7 +204,8 @@ $(document).ready(function () {
                     const selectedValue = $(chxbox).val();
                     selectedTypes.push(selectedValue);
                     if(!componentsMap.has(selectedValue)) {
-                        vscode.postMessage({ command: 'loadComponents', type:selectedValue, sourceOrgId: $('#source-org-field').val()});
+                        vscode.postMessage({ command: 'loadComponents', type:selectedValue, isFolder:foldertypes.indexOf(selectedValue)>=0, 
+                            sourceOrgId: $('#source-org-field').val()});
                         refreshComps.push(selectedValue);
                         apiCallSent = true;
                     } else {
@@ -239,7 +241,8 @@ $(document).ready(function () {
             if(componentsMap.has(selectedValue)) {
                 refreshComponents();
             } else {
-                vscode.postMessage({ command: 'loadComponents', type:selectedValue, sourceOrgId: $('#source-org-field').val()});
+                vscode.postMessage({ command: 'loadComponents', type:selectedValue, isFolder:foldertypes.indexOf(selectedValue)>=0, 
+                        sourceOrgId: $('#source-org-field').val()});
                 refreshComps.push(selectedValue);
                 $("#overlay").show();
                 $(".spinnerlabel").text("Refreshing Components");
@@ -316,6 +319,13 @@ $(document).ready(function () {
             } 
             return b.isFavorite - a.isFavorite;                 
         });
+        if(init) {
+            types.forEach(function(type) {
+                if(type.inFolder === 'true') {
+                    foldertypes.push(type.name);
+                }
+            });
+        }
         types.forEach(function(type) {
             if(!type.hidden) {
                 let fav = `<label class="dd-option-fav" title=${type.name}>☆</label>`;
@@ -323,7 +333,8 @@ $(document).ready(function () {
                     fav = `<label class="dd-option-fav" style="color:darkgoldenrod;" title=${type.name}>&#9733;</label>`;
                     if(init) {
                         selectedTypes.push(type.name);
-                        vscode.postMessage({ command: 'loadComponents', type:type.name,  sourceOrgId: $('#source-org-field').val()});
+                        vscode.postMessage({ command: 'loadComponents', type:type.name, isFolder:foldertypes.indexOf(type.name)>=0, 
+                            sourceOrgId: $('#source-org-field').val()});
                     }                    
                 }
                 $('.dd-options ui').append(`
@@ -408,7 +419,7 @@ $(document).ready(function () {
         scrollY: '400px',
         scrollCollapse: true, 
         fixedColumns: true,
-        order: [[1, 'asc']],
+        order: [[[1, 'asc'],[2, 'asc']]],
         columns: [
             { data: 'type' },
             { data: 'name' },            
