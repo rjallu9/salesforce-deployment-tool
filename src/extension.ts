@@ -7,6 +7,8 @@ import favorites from './assets/favorites.json';
 const fs = require('fs');
 const AdmZip = require('adm-zip');
 
+let tmpDirectory = '';
+
 export function activate(context: vscode.ExtensionContext) {
 	const disposable = vscode.commands.registerCommand('salesforce-deployment-tool.build', () => {
 			const panel = vscode.window.createWebviewPanel(
@@ -31,6 +33,8 @@ export function activate(context: vscode.ExtensionContext) {
 			let orgsList: any[] = [];
 
 			let isCancelDeploy = false;
+
+			tmpDirectory = context.extensionPath+"/tmp";
 
 			panel.webview.onDidReceiveMessage((message) => {
 				switch (message.command) {
@@ -138,20 +142,19 @@ export function activate(context: vscode.ExtensionContext) {
 						let sourceOrgFiles = new Map();
 						let destOrgFiles = new Map();
 						var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);	
-						var destOrg = orgsList.find((org:any) => org.orgId === message.destOrgId);	
-						panel.webview.postMessage({ command: 'compareStatus', result: {stage:"sourceInit"}});																	
+						var destOrg = orgsList.find((org:any) => org.orgId === message.destOrgId);
+						var time = Date.now();																
 						retrieve(sourceOrg.accessToken, sourceOrg.instanceUrl, message.packagexml).then((result:any) => {	
 							let retrieveJobId = result;
 							let intervalId = setInterval(() => {
 								retrieveStatus(sourceOrg.accessToken, sourceOrg.instanceUrl, retrieveJobId).then((result:any) => {	
-									panel.webview.postMessage({ command: 'compareStatus', result: {stage:"sourceInprogress"}});	
 									if(result.done	=== 'true') {
 										clearInterval(intervalId);	
 										sourceOrgFiles = result.fileNames;
-										extractComponents(result.zipFile, context.extensionPath+"/tmp", sourceOrg.alias);
+										extractComponents(result.zipFile, tmpDirectory+"/"+time, sourceOrg.alias);
 										if(destOrgFiles.size > 0) {
-											postCompareResults(sourceOrgFiles, destOrgFiles, context.extensionPath+"/tmp/"+sourceOrg.alias, 
-												context.extensionPath+"/tmp/"+destOrg.alias, panel);
+											postCompareResults(sourceOrgFiles, destOrgFiles, tmpDirectory+"/"+time+"/"+sourceOrg.alias, 
+												tmpDirectory+"/"+time+"/"+destOrg.alias, panel);
 										}
 									}		
 								}).catch((error) => {
@@ -161,19 +164,17 @@ export function activate(context: vscode.ExtensionContext) {
 							}, 1000);			
 						});
 
-						panel.webview.postMessage({ command: 'compareStatus', result: {stage:"destInit"}});	
 						retrieve(destOrg.accessToken, destOrg.instanceUrl, message.packagexml).then((result:any) => {	
 							let retrieveJobId = result;
 							let intervalId = setInterval(() => {
-								retrieveStatus(destOrg.accessToken, destOrg.instanceUrl, retrieveJobId).then((result:any) => {	
-									panel.webview.postMessage({ command: 'compareStatus', result: {stage:"destInprogress"}});	
+								retrieveStatus(destOrg.accessToken, destOrg.instanceUrl, retrieveJobId).then((result:any) => {		
 									if(result.done	=== 'true') {
 										clearInterval(intervalId);	
 										destOrgFiles = result.fileNames;
-										extractComponents(result.zipFile, context.extensionPath+"/tmp", destOrg.alias);
+										extractComponents(result.zipFile, tmpDirectory+"/"+time, destOrg.alias);
 										if(sourceOrgFiles.size > 0) {
-											postCompareResults(sourceOrgFiles, destOrgFiles, context.extensionPath+"/tmp/"+sourceOrg.alias, 
-												context.extensionPath+"/tmp/"+destOrg.alias, panel);
+											postCompareResults(sourceOrgFiles, destOrgFiles, tmpDirectory+"/"+time+"/"+sourceOrg.alias, 
+												tmpDirectory+"/"+time+"/"+destOrg.alias, panel);
 										}
 									}		
 								}).catch((error) => {
@@ -215,21 +216,16 @@ function extractComponents(zipfile:string, tmpPath:string, directory:string) {
 	if (!fs.existsSync(tmpPath)) {
 		fs.mkdirSync(tmpPath);
 	}
+
 	const zipFilePath = path.join(tmpPath, directory+'.zip');
 	fs.writeFileSync(zipFilePath, buffer);	
 	
 	if (!fs.existsSync(tmpPath+"/"+directory)) {
 		fs.mkdirSync(tmpPath+"/"+directory);
 	}
-	/*const zipStream = fs.createReadStream(zipFilePath)
-		.pipe(unzipper.Extract({ path: tmp+"/output" }));
 
-	zipStream.on('close', () => {
-		vscode.window.showInformationMessage(`Files unzipped`);
-	});*/
 	const zip = new AdmZip(zipFilePath);
 	zip.extractAllTo(tmpPath+"/"+directory, true);
-    
 }
 
 function cancelDeploy(accessToken:string, endPoint:string, deployJobId:string) {
@@ -672,5 +668,14 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 			<script src=${scriptUri}></script>
 			<link rel="stylesheet" href=${cssUri}>
 			</html>`;
-  }
+}
+
+export function deactivate() {
+	if (tmpDirectory && fs.existsSync(tmpDirectory)) {
+        try {
+            fs.rmSync(tmpDirectory, { recursive: true, force: true });
+        } catch (err) {
+        }
+    }
+}
 
