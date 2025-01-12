@@ -316,8 +316,10 @@ $(document).ready(function () {
                 }
             });
         }
+        var visibleTypesCount = 0;
         types.forEach(function(type) {
             if(!type.hidden) {
+                visibleTypesCount++;
                 let fav = `<label class="dd-option-fav" title=${type.name}>☆</label>`;
                 if(type.isFavorite) {
                     fav = `<label class="dd-option-fav" style="color:darkgoldenrod;" title=${type.name}>&#9733;</label>`;
@@ -328,7 +330,7 @@ $(document).ready(function () {
                     }                    
                 }
                 $('.dd-options ui').append(`
-                    <li class="dd-option" ${type.isFavorite ? "style='background:#0078D7'" : ""}>
+                    <li class="dd-option" ${(selectedTypes.indexOf(type.name) >= 0) ? "style='background:#0078D7'" : ""}>
                         <div>
                             <input type="checkbox" value=${type.name} id=${type.name} class="dd-option-chk" 
                                     ${(init && type.isFavorite) || (selectedTypes.indexOf(type.name) >= 0) ? "checked" : ""}>
@@ -340,6 +342,11 @@ $(document).ready(function () {
             }
         }); 
         $('.dd-text-field').attr("placeholder", selectedTypes.length+ ' Type(s) selected');
+        if(selectedTypes.length === visibleTypesCount) {
+            $('.dd-select-all').prop('checked', true);
+        } else {
+            $('.dd-select-all').prop('checked', false);
+        }
     }
 
     function refreshSelections(sel) {

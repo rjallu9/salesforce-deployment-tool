@@ -1,1 +1,6 @@
-[]
+[
+  "AnimationRule",
+  "ApexComponent",
+  "ApexPage",
+  "ApexTrigger"
+]
