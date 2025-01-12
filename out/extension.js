@@ -223,6 +223,15 @@ function activate(context) {
                     console.log('Unknown command:', message.command);
             }
         });
+        panel.onDidDispose(() => {
+            if (tmpDirectory && fs.existsSync(tmpDirectory)) {
+                try {
+                    fs.rmSync(tmpDirectory, { recursive: true, force: true });
+                }
+                catch (err) {
+                }
+            }
+        });
     });
     context.subscriptions.push(disposable);
 }

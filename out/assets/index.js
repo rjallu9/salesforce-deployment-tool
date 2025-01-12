@@ -402,6 +402,7 @@ $(document).ready(function () {
         }
         $("#deploystatus").hide();
         $('.deployerrors').text('Deployment Errors (0)');
+        $('.testcoverages').text('Test Coverage (0)');
         $('#errortable').DataTable().clear().draw(); 
         $('.testfailures').text('Test Class Failures (0)');
         $('#testerrortable').DataTable().clear().draw(); 
@@ -438,6 +439,7 @@ $(document).ready(function () {
         $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw();  
         $("#deploystatus").hide();
         $('.deployerrors').text('Deployment Errors (0)');
+        $('.testcoverages').text('Test Coverage (0)');
         $('#errortable').DataTable().clear().draw(); 
         $('.testfailures').text('Test Class Failures (0)');
         $('#testerrortable').DataTable().clear().draw(); 
@@ -508,6 +510,7 @@ $(document).ready(function () {
         $('.deployerrors').text('Deployment Errors (0)');
         $('#errortable').DataTable().clear().draw(); 
         $('.testfailures').text('Test Class Failures (0)');
+        $('.testcoverages').text('Test Coverage (0)');
         $('#testerrortable').DataTable().clear().draw(); 
         if($('#dest-org-field').val() === '') {
             $('#deploy-buttons').hide();        
@@ -606,6 +609,7 @@ $(document).ready(function () {
 
     function updateDeploymentStatus(result) {
         $('.deployerrors').text('Deployment Errors (0)');
+        $('.testcoverages').text('Test Coverage (0)');
         $('#errortable').DataTable().clear().draw(); 
         $('.testfailures').text('Test Class Failures (0)');
         $('#testerrortable').DataTable().clear().draw(); 
@@ -639,11 +643,6 @@ $(document).ready(function () {
                     $("#quick-deploy").show();
                 }  
                 $(".deployment").removeClass("path-running");
-                /*if(result.status === "SucceededPartial") {
-                    $(".deployment").removeClass("path-running").addClass("path-partial");
-                }  else if(result.status === "Failed") {
-                    $(".deployment").removeClass("path-running").addClass("path-failed");
-                }*/ 
                 if(result.details?.componentFailures?.length > 0) {
                     $('.deployerrors').text('Deployment Errors ('+result.details.componentFailures.length+')');
                     $('#errortable').DataTable().clear().rows.add(result.details.componentFailures).draw(); 
@@ -665,9 +664,11 @@ $(document).ready(function () {
                                 coverage: e.numLocations > 0 ? Math.trunc((e.numLocations-e.numLocationsNotCovered) / e.numLocations*100)+'%' : 'N/A',
                             });
                         });
+                        $('.testcoverages').text('Test Coverage ('+recs.length+')');
                         $('#testcoveragestable').DataTable().clear().rows.add(recs).draw(); 
                     } else {
                         var rec = result.details.runTestResult.codeCoverage;
+                        $('.testcoverages').text('Test Coverage (1)');
                         $('#testcoveragestable').DataTable().clear().rows.add([{
                             name: rec.name,
                             coverage: e.numLocations > 0 ? Math.trunc((rec.numLocations-rec.numLocationsNotCovered) / rec.numLocations*100)+'%' : 'N/A',
