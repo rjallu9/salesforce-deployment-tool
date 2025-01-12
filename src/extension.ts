@@ -549,7 +549,7 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 										<span style="margin-left:-20px;pointer-events: none;color: #888;">▼</span>
 									</div>
 									<div class="dd-option-box">
-										<div style="padding:5px 10px 5px 10px;">
+										<div style="padding:5px 10px 5px 10px;" id="select-all-div">
 											<input type="checkbox" value="All" class="dd-select-all">
 											<label for="select-all">All</label>
 										</div>
@@ -572,9 +572,6 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 								</div>
 							</div>
 							<div style="margin-top:22px;">
-								<div style="float:left;" >
-									<p style="color:#f14c4c;" id="errors"></p>
-								</div>
 								<button type="button" style="padding: 7px; width: 75px;float:right;" id="next" disabled>Next</button>
 								<button type="button" style="padding: 7px; width:100px;float:right;margin-right:5px" id="packagexml" disabled>Package.xml</button>
 								<div style="float: left;padding-left: 5px;margin-right: 5px;" id="selection-view">
@@ -619,18 +616,16 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 								</div>
 							</div>
 						</div>	
-						<div style="margin-top:10px;">
-							<div style="float:left;" >
-								<p style="color:#f14c4c;" id="errors"></p>
-							</div>								
-						</div>					
+						<div>
+							<p style="color:#f14c4c;" id="errors"></p>
+						</div>				
 						<div id="tabs" style="margin-top:10px;">
 							<ul>
-								<li class="tab" name="datatable"><a href="#available" class="available">Available (0)</a></li>
+								<li class="tab" name="compsdatatable"><a href="#available" class="available">Available (0)</a></li>
 								<li class="tab" name="selecteddatatable"><a href="#selected" class="selected">Selected (0)</a></li>
 							</ul>
 							<div id="available">
-								<table id="datatable" class="display" style="width:100%">
+								<table id="compsdatatable" class="display" style="width:100%">
 									<thead>
 										<tr>
 											<th><input type="checkbox" id="all-row-chk" class='all-row-chk'/></th>	

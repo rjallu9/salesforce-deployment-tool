@@ -31,7 +31,7 @@ $(document).ready(function () {
             $("#selection").show();
             refreshTypes(true);   
             refreshSelections(event.data.selections);  
-            $('#datatable').DataTable().draw();           
+            $('#compsdatatable').DataTable().draw();           
         } else if(event.data.command === 'components') {
             componentsMap.set(event.data.type, event.data.components);
             refreshComps = $.grep(refreshComps, function(type) {
@@ -78,7 +78,7 @@ $(document).ready(function () {
         $('.dd-text-field').val('');
         $('.dd-select-all').prop('checked', false);
         $('.dd-text-field').attr("placeholder", 'No Types selected');      
-        $('#datatable').DataTable().clear().rows.add([]).draw();
+        $('#compsdatatable').DataTable().clear().rows.add([]).draw();
         $('#next').prop('disabled', true);
         $('#add-selection').hide();
         $('#save-selection').hide();
@@ -105,7 +105,7 @@ $(document).ready(function () {
     $("#tabs").tabs();
     $("#previewtabs").tabs();
 
-    $('#datatable').DataTable({
+    $('#compsdatatable').DataTable({
         paging: false,
         /*searching: false,*/
         scrollY: '400px',
@@ -219,7 +219,12 @@ $(document).ready(function () {
             refreshComponents();
             $('.dd-text-field').attr("placeholder", '0 Type(s) selected');  
             $("#overlay").hide();
-        }        
+        }  
+        if(selectedTypes.indexOf('CustomMetadata') >= 0) {
+            $("#errors").text('Custom Metadata audit fields are returned incorrect values, So date filter cannot be applied.');    
+        } else {
+            $("#errors").text('');    
+        }      
     });
 
     //Type checkbox
@@ -245,6 +250,11 @@ $(document).ready(function () {
             });
             refreshComponents();
         } 
+        if(selectedTypes.indexOf('CustomMetadata') >= 0) {
+            $("#errors").text('Custom Metadata audit fields are returned incorrect values, So date filter cannot be applied.');    
+        } else {
+            $("#errors").text('');    
+        }
         $('.dd-text-field').attr("placeholder", selectedTypes.length+ ' Type(s) selected');      
     });
 
@@ -342,11 +352,16 @@ $(document).ready(function () {
             }
         }); 
         $('.dd-text-field').attr("placeholder", selectedTypes.length+ ' Type(s) selected');
-        if(selectedTypes.length === visibleTypesCount) {
-            $('.dd-select-all').prop('checked', true);
+        if(visibleTypesCount > 0) {
+            $('#select-all-div').show();
+            if(selectedTypes.length === visibleTypesCount) {
+                $('.dd-select-all').prop('checked', true);
+            } else {
+                $('.dd-select-all').prop('checked', false);
+            }
         } else {
-            $('.dd-select-all').prop('checked', false);
-        }
+            $('#select-all-div').hide();
+        }        
     }
 
     function refreshSelections(sel) {
@@ -366,9 +381,9 @@ $(document).ready(function () {
                 components = [...components, ...componentsMap.get(type)];
             }
         }); 
-        components = components.filter(cmp => new Date(cmp.lastModifiedDate).getTime() >= date.getTime() && 
+        components = components.filter(cmp => (cmp.type === 'CustomMetadata' || new Date(cmp.lastModifiedDate).getTime() >= date.getTime()) && 
                 cmp.manageableState === $(".state-field").val());
-        $('#datatable').DataTable().clear().rows.add(components).draw();
+        $('#compsdatatable').DataTable().clear().rows.add(components).draw();
         $('.available').text('Available ('+components.length+')');
         if($('.all-row-chk').is(':checked')) {
             $('.all-row-chk').prop('checked', false);
@@ -378,7 +393,7 @@ $(document).ready(function () {
     $(document).on('change', '.row-chk', function() {
         let val = $(this).val();
         if ($(this).is(':checked')) {
-            selectedComps.set(val, $('#datatable').DataTable().row($(this).closest('tr')).data());  
+            selectedComps.set(val, $('#compsdatatable').DataTable().row($(this).closest('tr')).data());  
             $(this).parent().parent().css('background', '#64b7ff');       
         } else {
             selectedComps.delete(val);
@@ -414,7 +429,7 @@ $(document).ready(function () {
             $('.row-chk').each(function(indx, chxbox) {
                 if(!$(chxbox).prop('checked')) {
                     $(chxbox).prop('checked', true);
-                    selectedComps.set($(chxbox).val(), $('#datatable').DataTable().row($(chxbox).closest('tr')).data());  
+                    selectedComps.set($(chxbox).val(), $('#compsdatatable').DataTable().row($(chxbox).closest('tr')).data());  
                     $(chxbox).parent().parent().css('background', '#64b7ff');    
                 }                
             });   
