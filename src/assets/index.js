@@ -132,7 +132,7 @@ $(document).ready(function () {
         ],
         rowCallback: function(row, data, dataIndex){
             if (selectedComps.has(data.type + "." + data.name)) {
-                $(row).css('background', 'lightgray');     
+                $(row).css('background', '#64b7ff');     
             } else {
                 $(row).css('background', '');     
             }
@@ -370,7 +370,7 @@ $(document).ready(function () {
         let val = $(this).val();
         if ($(this).is(':checked')) {
             selectedComps.set(val, $('#datatable').DataTable().row($(this).closest('tr')).data());  
-            $(this).parent().parent().css('background', 'lightgray');       
+            $(this).parent().parent().css('background', '#64b7ff');       
         } else {
             selectedComps.delete(val);
             $(this).parent().parent().css('background', '');
@@ -405,7 +405,7 @@ $(document).ready(function () {
                 if(!$(chxbox).prop('checked')) {
                     $(chxbox).prop('checked', true);
                     selectedComps.set($(chxbox).val(), $('#datatable').DataTable().row($(chxbox).closest('tr')).data());  
-                    $(chxbox).parent().parent().css('background', 'lightgray');    
+                    $(chxbox).parent().parent().css('background', '#64b7ff');    
                 }                
             });   
             $('#next').prop('disabled', false);
