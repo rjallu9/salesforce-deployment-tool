@@ -30,7 +30,8 @@ $(document).ready(function () {
             types = event.data.types;   
             $("#selection").show();
             refreshTypes(true);   
-            refreshSelections(event.data.selections);            
+            refreshSelections(event.data.selections);  
+            $('#datatable').DataTable().draw();           
         } else if(event.data.command === 'components') {
             componentsMap.set(event.data.type, event.data.components);
             refreshComps = $.grep(refreshComps, function(type) {
@@ -38,7 +39,18 @@ $(document).ready(function () {
             });
             if(refreshComps.length === 0) {
                 $("#overlay").hide();
-            }            
+                if(selectionsComps.length > 0){                    
+                    $('.selected').text('Selected ('+selectedComps.size+')');
+                    $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
+                }
+            }  
+            if(selectionsComps.length > 0){
+                event.data.components.forEach(cmp => {
+                    if(selectionsComps.indexOf(cmp.type+"."+cmp.name) >= 0) {
+                        selectedComps.set(cmp.type+"."+cmp.name, cmp);
+                    }
+                });
+            }          
             refreshComponents();
         } else if(event.data.command === 'deployStatus') {
             updateDeploymentStatus(event.data.result);
@@ -122,7 +134,7 @@ $(document).ready(function () {
         ],
         rowCallback: function(row, data, dataIndex){
             if (selectedComps.has(data.type + "." + data.name)) {
-                $(row).css('background', 'lightgray');     
+                $(row).css('background', '#64b7ff');     
             } else {
                 $(row).css('background', '');     
             }
@@ -360,7 +372,7 @@ $(document).ready(function () {
         let val = $(this).val();
         if ($(this).is(':checked')) {
             selectedComps.set(val, $('#datatable').DataTable().row($(this).closest('tr')).data());  
-            $(this).parent().parent().css('background', 'lightgray');       
+            $(this).parent().parent().css('background', '#64b7ff');       
         } else {
             selectedComps.delete(val);
             $(this).parent().parent().css('background', '');
@@ -395,7 +407,7 @@ $(document).ready(function () {
                 if(!$(chxbox).prop('checked')) {
                     $(chxbox).prop('checked', true);
                     selectedComps.set($(chxbox).val(), $('#datatable').DataTable().row($(chxbox).closest('tr')).data());  
-                    $(chxbox).parent().parent().css('background', 'lightgray');    
+                    $(chxbox).parent().parent().css('background', '#64b7ff');    
                 }                
             });   
             $('#next').prop('disabled', false);
@@ -799,6 +811,7 @@ $(document).ready(function () {
     $("#selection-list").on('change', function (e) {
         $("#overlay").show();
         $("#delete-selection").show();
+        $("#add-selection").show();
 
         var selection = selections.get($("#selection-list").val());
         $(".date-field").val(selection.date);
@@ -812,7 +825,7 @@ $(document).ready(function () {
             if(selectedTypes.indexOf(comp.split('.')[0]) < 0) {
                 selectedTypes = [...selectedTypes, comp.split('.')[0]];
             }            
-            selectionsComps = [...selectionsComps, comp];
+            selectionsComps.push(comp);
         });
 
         let apiCallSent = false;
@@ -843,6 +856,8 @@ $(document).ready(function () {
         });   
         if(!apiCallSent && needRefresh) {
             refreshComponents();
+            $('.selected').text('Selected ('+selectedComps.size+')');
+            $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
             $("#overlay").hide();
         }            
         $('.dd-text-field').attr("placeholder", selectedTypes.length+' Type(s) selected');  
