@@ -643,11 +643,6 @@ $(document).ready(function () {
                     $("#quick-deploy").show();
                 }  
                 $(".deployment").removeClass("path-running");
-                /*if(result.status === "SucceededPartial") {
-                    $(".deployment").removeClass("path-running").addClass("path-partial");
-                }  else if(result.status === "Failed") {
-                    $(".deployment").removeClass("path-running").addClass("path-failed");
-                }*/ 
                 if(result.details?.componentFailures?.length > 0) {
                     $('.deployerrors').text('Deployment Errors ('+result.details.componentFailures.length+')');
                     $('#errortable').DataTable().clear().rows.add(result.details.componentFailures).draw(); 
