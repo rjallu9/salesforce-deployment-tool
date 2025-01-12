@@ -37,20 +37,20 @@ $(document).ready(function () {
             refreshComps = $.grep(refreshComps, function(type) {
                 return type !== event.data.type;
             });
-            if(refreshComps.length === 0) {
-                $("#overlay").hide();
-                if(selectionsComps.length > 0){                    
-                    $('.selected').text('Selected ('+selectedComps.size+')');
-                    $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
-                }
-            }  
             if(selectionsComps.length > 0){
                 event.data.components.forEach(cmp => {
                     if(selectionsComps.indexOf(cmp.type+"."+cmp.name) >= 0) {
                         selectedComps.set(cmp.type+"."+cmp.name, cmp);
                     }
                 });
-            }          
+            } 
+            if(refreshComps.length === 0) {
+                $("#overlay").hide();
+                if(selectionsComps.length > 0){                    
+                    $('.selected').text('Selected ('+selectedComps.size+')');
+                    $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
+                }
+            }       
             refreshComponents();
         } else if(event.data.command === 'deployStatus') {
             updateDeploymentStatus(event.data.result);
@@ -316,8 +316,10 @@ $(document).ready(function () {
                 }
             });
         }
+        var visibleTypesCount = 0;
         types.forEach(function(type) {
             if(!type.hidden) {
+                visibleTypesCount++;
                 let fav = `<label class="dd-option-fav" title=${type.name}>☆</label>`;
                 if(type.isFavorite) {
                     fav = `<label class="dd-option-fav" style="color:darkgoldenrod;" title=${type.name}>&#9733;</label>`;
@@ -328,7 +330,7 @@ $(document).ready(function () {
                     }                    
                 }
                 $('.dd-options ui').append(`
-                    <li class="dd-option" ${type.isFavorite ? "style='background:#0078D7'" : ""}>
+                    <li class="dd-option" ${(selectedTypes.indexOf(type.name) >= 0) ? "style='background:#0078D7'" : ""}>
                         <div>
                             <input type="checkbox" value=${type.name} id=${type.name} class="dd-option-chk" 
                                     ${(init && type.isFavorite) || (selectedTypes.indexOf(type.name) >= 0) ? "checked" : ""}>
@@ -340,6 +342,11 @@ $(document).ready(function () {
             }
         }); 
         $('.dd-text-field').attr("placeholder", selectedTypes.length+ ' Type(s) selected');
+        if(selectedTypes.length === visibleTypesCount) {
+            $('.dd-select-all').prop('checked', true);
+        } else {
+            $('.dd-select-all').prop('checked', false);
+        }
     }
 
     function refreshSelections(sel) {
@@ -648,6 +655,24 @@ $(document).ready(function () {
                 if(result.details?.runTestResult?.codeCoverageWarnings && result.status !== "Canceled ") {
                     $(".coverage-error").show();
                     $(".coverage-error-label").text(result.details.runTestResult.codeCoverageWarnings.message);
+                }   
+                if(result.details?.runTestResult?.codeCoverage && result.status !== "Canceled ") {
+                    if(result.details.runTestResult.codeCoverage instanceof Array) {
+                        var recs = [];
+                        result.details.runTestResult.codeCoverage.forEach(e => {
+                            recs.push({
+                                name: e.name,
+                                coverage: e.numLocations > 0 ? Math.trunc((e.numLocations-e.numLocationsNotCovered) / e.numLocations*100)+'%' : 'N/A',
+                            });
+                        });
+                        $('#testcoveragestable').DataTable().clear().rows.add(recs).draw(); 
+                    } else {
+                        var rec = result.details.runTestResult.codeCoverage;
+                        $('#testcoveragestable').DataTable().clear().rows.add([{
+                            name: rec.name,
+                            coverage: e.numLocations > 0 ? Math.trunc((rec.numLocations-rec.numLocationsNotCovered) / rec.numLocations*100)+'%' : 'N/A',
+                        }]).draw(); 
+                    }                   
                 }         
             } else {
                 if(result.status === "Canceling") {
@@ -712,7 +737,22 @@ $(document).ready(function () {
         language: {
             info: "Total: _TOTAL_ error(s)"
         }
-    });   
+    }); 
+    
+    $('#testcoveragestable').DataTable({
+        paging: false,
+        scrollY: '200px',
+        scrollCollapse: true, 
+        fixedColumns: true,
+        order: [[0, 'asc']],
+        columns: [
+            { data: 'name', width:'300px' },
+            { data: 'coverage' }
+        ],
+        language: {
+            info: "Total: _TOTAL_ Classes"
+        }
+    });  
     
     $('#testerrortable').DataTable({
         paging: false,
@@ -809,6 +849,7 @@ $(document).ready(function () {
     }
 
     $("#selection-list").on('change', function (e) {
+        $(".spinnerlabel").text("Loading Selection");
         $("#overlay").show();
         $("#delete-selection").show();
         $("#add-selection").show();

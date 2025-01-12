@@ -692,6 +692,7 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 							<ul>
 								<li class="tab" name="previewtable"><a href="#preview" class='preview'>Selected</a></li>
 								<li class="tab" name="errortable"><a href="#deployerrors" class='deployerrors'>Deployment Errors</a></li>
+								<li class="tab" name="testcoveragestable"><a href="#testcoverages" class='testcoverages'>Test Coverage</a></li>
 								<li class="tab" name="testerrortable"><a href="#testfailures" class='testfailures'>Test Class Failures</a></li>
 							</ul>
 							<div id="preview">
@@ -716,6 +717,16 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 											<th>Line</th>
 											<th>Column</th>
 											<th>Error Message</th>
+										</tr>
+									</thead>
+								</table>
+							</div>
+							<div id="testcoverages">
+								<table id="testcoveragestable">
+									<thead>
+										<tr>	
+											<th>Class Name</th>
+											<th>Coverage</th>
 										</tr>
 									</thead>
 								</table>

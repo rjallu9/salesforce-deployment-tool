@@ -402,6 +402,7 @@ $(document).ready(function () {
         }
         $("#deploystatus").hide();
         $('.deployerrors').text('Deployment Errors (0)');
+        $('.testcoverages').text('Test Coverage (0)');
         $('#errortable').DataTable().clear().draw(); 
         $('.testfailures').text('Test Class Failures (0)');
         $('#testerrortable').DataTable().clear().draw(); 
@@ -438,6 +439,7 @@ $(document).ready(function () {
         $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw();  
         $("#deploystatus").hide();
         $('.deployerrors').text('Deployment Errors (0)');
+        $('.testcoverages').text('Test Coverage (0)');
         $('#errortable').DataTable().clear().draw(); 
         $('.testfailures').text('Test Class Failures (0)');
         $('#testerrortable').DataTable().clear().draw(); 
@@ -508,6 +510,7 @@ $(document).ready(function () {
         $('.deployerrors').text('Deployment Errors (0)');
         $('#errortable').DataTable().clear().draw(); 
         $('.testfailures').text('Test Class Failures (0)');
+        $('.testcoverages').text('Test Coverage (0)');
         $('#testerrortable').DataTable().clear().draw(); 
         if($('#dest-org-field').val() === '') {
             $('#deploy-buttons').hide();        
@@ -606,6 +609,7 @@ $(document).ready(function () {
 
     function updateDeploymentStatus(result) {
         $('.deployerrors').text('Deployment Errors (0)');
+        $('.testcoverages').text('Test Coverage (0)');
         $('#errortable').DataTable().clear().draw(); 
         $('.testfailures').text('Test Class Failures (0)');
         $('#testerrortable').DataTable().clear().draw(); 
@@ -655,6 +659,26 @@ $(document).ready(function () {
                 if(result.details?.runTestResult?.codeCoverageWarnings && result.status !== "Canceled ") {
                     $(".coverage-error").show();
                     $(".coverage-error-label").text(result.details.runTestResult.codeCoverageWarnings.message);
+                }   
+                if(result.details?.runTestResult?.codeCoverage && result.status !== "Canceled ") {
+                    if(result.details.runTestResult.codeCoverage instanceof Array) {
+                        var recs = [];
+                        result.details.runTestResult.codeCoverage.forEach(e => {
+                            recs.push({
+                                name: e.name,
+                                coverage: e.numLocations > 0 ? Math.trunc((e.numLocations-e.numLocationsNotCovered) / e.numLocations*100)+'%' : 'N/A',
+                            });
+                        });
+                        $('.testcoverages').text('Test Coverage ('+recs.length+')');
+                        $('#testcoveragestable').DataTable().clear().rows.add(recs).draw(); 
+                    } else {
+                        var rec = result.details.runTestResult.codeCoverage;
+                        $('.testcoverages').text('Test Coverage (1)');
+                        $('#testcoveragestable').DataTable().clear().rows.add([{
+                            name: rec.name,
+                            coverage: e.numLocations > 0 ? Math.trunc((rec.numLocations-rec.numLocationsNotCovered) / rec.numLocations*100)+'%' : 'N/A',
+                        }]).draw(); 
+                    }                   
                 }         
             } else {
                 if(result.status === "Canceling") {
@@ -719,7 +743,22 @@ $(document).ready(function () {
         language: {
             info: "Total: _TOTAL_ error(s)"
         }
-    });   
+    }); 
+    
+    $('#testcoveragestable').DataTable({
+        paging: false,
+        scrollY: '200px',
+        scrollCollapse: true, 
+        fixedColumns: true,
+        order: [[0, 'asc']],
+        columns: [
+            { data: 'name', width:'300px' },
+            { data: 'coverage' }
+        ],
+        language: {
+            info: "Total: _TOTAL_ Classes"
+        }
+    });  
     
     $('#testerrortable').DataTable({
         paging: false,
