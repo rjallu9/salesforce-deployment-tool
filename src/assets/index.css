@@ -181,3 +181,6 @@ label {
       transform: rotate(360deg); 
     }
 }
+.dt-scroll-body {
+    scrollbar-width:thin;
+}

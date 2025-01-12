@@ -14,7 +14,9 @@ $(document).ready(function () {
     let testClasses = '';
     
     let componentsMap = new Map();  
-    let selectedComps = new Map();  
+    let selectedComps = new Map(); 
+    let selections = new Map();  
+    let selectionsComps = [];
     
     let refreshComps = [];
 
@@ -27,7 +29,9 @@ $(document).ready(function () {
         } else if(event.data.command === 'types') {
             types = event.data.types;   
             $("#selection").show();
-            refreshTypes(true);       
+            refreshTypes(true);   
+            refreshSelections(event.data.selections);  
+            $('#datatable').DataTable().draw();           
         } else if(event.data.command === 'components') {
             componentsMap.set(event.data.type, event.data.components);
             refreshComps = $.grep(refreshComps, function(type) {
@@ -35,7 +39,16 @@ $(document).ready(function () {
             });
             if(refreshComps.length === 0) {
                 $("#overlay").hide();
-            }            
+            }  
+            if(selectionsComps.length > 0){
+                event.data.components.forEach(cmp => {
+                    if(selectionsComps.indexOf(cmp.type+"."+cmp.name) >= 0) {
+                        selectedComps.set(cmp.type+"."+cmp.name, cmp);
+                    }
+                });
+                $('.selected').text('Selected ('+selectedComps.size+')');
+                $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
+            }          
             refreshComponents();
         } else if(event.data.command === 'deployStatus') {
             updateDeploymentStatus(event.data.result);
@@ -65,6 +78,8 @@ $(document).ready(function () {
         $('.dd-text-field').attr("placeholder", 'No Types selected');      
         $('#datatable').DataTable().clear().rows.add([]).draw();
         $('#next').prop('disabled', true);
+        $('#add-selection').hide();
+        $('#save-selection').hide();
         $('#packagexml').prop('disabled', true);
         $('#errors').text('');
         $('.selected').text('Selected (0)');
@@ -94,7 +109,7 @@ $(document).ready(function () {
         scrollY: '400px',
         scrollCollapse: true, 
         fixedColumns: true,
-        order: [[1, 'asc'],[2, 'asc']],
+        order: [[4, 'desc'],[1, 'asc'],[2, 'asc']],
         columns: [
             { data: null, sortable: false },
             { data: 'type' },
@@ -173,7 +188,7 @@ $(document).ready(function () {
             $('.dd-option-chk').each(function(indx, chxbox) {
                 if(!$(chxbox).prop('checked')) {
                     $(chxbox).prop('checked', true);
-                    $(chxbox).parent().parent().css("background",'LightGray');
+                    $(chxbox).parent().parent().css("background",'#0078D7');
                     const selectedValue = $(chxbox).val();
                     selectedTypes.push(selectedValue);
                     if(!componentsMap.has(selectedValue)) {
@@ -208,7 +223,7 @@ $(document).ready(function () {
     //Type checkbox
     $(document).on('change', '.dd-option-chk', function() {
         if ($(this).is(':checked')) {
-            $(this).parent().parent().css("background",'LightGray');
+            $(this).parent().parent().css("background",'#0078D7');
             const selectedValue = $(this).val();
             selectedTypes.push(selectedValue);
             if(componentsMap.has(selectedValue)) {
@@ -311,7 +326,7 @@ $(document).ready(function () {
                     }                    
                 }
                 $('.dd-options ui').append(`
-                    <li class="dd-option" ${type.isFavorite ? "style='background:LightGray'" : ""}>
+                    <li class="dd-option" ${type.isFavorite ? "style='background:#0078D7'" : ""}>
                         <div>
                             <input type="checkbox" value=${type.name} id=${type.name} class="dd-option-chk" 
                                     ${(init && type.isFavorite) || (selectedTypes.indexOf(type.name) >= 0) ? "checked" : ""}>
@@ -323,6 +338,15 @@ $(document).ready(function () {
             }
         }); 
         $('.dd-text-field').attr("placeholder", selectedTypes.length+ ' Type(s) selected');
+    }
+
+    function refreshSelections(sel) {
+        $('#selection-list').empty();
+        $('#selection-list').append($("<option>").val('').text(''));
+        sel.forEach((s) => {
+            $('#selection-list').append($("<option>").val(s.name).text(s.name));
+            selections.set(s.name, s);
+        });
     }
 
     function refreshComponents() {
@@ -359,9 +383,13 @@ $(document).ready(function () {
         if(selectedComps.size > 0) {
             $('#next').prop('disabled', false);
             $('#packagexml').prop('disabled', false);
+            $('#add-selection').show();
+            $('#save-selection').show();
         } else {
             $('#next').prop('disabled', true);
             $('#packagexml').prop('disabled', true);
+            $('#add-selection').hide();
+            $('#save-selection').hide();
         }
         $("#deploystatus").hide();
         $('.deployerrors').text('Deployment Errors (0)');
@@ -381,7 +409,9 @@ $(document).ready(function () {
                 }                
             });   
             $('#next').prop('disabled', false);
-            $('#packagexml').prop('disabled', false);     
+            $('#packagexml').prop('disabled', false);  
+            $('#add-selection').show();
+            $('#save-selection').show();
         } else {
             selectedComps = new Map();
             $('.row-chk').each(function(indx, chxbox) {
@@ -392,6 +422,8 @@ $(document).ready(function () {
             }); 
             $('#next').prop('disabled', true);
             $('#packagexml').prop('disabled', true);
+            $('#add-selection').hide();
+            $('#save-selection').hide();
         }   
         $('.selected').text('Selected ('+selectedComps.size+')');   
         $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw();  
@@ -773,5 +805,107 @@ $(document).ready(function () {
         column.visible(true);
         $('#previewtable').DataTable().clear().rows.add(Array.from(selectedComps.values())).order([[4, 'desc'],[0, 'asc'],[1, 'asc']]).draw();
     }
+
+    $("#selection-list").on('change', function (e) {
+        $("#overlay").show();
+        $("#delete-selection").show();
+        $("#add-selection").show();
+
+        var selection = selections.get($("#selection-list").val());
+        $(".date-field").val(selection.date);
+        selectedComps = new Map(); 
+        selectedTypes = [];
+        if($('#source-org-field').val() !== selection.orgId) {
+            $('#source-org-field').val(selection.orgId);
+            componentsMap = new Map();
+        }
+        selection.components.forEach(comp => {
+            if(selectedTypes.indexOf(comp.split('.')[0]) < 0) {
+                selectedTypes = [...selectedTypes, comp.split('.')[0]];
+            }            
+            selectionsComps = [...selectionsComps, comp];
+        });
+
+        let apiCallSent = false;
+        let needRefresh = false;
+        $('.dd-option-chk').each(function(indx, chxbox) {
+            $(chxbox).prop('checked', false);     
+            $(chxbox).parent().parent().css("background",'');        
+        });   
+        $('.dd-option-chk').each(function(indx, chxbox) {
+            if(selectedTypes.indexOf($(chxbox).val()) >= 0) {
+                $(chxbox).prop('checked', true);
+                $(chxbox).parent().parent().css("background",'#0078D7');
+                const selectedValue = $(chxbox).val();
+                if(!componentsMap.has(selectedValue)) {
+                    vscode.postMessage({ command: 'loadComponents', type:selectedValue, isFolder:foldertypes.indexOf(selectedValue)>=0, 
+                        sourceOrgId: $('#source-org-field').val()});
+                    refreshComps.push(selectedValue);
+                    apiCallSent = true;
+                } else {
+                    componentsMap.get(selectedValue).forEach(cmp => {
+                        if(selectionsComps.indexOf(cmp.type+"."+cmp.name) >= 0) {
+                            selectedComps.set(cmp.type+"."+cmp.name, cmp);
+                        }
+                    });
+                    needRefresh = true;
+                }
+            }                
+        });   
+        if(!apiCallSent && needRefresh) {
+            refreshComponents();
+            $('.selected').text('Selected ('+selectedComps.size+')');
+            $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
+            $("#overlay").hide();
+        }            
+        $('.dd-text-field').attr("placeholder", selectedTypes.length+' Type(s) selected');  
+    });
+
+    $("#add-selection").on('click', function (e) {
+        $("#selection-form").show();
+        $("#selection-view").hide();
+    });
+
+    $("#delete-selection").on('click', function (e) {
+        selections.delete($("#selection-list").val());
+        var allselections = selections.values();
+        refreshSelections(selections);
+        $("#delete-selection").hide();
+        vscode.postMessage({ command: 'updateSelections', data: allselections}); 
+        $("#selection-form").hide();
+        $("#selection-view").show();
+    });
+
+    $("#close-selection").on('click', function (e) {
+        $("#selection-form").hide();
+        $("#selection-view").show();
+    });
+
+    $("#save-selection").on('click', function (e) {
+        if($("#selection-name").val().trim() === '' || selections.has($("#selection-name").val().trim())) {
+            $('#selection-name').css('border' ,'1px solid #f00');
+        } else {
+            var allselections = selections.values();
+            var comps = [];
+            Array.from(selectedComps.values()).forEach(comp => {
+                comps.push(comp.type+"."+comp.name);
+            });
+
+            var sel = {
+                name: $("#selection-name").val().trim(), 
+                orgId: $('#source-org-field').val(),
+                date: $(".date-field").val(),
+                components:comps
+            };
+            allselections = [...allselections, sel];
+            selections.set(sel.name, sel);
+            refreshSelections(selections);
+            $("#selection-list").val(sel.name);
+            $("#delete-selection").show();
+            vscode.postMessage({ command: 'updateSelections', data: allselections}); 
+            $("#selection-form").hide();
+            $("#selection-view").show();
+        }
+    });
 });
 
