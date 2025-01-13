@@ -51,9 +51,10 @@ $(document).ready(function () {
                     $('#next').prop('disabled', false);
                     $('#packagexml').prop('disabled', false);
                     $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
-                }
-            }       
-            refreshComponents();
+                } 
+                refreshComponents();            
+            } 
+                     
         } else if(event.data.command === 'deployStatus') {
             updateDeploymentStatus(event.data.result);
         } else if(event.data.command === 'compareResults') {
@@ -108,8 +109,9 @@ $(document).ready(function () {
     $("#previewtabs").tabs();
 
     $('#compsdatatable').DataTable({
-        paging: false,
-        /*searching: false,*/
+        paging: true,
+        pageLength: 100,
+        lengthChange: false,
         scrollY: '400px',
         scrollCollapse: true, 
         fixedColumns: true,
@@ -148,16 +150,28 @@ $(document).ready(function () {
     });
 
     $('#selecteddatatable').DataTable({
-        paging: false,
+        paging: true,
+        pageLength: 100,
+        lengthChange: false,
         scrollY: '400px',
         scrollCollapse: true, 
         fixedColumns: true,
         order: [[0, 'asc'],[1, 'asc']],
         columns: [
+            { data: null, sortable: false },
             { data: 'type' },
             { data: 'name' },            
             { data: 'lastModifiedByName' },
             { data: 'lastModifiedDate', "type": "date", width:'200px' }
+        ],
+        columnDefs: [
+            {
+                orderable: false,
+                render: function (data, type, row) {
+                    return '<input type="checkbox" class="delete-row-chk" value="' + row.type + "." + row.name + '" checked>';
+                },
+                targets: 0
+            }
         ],
         language: {
             info: "Total: _TOTAL_ component(s)"
@@ -463,7 +477,9 @@ $(document).ready(function () {
     });
 
     $('#previewtable').DataTable({
-        paging: false,
+        paging: true,
+        pageLength: 100,
+        lengthChange: false,
         scrollY: '400px',
         scrollCollapse: true, 
         fixedColumns: true,

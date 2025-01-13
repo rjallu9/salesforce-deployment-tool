@@ -46,9 +46,9 @@ let tmpDirectory = '';
 function activate(context) {
     const disposable = vscode.commands.registerCommand('salesforce-deployment-tool.build', () => {
         const panel = vscode.window.createWebviewPanel('packageBuilder', 'Salesforce Deployment Tool', vscode.ViewColumn.One, { enableScripts: true, retainContextWhenHidden: true });
-        const scriptPath = vscode.Uri.file(path.join(context.extensionPath, 'out', 'assets/index.js'));
+        const scriptPath = vscode.Uri.file(path.join(context.extensionPath, 'src', 'assets/index.js'));
         const scriptUri = panel.webview.asWebviewUri(scriptPath);
-        const cssPath = vscode.Uri.file(path.join(context.extensionPath, 'out', 'assets/index.css'));
+        const cssPath = vscode.Uri.file(path.join(context.extensionPath, 'src', 'assets/index.css'));
         const cssUri = panel.webview.asWebviewUri(cssPath);
         panel.webview.html = getWebviewContent(context.extensionPath, scriptUri, cssUri);
         let orgsList = [];
@@ -415,7 +415,13 @@ function buildComponents(comps) {
             });
         }
     }
-    return results;
+    let tmp = [];
+    if (results.length > 0) {
+        for (var i = 0; i < 300; i++) {
+            tmp = [...tmp, results];
+        }
+    }
+    return tmp;
 }
 function getTypes(accessToken, endPoint, globalStorageUri) {
     let favorites = [];
@@ -655,6 +661,7 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 								<table id="selecteddatatable" class="display" style="width:100%">
 									<thead>
 										<tr>	
+											<th></th>	
 											<th>Type</th>
 											<th>Name</th>
 											<th>Last Modified By</th>

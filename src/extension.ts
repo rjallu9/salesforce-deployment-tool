@@ -393,7 +393,7 @@ function getComponents(accessToken:string, endPoint:string, type:string, isFolde
 function buildComponents(comps:any) {
 	let results:Object[] = [];
 	if(comps !== "") {
-		if(comps['result'] instanceof Array) {
+		if(comps['result'] instanceof Array) {			
 			results = comps['result'].map((comp: any) => ({
 				name: comp['fullName'],
 				type: comp['type'],
@@ -494,7 +494,7 @@ function sendSoapReuest(accessToken:string,  endPoint:string, body:string) {
 
 function getAuthOrgs() {
     return new Promise((resolve, reject) => {
-        /*exec('sf org list --json', (error:any, stdout:any, stderr:any) => {
+        exec('sf org list --json', (error:any, stdout:any, stderr:any) => {
             if (error) {
                 reject(`Error: ${error}`);
             } else {
@@ -521,14 +521,7 @@ function getAuthOrgs() {
                     reject(`Parse Error: ${parseError.message}`);
                 }
             }
-        });*/
-
-		resolve([{"alias": "SiriApp", "name": "SiriApp(ramu.jallu@yahoo.in)", "orgId": "00D6g00000360OaEAI","instanceUrl": "https://siriapp-dev-ed.my.salesforce.com",
-			"accessToken": "00D6g00000360Oa!AQcAQF7uyZFdvQOMRFAetbpFchusNaFwiW93T0hUpSGJvGigA9jLMvY9_eyFJvfCcVhK7G3rR1vU3cvVHXvpI9Fg4qLr8hMz"},
-			{"alias": "ICE", "name": "ICE(ramu.jallu@gmail.com)", "orgId": "00D3t000004pIgVEAU","instanceUrl": "https://ice7-dev-ed.my.salesforce.com",
-				"accessToken": "00D3t000004pIgV!AQgAQN2Rop2gVzrvqsKCH_.O5jinKNkn5CtJApXLXLWLhyxe6m.MjUDKwem1UmTEHJA34h6mbxPo0JW0BX07rUy_EB2FO7wa"},
-			{"name": "AgentForce(epic.321e1730601128842@orgfarm.th)", "orgId": "00D6P000000kU2zUAE","instanceUrl": "https://d6p000000ku2zuae-dev-ed.develop.my.salesforce.com",
-				"accessToken": "00D6P000000kU2z!AQ4AQDkTYbK6nbyv1Yn2HOMipXHkNxI.7RozVfEDATrZSHRARBYMZDEhuxKJsU84JNgBl0CudDmcSws4x7_JXHIkpYmjstLp"}]);
+        });
     });
 }
 
@@ -659,6 +652,7 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 								<table id="selecteddatatable" class="display" style="width:100%">
 									<thead>
 										<tr>	
+											<th></th>	
 											<th>Type</th>
 											<th>Name</th>
 											<th>Last Modified By</th>
