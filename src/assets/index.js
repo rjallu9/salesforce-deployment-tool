@@ -48,6 +48,8 @@ $(document).ready(function () {
                 $("#overlay").hide();
                 if(selectionsComps.length > 0){                    
                     $('.selected').text('Selected ('+selectedComps.size+')');
+                    $('#next').prop('disabled', false);
+                    $('#packagexml').prop('disabled', false);
                     $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
                 }
             }       
@@ -870,6 +872,10 @@ $(document).ready(function () {
         $("#delete-selection").show();
         $("#add-selection").show();
 
+        if($("#selection-list").val() === '') {
+            return;
+        }
+
         var selection = selections.get($("#selection-list").val());
         $(".date-field").val(selection.date);
         selectedComps = new Map(); 
@@ -914,6 +920,8 @@ $(document).ready(function () {
         if(!apiCallSent && needRefresh) {
             refreshComponents();
             $('.selected').text('Selected ('+selectedComps.size+')');
+            $('#next').prop('disabled', false);
+            $('#packagexml').prop('disabled', false);
             $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
             $("#overlay").hide();
         }            

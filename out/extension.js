@@ -32,9 +32,6 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.activate = activate;
 exports.deactivate = deactivate;
@@ -43,20 +40,16 @@ const path = require('path');
 const axios = require('axios');
 const xml2js = require('xml2js');
 const { exec } = require('child_process');
-const favorites_json_1 = __importDefault(require("./assets/favorites.json"));
 const fs = require('fs');
 const AdmZip = require('adm-zip');
-const selections_json_1 = __importDefault(require("./assets/selections.json"));
 let tmpDirectory = '';
 function activate(context) {
     const disposable = vscode.commands.registerCommand('salesforce-deployment-tool.build', () => {
         const panel = vscode.window.createWebviewPanel('packageBuilder', 'Salesforce Deployment Tool', vscode.ViewColumn.One, { enableScripts: true, retainContextWhenHidden: true });
-        const scriptPath = vscode.Uri.file(path.join(context.extensionPath, 'src', 'assets/index.js'));
+        const scriptPath = vscode.Uri.file(path.join(context.extensionPath, 'out', 'assets/index.js'));
         const scriptUri = panel.webview.asWebviewUri(scriptPath);
-        const cssPath = vscode.Uri.file(path.join(context.extensionPath, 'src', 'assets/index.css'));
+        const cssPath = vscode.Uri.file(path.join(context.extensionPath, 'out', 'assets/index.css'));
         const cssUri = panel.webview.asWebviewUri(cssPath);
-        const favJson = path.join(context.extensionPath, 'out', 'assets/favorites.json');
-        const selectionsJson = path.join(context.extensionPath, 'out', 'assets/selections.json');
         panel.webview.html = getWebviewContent(context.extensionPath, scriptUri, cssUri);
         let orgsList = [];
         let isCancelDeploy = false;
@@ -71,9 +64,14 @@ function activate(context) {
                     break;
                 case 'loadTypes':
                     var sourceOrg = orgsList.find((org) => org.orgId === message.sourceOrgId);
-                    getTypes(sourceOrg.accessToken, sourceOrg.instanceUrl, favorites_json_1.default)
+                    let selections = [];
+                    const selectionsPath = path.join(context.globalStorageUri.fsPath, 'selections.json');
+                    if (fs.existsSync(selectionsPath)) {
+                        selections = JSON.parse(fs.readFileSync(selectionsPath, 'utf-8'));
+                    }
+                    getTypes(sourceOrg.accessToken, sourceOrg.instanceUrl, context.globalStorageUri.fsPath)
                         .then((data) => {
-                        panel.webview.postMessage({ command: 'types', types: data, selections: selections_json_1.default });
+                        panel.webview.postMessage({ command: 'types', types: data, selections: selections });
                     });
                     break;
                 case 'loadComponents':
@@ -82,12 +80,19 @@ function activate(context) {
                         getComponents(sourceOrg.accessToken, sourceOrg.instanceUrl, message.type, message.isFolder)
                             .then((data) => {
                             panel.webview.postMessage({ command: 'components', components: data, type: message.type });
+                        }).catch((error) => {
+                            panel.webview.postMessage({ command: 'components', components: [], type: message.type });
                         });
+                        ;
                     }
                     break;
                 case 'updateFavorites':
                     if (message.data) {
-                        fs.writeFile(favJson, JSON.stringify(message.data, null, 2), 'utf8', (err) => {
+                        const dir = path.dirname(context.globalStorageUri.fsPath + "/favorites.json");
+                        if (!fs.existsSync(dir)) {
+                            fs.mkdirSync(dir, { recursive: true });
+                        }
+                        fs.writeFileSync(context.globalStorageUri.fsPath + "/favorites.json", JSON.stringify(message.data, null, 2), 'utf8', (err) => {
                             if (err) {
                                 vscode.window.showErrorMessage(`Unable to update favorites..!!`);
                             }
@@ -96,7 +101,11 @@ function activate(context) {
                     break;
                 case 'updateSelections':
                     if (message.data) {
-                        fs.writeFile(selectionsJson, JSON.stringify(message.data, null, 2), 'utf8', (err) => {
+                        const dir = path.dirname(context.globalStorageUri.fsPath + "/selections.json");
+                        if (!fs.existsSync(dir)) {
+                            fs.mkdirSync(dir, { recursive: true });
+                        }
+                        fs.writeFile(context.globalStorageUri.fsPath + "/selections.json", JSON.stringify(message.data, null, 2), 'utf8', (err) => {
                             if (err) {
                                 vscode.window.showErrorMessage(`Unable to update selections..!!`);
                             }
@@ -178,6 +187,7 @@ function activate(context) {
                     var sourceOrg = orgsList.find((org) => org.orgId === message.sourceOrgId);
                     var destOrg = orgsList.find((org) => org.orgId === message.destOrgId);
                     var time = Date.now();
+                    let sourceProcess = false, destProcess = false;
                     retrieve(sourceOrg.accessToken, sourceOrg.instanceUrl, message.packagexml).then((result) => {
                         let retrieveJobId = result;
                         let intervalId = setInterval(() => {
@@ -186,9 +196,7 @@ function activate(context) {
                                     clearInterval(intervalId);
                                     sourceOrgFiles = result.fileNames;
                                     extractComponents(result.zipFile, tmpDirectory, '' + time, sourceOrg.alias);
-                                    if (destOrgFiles.size > 0) {
-                                        postCompareResults(sourceOrgFiles, destOrgFiles, tmpDirectory + "/" + time + "/" + sourceOrg.alias, tmpDirectory + "/" + time + "/" + destOrg.alias, panel);
-                                    }
+                                    sourceProcess = true;
                                 }
                             }).catch((error) => {
                                 vscode.window.showErrorMessage(`Error: ${JSON.stringify(error)}`);
@@ -197,23 +205,27 @@ function activate(context) {
                         }, 1000);
                     });
                     retrieve(destOrg.accessToken, destOrg.instanceUrl, message.packagexml).then((result) => {
-                        let retrieveJobId = result;
-                        let intervalId = setInterval(() => {
-                            retrieveStatus(destOrg.accessToken, destOrg.instanceUrl, retrieveJobId).then((result) => {
+                        let destRetrieveJobId = result;
+                        let destIntervalId = setInterval(() => {
+                            retrieveStatus(destOrg.accessToken, destOrg.instanceUrl, destRetrieveJobId).then((result) => {
                                 if (result.done === 'true') {
-                                    clearInterval(intervalId);
+                                    clearInterval(destIntervalId);
                                     destOrgFiles = result.fileNames;
                                     extractComponents(result.zipFile, tmpDirectory, '' + time, destOrg.alias);
-                                    if (sourceOrgFiles.size > 0) {
-                                        postCompareResults(sourceOrgFiles, destOrgFiles, tmpDirectory + "/" + time + "/" + sourceOrg.alias, tmpDirectory + "/" + time + "/" + destOrg.alias, panel);
-                                    }
+                                    destProcess = true;
                                 }
                             }).catch((error) => {
                                 vscode.window.showErrorMessage(`Error: ${JSON.stringify(error)}`);
-                                clearInterval(intervalId);
+                                clearInterval(destIntervalId);
                             });
                         }, 1000);
                     });
+                    let responseIntervalId = setInterval(() => {
+                        if (sourceProcess && destProcess) {
+                            postCompareResults(sourceOrgFiles, destOrgFiles, tmpDirectory + "/" + time + "/" + sourceOrg.alias, tmpDirectory + "/" + time + "/" + destOrg.alias, panel);
+                            clearInterval(responseIntervalId);
+                        }
+                    }, 1000);
                     break;
                 case 'filePreview':
                     let title = message.file + ': Source ↔ Target';
@@ -406,7 +418,12 @@ function buildComponents(comps) {
     }
     return results;
 }
-function getTypes(accessToken, endPoint, favorites) {
+function getTypes(accessToken, endPoint, globalStorageUri) {
+    let favorites = [];
+    const favoritesPath = path.join(globalStorageUri, 'favorites.json');
+    if (fs.existsSync(favoritesPath)) {
+        favorites = JSON.parse(fs.readFileSync(favoritesPath, 'utf-8'));
+    }
     return new Promise((resolve, reject) => {
         sendSoapReuest(accessToken, endPoint, '<met:describeMetadata><met:asOfVersion>62.0</met:asOfVersion></met:describeMetadata>')
             .then((result) => {
@@ -468,8 +485,8 @@ function sendSoapReuest(accessToken, endPoint, body) {
         })
             .catch((error) => {
             parser.parseString(error.response.data, (err, result) => {
-                vscode.window.showWarningMessage('Unable to connect to the Org. Message: ' +
-                    result['soapenv:Envelope']['soapenv:Body']['soapenv:Fault']['faultstring']);
+                /*vscode.window.showWarningMessage('Unable to connect to the Org. Message: '+
+                    result['soapenv:Envelope']['soapenv:Body']['soapenv:Fault']['faultstring']);*/
                 reject(result['soapenv:Envelope']['soapenv:Body']['soapenv:Fault']['faultstring']);
             });
         });
@@ -614,11 +631,9 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 								</div>
 							</div>
 						</div>	
-						<div style="margin-top:10px;">
-							<div>
-								<p style="color:#f14c4c;" id="errors"></p>
-							</div>								
-						</div>					
+						<div>
+							<p style="color:#f14c4c;" id="errors"></p>
+						</div>				
 						<div id="tabs" style="margin-top:10px;">
 							<ul>
 								<li class="tab" name="compsdatatable"><a href="#available" class="available">Available (0)</a></li>

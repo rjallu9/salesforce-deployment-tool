@@ -1,7 +1,7 @@
 {
   "name": "salesforce-deployment-tool",
   "displayName": "Salesforce Deployment Tool",
-  "description": "",
+  "description": "This extension is to streamline the deployment process between salesforce orgs (scratch orgs, sandboxes, and DE orgs).",
   "publisher": "RamuJallu",
   "version": "0.0.1",
   "icon": "logo.png",

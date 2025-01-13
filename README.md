@@ -1,6 +1,6 @@
 # Salesforce Deployment Tool for Visual Studio Code
 
-This extensiom is to streamline the deployment process between salesforce orgs (scratch orgs, sandboxes, and DE orgs).
+This extension is to streamline the deployment process between salesforce orgs (scratch orgs, sandboxes, and DE orgs).
 Developers/Admins can search and select the metadata components easily and deploy them.
 
 ## Features

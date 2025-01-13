@@ -3,10 +3,8 @@ const path = require('path');
 const axios = require('axios');
 const xml2js = require('xml2js');
 const { exec } = require('child_process');
-import favorites from './assets/favorites.json';
 const fs = require('fs');
 const AdmZip = require('adm-zip');
-import selections from './assets/selections.json';
 
 let tmpDirectory = '';
 
@@ -19,16 +17,13 @@ export function activate(context: vscode.ExtensionContext) {
 				{ enableScripts: true, retainContextWhenHidden: true }
 			);
 			const scriptPath = vscode.Uri.file(
-				path.join(context.extensionPath, 'src', 'assets/index.js')
+				path.join(context.extensionPath, 'out', 'assets/index.js')
 			);
 			const scriptUri = panel.webview.asWebviewUri(scriptPath);
 			const cssPath = vscode.Uri.file(
-				path.join(context.extensionPath, 'src', 'assets/index.css')
+				path.join(context.extensionPath, 'out', 'assets/index.css')
 			);
 			const cssUri = panel.webview.asWebviewUri(cssPath);
-
-			const favJson = path.join(context.extensionPath, 'out', 'assets/favorites.json');
-			const selectionsJson = path.join(context.extensionPath, 'out', 'assets/selections.json');
 
 			panel.webview.html = getWebviewContent(context.extensionPath, scriptUri, cssUri);
 
@@ -47,8 +42,15 @@ export function activate(context: vscode.ExtensionContext) {
 						});						
 						break;
 					case 'loadTypes':
-						var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);		
-						getTypes(sourceOrg.accessToken, sourceOrg.instanceUrl, favorites)
+						var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);	
+						
+						let selections:string[] = [];
+						const selectionsPath = path.join(context.globalStorageUri.fsPath, 'selections.json');
+						if (fs.existsSync(selectionsPath)) {
+							selections = JSON.parse(fs.readFileSync(selectionsPath, 'utf-8'));
+						}
+
+						getTypes(sourceOrg.accessToken, sourceOrg.instanceUrl, context.globalStorageUri.fsPath)
                         .then((data) => {
                             panel.webview.postMessage({ command: 'types', types: data, selections:selections });
                         });
@@ -59,12 +61,18 @@ export function activate(context: vscode.ExtensionContext) {
 							getComponents(sourceOrg.accessToken, sourceOrg.instanceUrl, message.type, message.isFolder)
 							.then((data) => {
 								panel.webview.postMessage({ command: 'components', components: data, type: message.type });
-							});
+							}).catch((error) => {
+								panel.webview.postMessage({ command: 'components', components: [], type: message.type });
+							});;
 						}
 						break;
 					case 'updateFavorites':
 						if(message.data) {
-							fs.writeFile(favJson, JSON.stringify(message.data, null, 2), 'utf8', (err:any) => {
+							const dir = path.dirname(context.globalStorageUri.fsPath+"/favorites.json");
+							if (!fs.existsSync(dir)) {
+								fs.mkdirSync(dir, { recursive: true });
+							}
+							fs.writeFileSync(context.globalStorageUri.fsPath+"/favorites.json", JSON.stringify(message.data, null, 2), 'utf8', (err:any) => {
 								if (err) {
 									vscode.window.showErrorMessage(`Unable to update favorites..!!`);
 								}
@@ -73,7 +81,12 @@ export function activate(context: vscode.ExtensionContext) {
 						break;	
 					case 'updateSelections':
 						if(message.data) {
-							fs.writeFile(selectionsJson, JSON.stringify(message.data, null, 2), 'utf8', (err:any) => {
+							const dir = path.dirname(context.globalStorageUri.fsPath+"/selections.json");
+							if (!fs.existsSync(dir)) {
+								fs.mkdirSync(dir, { recursive: true });
+							}
+
+							fs.writeFile(context.globalStorageUri.fsPath+"/selections.json", JSON.stringify(message.data, null, 2), 'utf8', (err:any) => {
 								if (err) {
 									vscode.window.showErrorMessage(`Unable to update selections..!!`);
 								}
@@ -154,7 +167,9 @@ export function activate(context: vscode.ExtensionContext) {
 						let destOrgFiles = new Map();
 						var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);	
 						var destOrg = orgsList.find((org:any) => org.orgId === message.destOrgId);
-						var time = Date.now();																
+						var time = Date.now();	
+						let sourceProcess=false, destProcess = false;
+
 						retrieve(sourceOrg.accessToken, sourceOrg.instanceUrl, message.packagexml).then((result:any) => {	
 							let retrieveJobId = result;
 							let intervalId = setInterval(() => {
@@ -163,10 +178,7 @@ export function activate(context: vscode.ExtensionContext) {
 										clearInterval(intervalId);	
 										sourceOrgFiles = result.fileNames;
 										extractComponents(result.zipFile, tmpDirectory, ''+time, sourceOrg.alias);
-										if(destOrgFiles.size > 0) {
-											postCompareResults(sourceOrgFiles, destOrgFiles, tmpDirectory+"/"+time+"/"+sourceOrg.alias, 
-												tmpDirectory+"/"+time+"/"+destOrg.alias, panel);
-										}
+										sourceProcess = true;
 									}		
 								}).catch((error) => {
 									vscode.window.showErrorMessage(`Error: ${JSON.stringify(error)}`);
@@ -176,24 +188,29 @@ export function activate(context: vscode.ExtensionContext) {
 						});
 
 						retrieve(destOrg.accessToken, destOrg.instanceUrl, message.packagexml).then((result:any) => {	
-							let retrieveJobId = result;
-							let intervalId = setInterval(() => {
-								retrieveStatus(destOrg.accessToken, destOrg.instanceUrl, retrieveJobId).then((result:any) => {		
+							let destRetrieveJobId = result;
+							let destIntervalId = setInterval(() => {
+								retrieveStatus(destOrg.accessToken, destOrg.instanceUrl, destRetrieveJobId).then((result:any) => {		
 									if(result.done	=== 'true') {
-										clearInterval(intervalId);	
+										clearInterval(destIntervalId);	
 										destOrgFiles = result.fileNames;
 										extractComponents(result.zipFile, tmpDirectory, ''+time, destOrg.alias);
-										if(sourceOrgFiles.size > 0) {
-											postCompareResults(sourceOrgFiles, destOrgFiles, tmpDirectory+"/"+time+"/"+sourceOrg.alias, 
-												tmpDirectory+"/"+time+"/"+destOrg.alias, panel);
-										}
+										destProcess = true;
 									}		
 								}).catch((error) => {
 									vscode.window.showErrorMessage(`Error: ${JSON.stringify(error)}`);
-									clearInterval(intervalId);	
+									clearInterval(destIntervalId);	
 								});
 							}, 1000);			
 						});
+
+						let responseIntervalId = setInterval(() => {
+							if(sourceProcess && destProcess) {
+								postCompareResults(sourceOrgFiles, destOrgFiles, tmpDirectory+"/"+time+"/"+sourceOrg.alias, 
+									tmpDirectory+"/"+time+"/"+destOrg.alias, panel);
+								clearInterval(responseIntervalId);	
+							}
+						}, 1000);	
 						break;
 					case 'filePreview':
 						let title = message.file+': Source ↔ Target';
@@ -401,7 +418,13 @@ function buildComponents(comps:any) {
 	return results;
 }
 
-function getTypes(accessToken:string, endPoint:string, favorites:string[]) {
+function getTypes(accessToken:string, endPoint:string, globalStorageUri:string) {
+	let favorites:string[] = [];
+	const favoritesPath = path.join(globalStorageUri, 'favorites.json');
+	if (fs.existsSync(favoritesPath)) {
+		favorites = JSON.parse(fs.readFileSync(favoritesPath, 'utf-8'));
+	}
+
     return new Promise((resolve, reject) => {
 		sendSoapReuest(accessToken, endPoint, '<met:describeMetadata><met:asOfVersion>62.0</met:asOfVersion></met:describeMetadata>')
 		.then((result:any) => {
@@ -465,8 +488,8 @@ function sendSoapReuest(accessToken:string,  endPoint:string, body:string) {
 		})
 		.catch((error:any) => {
 			parser.parseString(error.response.data, (err:any, result:any) => {	
-				vscode.window.showWarningMessage('Unable to connect to the Org. Message: '+
-					result['soapenv:Envelope']['soapenv:Body']['soapenv:Fault']['faultstring']);
+				/*vscode.window.showWarningMessage('Unable to connect to the Org. Message: '+
+					result['soapenv:Envelope']['soapenv:Body']['soapenv:Fault']['faultstring']);*/
 				reject(result['soapenv:Envelope']['soapenv:Body']['soapenv:Fault']['faultstring']);
 			});		
 		});
@@ -510,7 +533,6 @@ function getAuthOrgs() {
 				"accessToken": "00D3t000004pIgV!AQgAQN2Rop2gVzrvqsKCH_.O5jinKNkn5CtJApXLXLWLhyxe6m.MjUDKwem1UmTEHJA34h6mbxPo0JW0BX07rUy_EB2FO7wa"},
 			{"name": "AgentForce(epic.321e1730601128842@orgfarm.th)", "orgId": "00D6P000000kU2zUAE","instanceUrl": "https://d6p000000ku2zuae-dev-ed.develop.my.salesforce.com",
 				"accessToken": "00D6P000000kU2z!AQ4AQDkTYbK6nbyv1Yn2HOMipXHkNxI.7RozVfEDATrZSHRARBYMZDEhuxKJsU84JNgBl0CudDmcSws4x7_JXHIkpYmjstLp"}]);
-
     });
 }
 
