@@ -53,7 +53,7 @@ function activate(context) {
         panel.webview.html = getWebviewContent(context.extensionPath, scriptUri, cssUri);
         let orgsList = [];
         let isCancelDeploy = false;
-        tmpDirectory = context.extensionPath + "/tmp";
+        tmpDirectory = context.globalStorageUri.fsPath + "/tmp";
         panel.webview.onDidReceiveMessage((message) => {
             switch (message.command) {
                 case 'getAuthOrgs':
@@ -195,7 +195,7 @@ function activate(context) {
                                 if (result.done === 'true') {
                                     clearInterval(intervalId);
                                     sourceOrgFiles = result.fileNames;
-                                    extractComponents(result.zipFile, tmpDirectory, '' + time, sourceOrg.alias);
+                                    extractComponents(result.zipFile, tmpDirectory + '/' + time, sourceOrg.alias);
                                     sourceProcess = true;
                                 }
                             }).catch((error) => {
@@ -211,7 +211,7 @@ function activate(context) {
                                 if (result.done === 'true') {
                                     clearInterval(destIntervalId);
                                     destOrgFiles = result.fileNames;
-                                    extractComponents(result.zipFile, tmpDirectory, '' + time, destOrg.alias);
+                                    extractComponents(result.zipFile, tmpDirectory + '/' + time, destOrg.alias);
                                     destProcess = true;
                                 }
                             }).catch((error) => {
@@ -258,21 +258,15 @@ function postCompareResults(sourceOrgFiles, destOrgFiles, sourceOrgPath, destOrg
     });
     panel.webview.postMessage({ command: 'compareResults', files: files });
 }
-function extractComponents(zipfile, tmpPath, subDir, alias) {
+function extractComponents(zipfile, directory, alias) {
     const buffer = Buffer.from(zipfile, 'base64');
-    if (!fs.existsSync(tmpPath)) {
-        fs.mkdirSync(tmpPath);
+    if (!fs.existsSync(directory + "/" + alias)) {
+        fs.mkdirSync(directory + "/" + alias, { recursive: true });
     }
-    if (!fs.existsSync(tmpPath + "/" + subDir)) {
-        fs.mkdirSync(tmpPath + "/" + subDir);
-    }
-    const zipFilePath = path.join(tmpPath + "/" + subDir, alias + '.zip');
+    const zipFilePath = path.join(directory, alias + '.zip');
     fs.writeFileSync(zipFilePath, buffer);
-    if (!fs.existsSync(tmpPath + "/" + subDir + "/" + alias)) {
-        fs.mkdirSync(tmpPath + "/" + subDir + "/" + alias);
-    }
     const zip = new AdmZip(zipFilePath);
-    zip.extractAllTo(tmpPath + "/" + subDir + "/" + alias, true);
+    zip.extractAllTo(directory + "/" + alias, true);
 }
 function cancelDeploy(accessToken, endPoint, deployJobId) {
     return new Promise((resolve, reject) => {
@@ -335,9 +329,14 @@ function retrieveStatus(accessToken, endPoint, retrieveJobId) {
             const res = result['soapenv:Envelope']['soapenv:Body']['checkRetrieveStatusResponse']['result'];
             let fileNames = new Map();
             if (res['done'] === 'true') {
-                res['fileProperties'].forEach((file) => {
-                    fileNames.set(file.type + "." + file.fullName, file.fileName);
-                });
+                if (res['fileProperties'] instanceof Array) {
+                    res['fileProperties'].forEach((file) => {
+                        fileNames.set(file.type + "." + file.fullName, file.fileName);
+                    });
+                }
+                else {
+                    fileNames.set(res['fileProperties'].type + "." + res['fileProperties'].fullName, res['fileProperties'].fileName);
+                }
             }
             resolve({
                 done: res['done'],

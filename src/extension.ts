@@ -31,7 +31,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 			let isCancelDeploy = false;
 
-			tmpDirectory = context.extensionPath+"/tmp";
+			tmpDirectory = context.globalStorageUri.fsPath+"/tmp";
 
 			panel.webview.onDidReceiveMessage((message) => {
 				switch (message.command) {
@@ -177,7 +177,7 @@ export function activate(context: vscode.ExtensionContext) {
 									if(result.done	=== 'true') {
 										clearInterval(intervalId);	
 										sourceOrgFiles = result.fileNames;
-										extractComponents(result.zipFile, tmpDirectory, ''+time, sourceOrg.alias);
+										extractComponents(result.zipFile, tmpDirectory+'/'+time, sourceOrg.alias);
 										sourceProcess = true;
 									}		
 								}).catch((error) => {
@@ -194,7 +194,7 @@ export function activate(context: vscode.ExtensionContext) {
 									if(result.done	=== 'true') {
 										clearInterval(destIntervalId);	
 										destOrgFiles = result.fileNames;
-										extractComponents(result.zipFile, tmpDirectory, ''+time, destOrg.alias);
+										extractComponents(result.zipFile, tmpDirectory+'/'+time, destOrg.alias);
 										destProcess = true;
 									}		
 								}).catch((error) => {
@@ -248,24 +248,16 @@ function postCompareResults(sourceOrgFiles:Map<string, string>, destOrgFiles:Map
 	panel.webview.postMessage({ command: 'compareResults', files: files});    
 }
 
-function extractComponents(zipfile:string, tmpPath:string, subDir:string, alias:string) {
+function extractComponents(zipfile:string, directory:string, alias:string) {
 	const buffer = Buffer.from(zipfile, 'base64');
-	if (!fs.existsSync(tmpPath)) {
-		fs.mkdirSync(tmpPath);
+	if (!fs.existsSync(directory+"/"+alias)) {
+		fs.mkdirSync(directory+"/"+alias, { recursive: true });
 	}
-	if (!fs.existsSync(tmpPath+"/"+subDir)) {
-		fs.mkdirSync(tmpPath+"/"+subDir);
-	}
-
-	const zipFilePath = path.join(tmpPath+"/"+subDir, alias+'.zip');
+	const zipFilePath = path.join(directory, alias+'.zip');
 	fs.writeFileSync(zipFilePath, buffer);	
-	
-	if (!fs.existsSync(tmpPath+"/"+subDir+"/"+alias)) {
-		fs.mkdirSync(tmpPath+"/"+subDir+"/"+alias);
-	}
 
 	const zip = new AdmZip(zipFilePath);
-	zip.extractAllTo(tmpPath+"/"+subDir+"/"+alias, true);
+	zip.extractAllTo(directory+"/"+alias, true);
 }
 
 function cancelDeploy(accessToken:string, endPoint:string, deployJobId:string) {
@@ -333,9 +325,13 @@ function retrieveStatus(accessToken:string, endPoint:string, retrieveJobId:strin
 			const res = result['soapenv:Envelope']['soapenv:Body']['checkRetrieveStatusResponse']['result'];	
 			let fileNames = new Map();
 			if(res['done'] === 'true') {
-				res['fileProperties'].forEach((file: any) => {
-					fileNames.set(file.type+"."+file.fullName, file.fileName);
-				});	
+				if(res['fileProperties'] instanceof Array) {
+					res['fileProperties'].forEach((file: any) => {
+						fileNames.set(file.type+"."+file.fullName, file.fileName);
+					});	
+				} else {
+					fileNames.set(res['fileProperties'].type+"."+res['fileProperties'].fullName, res['fileProperties'].fileName);
+				}
 			}
 			resolve({
 				done: res['done'],
