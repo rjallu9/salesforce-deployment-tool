@@ -27,7 +27,7 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
-    "package": "npm run compile && esbuild src/assets/index.js --minify --outfile=out/assets/index.js && esbuild src/assets/index.css --minify --outfile=out/assets/index.css && esbuild out/extension.js --minify --outfile=out/extension-min.js && vsce package",
+    "package": "npm run compile && esbuild src/assets/index.js --minify --outfile=out/assets/index.js && esbuild src/assets/index.css --minify --outfile=out/assets/index.css && esbuild out/extension.js --minify --outfile=out/extension-min.js && del out\\extension.js && ren out\\extension-min.js extension.js   && vsce package",
     "build": "npm run compile && xcopy .\\src\\assets .\\out\\assets /s /y"
   },
   "devDependencies": {

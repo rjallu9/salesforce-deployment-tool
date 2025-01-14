@@ -415,13 +415,7 @@ function buildComponents(comps) {
             });
         }
     }
-    let tmp = [];
-    if (results.length > 0) {
-        for (var i = 0; i < 300; i++) {
-            tmp = [...tmp, results];
-        }
-    }
-    return tmp;
+    return results;
 }
 function getTypes(accessToken, endPoint, globalStorageUri) {
     let favorites = [];

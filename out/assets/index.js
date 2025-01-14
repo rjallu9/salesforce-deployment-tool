@@ -80,7 +80,8 @@ $(document).ready(function () {
         $('.dd-options ui').empty();
         $('.dd-text-field').val('');
         $('.dd-select-all').prop('checked', false);
-        $('.dd-text-field').attr("placeholder", 'No Types selected');      
+        $('.dd-text-field').attr("placeholder", 'No Types selected');   
+        $('.available').text('Available (0)');   
         $('#compsdatatable').DataTable().clear().rows.add([]).draw();
         $('#next').prop('disabled', true);
         $('#add-selection').hide();

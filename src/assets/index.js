@@ -19,6 +19,7 @@ $(document).ready(function () {
     let selectionsComps = [];
     
     let refreshComps = [];
+    let refreshCompsCount = 0;
 
     window.addEventListener('message', (event) => {
         if(event.data.command === 'orgsList') {
@@ -45,6 +46,7 @@ $(document).ready(function () {
                 });
             } 
             if(refreshComps.length === 0) {
+                refreshCompsCount = 0;
                 $("#overlay").hide();
                 if(selectionsComps.length > 0){                    
                     $('.selected').text('Selected ('+selectedComps.size+')');
@@ -53,8 +55,9 @@ $(document).ready(function () {
                     $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
                 } 
                 refreshComponents();            
-            } 
-                     
+            } else {
+                $(".spinnerlabel").text("Refreshing Components ("+(refreshCompsCount-refreshComps.length)+"/"+refreshCompsCount+")");
+            }                     
         } else if(event.data.command === 'deployStatus') {
             updateDeploymentStatus(event.data.result);
         } else if(event.data.command === 'compareResults') {
@@ -80,7 +83,8 @@ $(document).ready(function () {
         $('.dd-options ui').empty();
         $('.dd-text-field').val('');
         $('.dd-select-all').prop('checked', false);
-        $('.dd-text-field').attr("placeholder", 'No Types selected');      
+        $('.dd-text-field').attr("placeholder", 'No Types selected');   
+        $('.available').text('Available (0)');   
         $('#compsdatatable').DataTable().clear().rows.add([]).draw();
         $('#next').prop('disabled', true);
         $('#add-selection').hide();
@@ -138,8 +142,16 @@ $(document).ready(function () {
         ],
         rowCallback: function(row, data, dataIndex){
             if (selectedComps.has(data.type + "." + data.name)) {
+                var checkbox = $(row).find('.row-chk');
+                if(!$(checkbox).prop('checked')) {
+                    $(checkbox).prop('checked', true);
+                }
                 $(row).css('background', '#64b7ff');     
             } else {
+                var checkbox = $(row).find('.row-chk');
+                if($(checkbox).prop('checked')) {
+                    $(checkbox).prop('checked', false);
+                }
                 $(row).css('background', '');     
             }
         },
@@ -213,6 +225,7 @@ $(document).ready(function () {
                         vscode.postMessage({ command: 'loadComponents', type:selectedValue, isFolder:foldertypes.indexOf(selectedValue)>=0, 
                             sourceOrgId: $('#source-org-field').val()});
                         refreshComps.push(selectedValue);
+                        refreshCompsCount = refreshComps.length;
                         apiCallSent = true;
                     } else {
                         needRefresh = true;
@@ -439,8 +452,33 @@ $(document).ready(function () {
         $('#testerrortable').DataTable().clear().draw(); 
     });
 
+    $(document).on('change', '.delete-row-chk', function() {
+        if (!$(this).is(':checked')) {
+            selectedComps.delete($(this).val()); 
+            $('.row-chk').each(function(indx, chxbox) {
+                if($(chxbox).val() === $(this).val()) {
+                    $(chxbox).prop('checked', false);                    
+                    $(chxbox).parent().parent().css('background', '');
+                }                
+            }); 
+        }
+        $('.selected').text('Selected ('+selectedComps.size+')');
+        $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
+        if(selectedComps.size === 0) {
+            $('#next').prop('disabled', true);
+            $('#packagexml').prop('disabled', true);
+            $('#add-selection').hide();
+            $('#save-selection').hide();
+        }
+        $("#deploystatus").hide();
+        $('.deployerrors').text('Deployment Errors (0)');
+        $('.testcoverages').text('Test Coverage (0)');
+        $('#errortable').DataTable().clear().draw(); 
+        $('.testfailures').text('Test Class Failures (0)');
+        $('#testerrortable').DataTable().clear().draw(); 
+    });
+
     $('.all-row-chk').on('change', function() {
-        let val = $(this).val();
         if ($(this).is(':checked')) {
             $('.row-chk').each(function(indx, chxbox) {
                 if(!$(chxbox).prop('checked')) {
@@ -448,7 +486,20 @@ $(document).ready(function () {
                     selectedComps.set($(chxbox).val(), $('#compsdatatable').DataTable().row($(chxbox).closest('tr')).data());  
                     $(chxbox).parent().parent().css('background', '#64b7ff');    
                 }                
-            });   
+            });
+            //To Make Check components from all pages 
+            const date = new Date( $(".date-field").val());
+            let components = [];
+            componentsMap.keys().forEach(function(type) {
+                components = [...components, ...componentsMap.get(type)];
+            }); 
+            components.forEach(e => {
+                if((e.type === 'CustomMetadata' || new Date(e.lastModifiedDate).getTime() >= date.getTime()) 
+                                    &&  e.manageableState === $(".state-field").val()) {
+                    selectedComps.set(e.type+"."+e.name, e);  
+                }
+            });
+
             $('#next').prop('disabled', false);
             $('#packagexml').prop('disabled', false);  
             $('#add-selection').show();
@@ -830,7 +881,9 @@ $(document).ready(function () {
     });
 
     $(".tab").on('click', function (e) {
-        $('#'+e.currentTarget.attributes.name.value).DataTable().draw(); 
+        if($('#'+e.currentTarget.attributes.name.value).DataTable().page() === 0) {
+            $('#'+e.currentTarget.attributes.name.value).DataTable().draw(); 
+        }        
     });
 
     $("#compare").on('click', function (e) {
