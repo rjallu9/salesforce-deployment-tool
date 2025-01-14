@@ -411,7 +411,7 @@ $(document).ready(function () {
             }
         }); 
         components = components.filter(cmp => (cmp.type === 'CustomMetadata' || new Date(cmp.lastModifiedDate).getTime() >= date.getTime()) && 
-                cmp.manageableState === $(".state-field").val());
+                ($(".state-field").val() === 'all' ? true : cmp.manageableState === $(".state-field").val()));
         $('#compsdatatable').DataTable().clear().rows.add(components).draw();
         $('.available').text('Available ('+components.length+')');
         if($('.all-row-chk').is(':checked')) {
@@ -488,14 +488,14 @@ $(document).ready(function () {
                 }                
             });
             //To Make Check components from all pages 
-            const date = new Date( $(".date-field").val());
+            const date = new Date($(".date-field").val());
             let components = [];
             componentsMap.keys().forEach(function(type) {
                 components = [...components, ...componentsMap.get(type)];
             }); 
             components.forEach(e => {
                 if((e.type === 'CustomMetadata' || new Date(e.lastModifiedDate).getTime() >= date.getTime()) 
-                                    &&  e.manageableState === $(".state-field").val()) {
+                                    &&  ($(".state-field").val() === 'all' ? true : e.manageableState === $(".state-field").val())) {
                     selectedComps.set(e.type+"."+e.name, e);  
                 }
             });

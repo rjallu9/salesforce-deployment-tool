@@ -17,11 +17,11 @@ export function activate(context: vscode.ExtensionContext) {
 				{ enableScripts: true, retainContextWhenHidden: true }
 			);
 			const scriptPath = vscode.Uri.file(
-				path.join(context.extensionPath, 'out', 'assets/index.js')
+				path.join(context.extensionPath, 'src', 'assets/index.js')
 			);
 			const scriptUri = panel.webview.asWebviewUri(scriptPath);
 			const cssPath = vscode.Uri.file(
-				path.join(context.extensionPath, 'out', 'assets/index.css')
+				path.join(context.extensionPath, 'src', 'assets/index.css')
 			);
 			const cssUri = panel.webview.asWebviewUri(cssPath);
 
@@ -494,7 +494,7 @@ function sendSoapReuest(accessToken:string,  endPoint:string, body:string) {
 
 function getAuthOrgs() {
     return new Promise((resolve, reject) => {
-        exec('sf org list --json', (error:any, stdout:any, stderr:any) => {
+        /*exec('sf org list --json', (error:any, stdout:any, stderr:any) => {
             if (error) {
                 reject(`Error: ${error}`);
             } else {
@@ -521,7 +521,13 @@ function getAuthOrgs() {
                     reject(`Parse Error: ${parseError.message}`);
                 }
             }
-        });
+        });*/
+		resolve([{"alias": "SiriApp", "name": "SiriApp(ramu.jallu@yahoo.in)", "orgId": "00D6g00000360OaEAI","instanceUrl": "https://siriapp-dev-ed.my.salesforce.com",
+			"accessToken": "00D6g00000360Oa!AQcAQF7uyZFdvQOMRFAetbpFchusNaFwiW93T0hUpSGJvGigA9jLMvY9_eyFJvfCcVhK7G3rR1vU3cvVHXvpI9Fg4qLr8hMz"},
+			{"alias": "ICE", "name": "ICE(ramu.jallu@gmail.com)", "orgId": "00D3t000004pIgVEAU","instanceUrl": "https://ice7-dev-ed.my.salesforce.com",
+				"accessToken": "00D3t000004pIgV!AQgAQN2Rop2gVzrvqsKCH_.O5jinKNkn5CtJApXLXLWLhyxe6m.MjUDKwem1UmTEHJA34h6mbxPo0JW0BX07rUy_EB2FO7wa"},
+			{"name": "AgentForce(epic.321e1730601128842@orgfarm.th)", "orgId": "00D6P000000kU2zUAE","instanceUrl": "https://d6p000000ku2zuae-dev-ed.develop.my.salesforce.com",
+				"accessToken": "00D6P000000kU2z!AQ4AQDkTYbK6nbyv1Yn2HOMipXHkNxI.7RozVfEDATrZSHRARBYMZDEhuxKJsU84JNgBl0CudDmcSws4x7_JXHIkpYmjstLp"}]);
     });
 }
 
@@ -577,7 +583,8 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 								<div style="float:left;padding-left:5px;">	
 									<label for="text" for="state-field" class="top-label">State: </label>
 									<select type="text" class="state-field" id="state-field" style="height:36px;">
-										<option value="unmanaged">Unmanaged</option>
+										<option value="all">All</option>
+										<option value="unmanaged" selected>Unmanaged</option>
 										<option value="installed">Installed</option>
 									</select>		
 								</div>
@@ -585,47 +592,47 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 							<div style="margin-top:22px;">
 								<button type="button" style="padding: 7px; width: 75px;float:right;" id="next" disabled>Next</button>
 								<button type="button" style="padding: 7px; width:100px;float:right;margin-right:5px" id="packagexml" disabled>Package.xml</button>
-								<div style="float: left;padding-left: 5px;margin-right: 5px;" id="selection-view">
-									<div style="float:left;margin-top:-20px;margin-right: 5px;">	
-										<label for="text" for="selection-list" class="top-label">Saved Selections: </label>
-										<select type="text" id="selection-list" style="height:33px;min-width:150px;">
-										</select>		
+									<div style="float: left;padding-left: 5px;margin-right: 5px;" id="selection-view">
+										<div style="float:left;margin-top:-20px;margin-right: 5px;">	
+											<label for="text" for="selection-list" class="top-label">Saved Selections: </label>
+											<select type="text" id="selection-list" style="height:33px;min-width:150px;">
+											</select>		
+										</div>
+										<p style="float: left;margin-top: 4px;margin-right: 5px;display:none;cursor:pointer;" id="delete-selection">
+											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+												<circle cx="25" cy="25" r="24" fill="#f14c4c" stroke="#f14c4c" stroke-width="2"></circle>
+												<line x1="17" y1="17" x2="33" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
+												<line x1="33" y1="17" x2="17" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
+											</svg>
+										</p>
+										<p style="float: left;margin-top: 4px;cursor:pointer;display:none;" id="add-selection">
+											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+												<circle cx="25" cy="25" r="24" fill="#4daafc" stroke="#4daafc" stroke-width="2"></circle>
+												<line x1="25" y1="15" x2="25" y2="35" stroke="white" stroke-width="4" stroke-linecap="round"></line>
+												<line x1="15" y1="25" x2="35" y2="25" stroke="white" stroke-width="4" stroke-linecap="round"></line>
+											</svg>
+										</p>									
 									</div>
-									<p style="float: left;margin-top: 4px;margin-right: 5px;display:none;cursor:pointer;" id="delete-selection">
-										<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-											<circle cx="25" cy="25" r="24" fill="#f14c4c" stroke="#f14c4c" stroke-width="2"></circle>
-											<line x1="17" y1="17" x2="33" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-  											<line x1="33" y1="17" x2="17" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-										</svg>
-									</p>
-									<p style="float: left;margin-top: 4px;cursor:pointer;display:none;" id="add-selection">
-										<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-											<circle cx="25" cy="25" r="24" fill="#4daafc" stroke="#4daafc" stroke-width="2"></circle>
-											<line x1="25" y1="15" x2="25" y2="35" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-											<line x1="15" y1="25" x2="35" y2="25" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-										</svg>
-									</p>									
+									<div style="float: left;padding-left: 5px;margin-right: 5px;display:none;" id="selection-form">
+										<div style="float:left;margin-top:-20px;margin-right: 5px;">	
+											<label for="text" for="selection-name" class="top-label">Selection Name: </label>
+											<input type="text" id="selection-name" style="height:27px;"></input>			
+										</div>	
+										<p style="float: left;margin-top: 4px;margin-right: 5px;cursor:pointer;" id="save-selection">
+											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+												<circle cx="25" cy="25" r="24" fill="#2a6927" stroke="#2a6927" stroke-width="2"></circle>
+												<polyline points="15,25 22,32 35,18" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></polyline>
+											</svg>
+										</p>
+										<p style="float: left;margin-top: 4px;margin-right: 5px;cursor:pointer;" id="close-selection">
+											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+												<circle cx="25" cy="25" r="24" fill="#f14c4c" stroke="#f14c4c" stroke-width="2"></circle>
+												<line x1="17" y1="17" x2="33" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
+												<line x1="33" y1="17" x2="17" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
+											</svg>
+										</p>									
+									</div>
 								</div>
-								<div style="float: left;padding-left: 5px;margin-right: 5px;display:none;" id="selection-form">
-									<div style="float:left;margin-top:-20px;margin-right: 5px;">	
-										<label for="text" for="selection-name" class="top-label">Selection Name: </label>
-										<input type="text" id="selection-name" style="height:27px;"></input>			
-									</div>	
-									<p style="float: left;margin-top: 4px;margin-right: 5px;cursor:pointer;" id="save-selection">
-										<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-											<circle cx="25" cy="25" r="24" fill="#2a6927" stroke="#2a6927" stroke-width="2"></circle>
-											<polyline points="15,25 22,32 35,18" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></polyline>
-										</svg>
-									</p>
-									<p style="float: left;margin-top: 4px;margin-right: 5px;cursor:pointer;" id="close-selection">
-										<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-											<circle cx="25" cy="25" r="24" fill="#f14c4c" stroke="#f14c4c" stroke-width="2"></circle>
-											<line x1="17" y1="17" x2="33" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-  											<line x1="33" y1="17" x2="17" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-										</svg>
-									</p>									
-								</div>
-							</div>
 						</div>	
 						<div>
 							<p style="color:#f14c4c;" id="errors"></p>
