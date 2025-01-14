@@ -546,11 +546,10 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 			</head>
 			<body>	
 				<div style="margin: 20px;">
-					<h1>Salesforce Deployment Tool</h1>
-					
+					<h1>Salesforce Deployment Tool</h1>					
 					<div id="source-org" style="float:left;margin-right:5px;display:none;">	
 						<label for="text" for="source-org-field" class="top-label">Source Org: </label>
-						<select type="text" class="source-org-field" id="source-org-field" style="height:36px;width:350px;">
+						<select type="text" class="source-org-field" id="source-org-field" style="height:36px;">
 						</select>		
 					</div>
 					<div id="selection" style="display:none">
@@ -575,7 +574,7 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 								</div>
 								<div style="float:left;padding-left:10px;">	
 									<label for="text" for="date-field" class="top-label">Modified-Since: </label>
-									<input type="text" class="date-field" id="date-field" style="height:30px;" readonly></input>		
+									<input type="text" class="date-field" id="date-field" style="height:30px;width:100px;" readonly></input>		
 								</div>
 								<div style="float:left;padding-left:5px;">	
 									<label for="text" for="state-field" class="top-label">State: </label>
@@ -586,10 +585,50 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 									</select>		
 								</div>
 							</div>
-							<div style="margin-top:22px;">
+							<div style="margin-top:22px;margin-left: auto;">
 								<button type="button" style="padding: 7px; width: 75px;float:right;" id="next" disabled>Next</button>
-								<button type="button" style="padding: 7px; width:100px;float:right;margin-right:5px" id="packagexml" disabled>Package.xml</button>
-							</div>						
+								<button type="button" style="padding: 7px; width:100px;float:right;margin-right:5px" id="packagexml" disabled>Package.xml</button>	
+								<div style="float: left;padding-left: 5px;margin-right: 5px;" id="selection-view">
+									<div style="float:left;margin-top:-20px;margin-right: 5px;">	
+										<label for="text" for="selection-list" class="top-label">Snapshots: </label>
+										<select type="text" id="selection-list" style="height:33px;min-width:150px;">
+										</select>		
+									</div>
+									<p style="float: left;margin-top: 4px;margin-right: 5px;display:none;cursor:pointer;" id="delete-selection">
+										<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+											<circle cx="25" cy="25" r="24" fill="#f14c4c" stroke="#f14c4c" stroke-width="2"></circle>
+											<line x1="17" y1="17" x2="33" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
+											<line x1="33" y1="17" x2="17" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
+										</svg>
+									</p>
+									<p style="float: left;margin-top: 4px;cursor:pointer;display:none;" id="add-selection">
+										<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+											<circle cx="25" cy="25" r="24" fill="#4daafc" stroke="#4daafc" stroke-width="2"></circle>
+											<line x1="25" y1="15" x2="25" y2="35" stroke="white" stroke-width="4" stroke-linecap="round"></line>
+											<line x1="15" y1="25" x2="35" y2="25" stroke="white" stroke-width="4" stroke-linecap="round"></line>
+										</svg>
+									</p>									
+								</div>
+								<div style="float: left;padding-left: 5px;margin-right: 5px;display:none;" id="selection-form">
+									<div style="float:left;margin-top:-20px;margin-right: 5px;">	
+										<label for="text" for="selection-name" class="top-label">Selection Name: </label>
+										<input type="text" id="selection-name" style="height:27px;"></input>			
+									</div>	
+									<p style="float: left;margin-top: 4px;margin-right: 5px;cursor:pointer;" id="save-selection">
+										<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+											<circle cx="25" cy="25" r="24" fill="#2a6927" stroke="#2a6927" stroke-width="2"></circle>
+											<polyline points="15,25 22,32 35,18" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></polyline>
+										</svg>
+									</p>
+									<p style="float: left;margin-top: 4px;margin-right: 5px;cursor:pointer;" id="close-selection">
+										<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+											<circle cx="25" cy="25" r="24" fill="#f14c4c" stroke="#f14c4c" stroke-width="2"></circle>
+											<line x1="17" y1="17" x2="33" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
+											<line x1="33" y1="17" x2="17" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
+										</svg>
+									</p>									
+								</div>
+							</div>
 						</div>	
 						<div>
 							<p style="color:#f14c4c;" id="errors"></p>
@@ -611,47 +650,8 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 										</tr>
 									</thead>
 								</table>
-								<div style="margin-top:22px;">
-									<div style="float: left;padding-left: 5px;margin-right: 5px;" id="selection-view">
-										<div style="float:left;margin-top:-20px;margin-right: 5px;">	
-											<label for="text" for="selection-list" class="top-label">Saved Selections: </label>
-											<select type="text" id="selection-list" style="height:33px;min-width:150px;">
-											</select>		
-										</div>
-										<p style="float: left;margin-top: 4px;margin-right: 5px;display:none;cursor:pointer;" id="delete-selection">
-											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-												<circle cx="25" cy="25" r="24" fill="#f14c4c" stroke="#f14c4c" stroke-width="2"></circle>
-												<line x1="17" y1="17" x2="33" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-												<line x1="33" y1="17" x2="17" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-											</svg>
-										</p>
-										<p style="float: left;margin-top: 4px;cursor:pointer;display:none;" id="add-selection">
-											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-												<circle cx="25" cy="25" r="24" fill="#4daafc" stroke="#4daafc" stroke-width="2"></circle>
-												<line x1="25" y1="15" x2="25" y2="35" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-												<line x1="15" y1="25" x2="35" y2="25" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-											</svg>
-										</p>									
-									</div>
-									<div style="float: left;padding-left: 5px;margin-right: 5px;display:none;" id="selection-form">
-										<div style="float:left;margin-top:-20px;margin-right: 5px;">	
-											<label for="text" for="selection-name" class="top-label">Selection Name: </label>
-											<input type="text" id="selection-name" style="height:27px;"></input>			
-										</div>	
-										<p style="float: left;margin-top: 4px;margin-right: 5px;cursor:pointer;" id="save-selection">
-											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-												<circle cx="25" cy="25" r="24" fill="#2a6927" stroke="#2a6927" stroke-width="2"></circle>
-												<polyline points="15,25 22,32 35,18" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></polyline>
-											</svg>
-										</p>
-										<p style="float: left;margin-top: 4px;margin-right: 5px;cursor:pointer;" id="close-selection">
-											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-												<circle cx="25" cy="25" r="24" fill="#f14c4c" stroke="#f14c4c" stroke-width="2"></circle>
-												<line x1="17" y1="17" x2="33" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-												<line x1="33" y1="17" x2="17" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-											</svg>
-										</p>									
-									</div>
+								<div>
+									<button type="button" style="padding: 7px; width: 75px;" id="export" disabled>Export</button>
 								</div>
 							</div>
 							<div id="selected">

@@ -5,6 +5,7 @@
 .form-panel {
     display: flex;
     justify-content: space-between;
+    flex-wrap: wrap; 
 }
 .dd-text-field {
     width:300px;

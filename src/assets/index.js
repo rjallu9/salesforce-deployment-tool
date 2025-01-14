@@ -416,7 +416,8 @@ $(document).ready(function () {
         $('.available').text('Available ('+components.length+')');
         if($('.all-row-chk').is(':checked')) {
             $('.all-row-chk').prop('checked', false);
-        }        
+        }  
+        $('#export').prop('disabled', components.length === 0);     
     }
 
     $(document).on('change', '.row-chk', function() {
@@ -581,6 +582,21 @@ $(document).ready(function () {
         let packagexml = getPackageXml();
         navigator.clipboard.writeText( `<?xml version="1.0" encoding="UTF-8"?>\n<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n${packagexml}\t<version>62.0</version>\n</Package>`);
         vscode.postMessage({ command: 'toastMessage', message: 'Package.xml copied to clipboard'});
+    });
+
+    $('#export').on('click', function (e) {
+        const date = new Date($(".date-field").val());
+        let components = [['Type','Name','Last Modified By','Last Modified Date']];
+        componentsMap.keys().forEach(function(type) {
+            componentsMap.get(type).forEach(e => {
+                if((e.type === 'CustomMetadata' || new Date(e.lastModifiedDate).getTime() >= date.getTime()) 
+                                    &&  ($(".state-field").val() === 'all' ? true : e.manageableState === $(".state-field").val())) {
+                    components.push([e.type, e.name, e.lastModifiedByName, e.lastModifiedDate]);
+                }
+            });
+        }); 
+        navigator.clipboard.writeText(components.map(e => e.join(",")).join("\n"));
+        vscode.postMessage({ command: 'toastMessage', message: 'CSV content copied to clipboard'});
     });
 
     $('#previous').on('click', function (e) {
