@@ -424,7 +424,7 @@ function buildComponents(comps:any) {
 						comp['createdDate'] !== auditDate ? new Date(comp['createdDate']).toLocaleDateString() : '',
 			manageableState: comp['manageableState'] === undefined ? 'unmanaged' : comp['manageableState']
 		}));	
-		results = results.filter(cmp => cmp.id !== undefined);		
+		results = results.filter(cmp => cmp.id !== '');		
 	}
 	return results;
 }

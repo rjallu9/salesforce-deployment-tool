@@ -21,7 +21,7 @@ $(document).ready(function () {
     let refreshComps = [];
     let refreshCompsCount = 0;
     
-    let exlcludeTypes = ['CustomLables','Workflow', 'AssignmentRules', 'AutoResponseRules', 'EscalationRules', 'CustomObjectTranslation',
+    let exlcludeTypes = ['CustomLabels','Workflow', 'AssignmentRules', 'AutoResponseRules', 'EscalationRules', 'CustomObjectTranslation',
         'DataCategoryGroup', 'MatchingRules', 'SharingRules','ApexEmailNotifications', 'IframeWhiteListUrlSettings', 'AppMenu',
         'NotificationTypeConfig', 'TopicsForObjects', 'Settings'
     ];
@@ -34,7 +34,7 @@ $(document).ready(function () {
             loadSourceOrgs();
         } else if(event.data.command === 'types') {
             types = event.data.types; 
-            types = types.filter(type => exlcludeTypes.indexOf(type) < 0);
+            types = types.filter(type => exlcludeTypes.indexOf(type.name) < 0);
             $("#selection").show();
             refreshTypes(true);   
             refreshSelections(event.data.selections);  
