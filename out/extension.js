@@ -329,14 +329,10 @@ function retrieveStatus(accessToken, endPoint, retrieveJobId) {
             const res = result['soapenv:Envelope']['soapenv:Body']['checkRetrieveStatusResponse']['result'];
             let fileNames = new Map();
             if (res['done'] === 'true') {
-                if (res['fileProperties'] instanceof Array) {
-                    res['fileProperties'].forEach((file) => {
-                        fileNames.set(file.type + "." + file.fullName, file.fileName);
-                    });
-                }
-                else {
-                    fileNames.set(res['fileProperties'].type + "." + res['fileProperties'].fullName, res['fileProperties'].fileName);
-                }
+                let tmp = res['fileProperties'] instanceof Array ? res['fileProperties'] : [res['fileProperties']];
+                tmp.forEach((file) => {
+                    fileNames.set(file.type + "." + file.fullName, file.fileName);
+                });
             }
             resolve({
                 done: res['done'],
@@ -385,7 +381,31 @@ function getComponents(accessToken, endPoint, type, isFolder) {
                 });
             }
             else {
-                resolve(results);
+                if (type === 'CustomMetadata') {
+                    const names = new Set();
+                    results.forEach((e) => {
+                        names.add(e.name.split('.')[0] + '__mdt');
+                    });
+                    let records = new Map();
+                    const promises = Array.from(names).map(e => {
+                        return getMetdata(accessToken, endPoint, '' + e).then((result) => {
+                            let tmp = result instanceof Array ? result : [result];
+                            tmp.forEach(r => {
+                                records.set(r['sf:Id'] instanceof Array ? r['sf:Id'][0] : r['sf:Id'], r['sf:SystemModstamp']);
+                            });
+                        });
+                    });
+                    Promise.all(promises)
+                        .then(() => {
+                        results.forEach((e) => {
+                            e.lastModifiedDate = new Date(records.get(e.id)).toLocaleDateString();
+                        });
+                        resolve(results);
+                    });
+                }
+                else {
+                    resolve(results);
+                }
             }
         })
             .catch((error) => {
@@ -395,25 +415,19 @@ function getComponents(accessToken, endPoint, type, isFolder) {
 }
 function buildComponents(comps) {
     let results = [];
+    let auditDate = '1970-01-01T00:00:00.000Z';
     if (comps !== "") {
-        if (comps['result'] instanceof Array) {
-            results = comps['result'].map((comp) => ({
-                name: comp['fullName'],
-                type: comp['type'],
-                lastModifiedByName: comp['lastModifiedByName'],
-                lastModifiedDate: new Date(comp['lastModifiedDate']).toLocaleDateString(),
-                manageableState: comp['manageableState']
-            }));
-        }
-        else {
-            results.push({
-                name: comps['result']['fullName'],
-                type: comps['result']['type'],
-                lastModifiedByName: comps['result']['lastModifiedByName'],
-                lastModifiedDate: new Date(comps['lastModifiedDate']).toLocaleDateString(),
-                manageableState: comps['manageableState']
-            });
-        }
+        let tmp = comps['result'] instanceof Array ? comps['result'] : [comps['result']];
+        results = tmp.map((comp) => ({
+            name: comp['fullName'],
+            id: comp['id'],
+            type: comp['type'],
+            lastModifiedByName: comp['lastModifiedByName'],
+            lastModifiedDate: comp['lastModifiedDate'] !== auditDate ? new Date(comp['lastModifiedDate']).toLocaleDateString() :
+                comp['createdDate'] !== auditDate ? new Date(comp['createdDate']).toLocaleDateString() : '',
+            manageableState: comp['manageableState'] === undefined ? 'unmanaged' : comp['manageableState']
+        }));
+        results = results.filter(cmp => cmp.id !== undefined);
     }
     return results;
 }
@@ -436,24 +450,15 @@ function getTypes(accessToken, endPoint, globalStorageUri) {
                     inFolder: element['inFolder']
                 });
                 if (element['childXmlNames']) {
-                    if (element['childXmlNames'] instanceof Array) {
-                        element['childXmlNames'].forEach((childname) => {
-                            typesList.push({
-                                name: childname,
-                                isFavorite: favorites.indexOf(element['xmlName']) >= 0,
-                                hidden: false,
-                                inFolder: 'false'
-                            });
-                        });
-                    }
-                    else {
+                    let tmp = element['childXmlNames'] instanceof Array ? element['childXmlNames'] : [element['childXmlNames']];
+                    tmp.forEach((childname) => {
                         typesList.push({
-                            name: element['childXmlNames'],
+                            name: childname,
                             isFavorite: favorites.indexOf(element['xmlName']) >= 0,
                             hidden: false,
                             inFolder: 'false'
                         });
-                    }
+                    });
                 }
             });
             resolve(typesList);
@@ -491,6 +496,30 @@ function sendSoapReuest(accessToken, endPoint, body) {
         });
     });
 }
+function getMetdata(accessToken, endPoint, name) {
+    const parser = new xml2js.Parser({ explicitArray: false, ignoreAttrs: true });
+    let reuest = '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:partner.soap.sforce.com">' +
+        '<soapenv:Header><urn:SessionHeader><urn:sessionId>' + accessToken + '</urn:sessionId></urn:SessionHeader></soapenv:Header>' +
+        '<soapenv:Body><urn:query><urn:queryString>SELECT Id, SystemModstamp FROM ' + name + '</urn:queryString></urn:query></soapenv:Body></soapenv:Envelope>';
+    return new Promise((resolve, reject) => {
+        axios.post(endPoint + "/services/Soap/u/62.0", reuest, { headers: {
+                'Content-Type': 'text/xml; charset=utf-8',
+                'SOAPAction': 'Update',
+            },
+        }).then((response) => {
+            parser.parseString(response.data, (err, result) => {
+                if (err) {
+                    vscode.window.showErrorMessage("Error parsing SOAP XML:", err);
+                    return;
+                }
+                const records = result['soapenv:Envelope']['soapenv:Body']['queryResponse']['result']['records'];
+                resolve(records instanceof Array ? records : [records]);
+            });
+        })
+            .catch((error) => {
+        });
+    });
+}
 function getAuthOrgs() {
     return new Promise((resolve, reject) => {
         /*exec('sf org list --json', (error:any, stdout:any, stderr:any) => {
@@ -524,9 +553,11 @@ function getAuthOrgs() {
         resolve([{ "alias": "SiriApp", "name": "SiriApp(ramu.jallu@yahoo.in)", "orgId": "00D6g00000360OaEAI", "instanceUrl": "https://siriapp-dev-ed.my.salesforce.com",
                 "accessToken": "00D6g00000360Oa!AQcAQF7uyZFdvQOMRFAetbpFchusNaFwiW93T0hUpSGJvGigA9jLMvY9_eyFJvfCcVhK7G3rR1vU3cvVHXvpI9Fg4qLr8hMz" },
             { "alias": "ICE", "name": "ICE(ramu.jallu@gmail.com)", "orgId": "00D3t000004pIgVEAU", "instanceUrl": "https://ice7-dev-ed.my.salesforce.com",
-                "accessToken": "00D3t000004pIgV!AQgAQN2Rop2gVzrvqsKCH_.O5jinKNkn5CtJApXLXLWLhyxe6m.MjUDKwem1UmTEHJA34h6mbxPo0JW0BX07rUy_EB2FO7wa" },
+                "accessToken": "00D3t000004pIgV!AQgAQLlXpVAMxcbomCUKCBZayLesskTg8RGcvA4P8HBgwbLBAUnXnaRi_SD9ct.S8MChbI4pb_.EFoh.nyUWUrlyy9rEmyEF" },
             { "name": "AgentForce(epic.321e1730601128842@orgfarm.th)", "orgId": "00D6P000000kU2zUAE", "instanceUrl": "https://d6p000000ku2zuae-dev-ed.develop.my.salesforce.com",
-                "accessToken": "00D6P000000kU2z!AQ4AQDkTYbK6nbyv1Yn2HOMipXHkNxI.7RozVfEDATrZSHRARBYMZDEhuxKJsU84JNgBl0CudDmcSws4x7_JXHIkpYmjstLp" }]);
+                "accessToken": "00D6P000000kU2z!AQ4AQDkTYbK6nbyv1Yn2HOMipXHkNxI.7RozVfEDATrZSHRARBYMZDEhuxKJsU84JNgBl0CudDmcSws4x7_JXHIkpYmjstLp" },
+            { "name": "Functions(https://ice3.my.salesforce.com)", "orgId": "00D8c000002gRogEAE", "instanceUrl": "https://ice3.my.salesforce.com",
+                "accessToken": "00D8c000002gRog!ARAAQP3nZCbpdPA5SN91zvrKqQ9AAujV3nfUg10nS3rFFFuGiPhzrfbARk0LDPbxcuXnhLmk4Ihpss0EYnlfkvK8p4OSDbu5" }]);
     });
 }
 function getWebviewContent(basedpath, scriptUri, cssUri) {
@@ -643,8 +674,8 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 									<thead>
 										<tr>
 											<th><input type="checkbox" id="all-row-chk" class='all-row-chk'/></th>	
-											<th>Name</th>
 											<th>Type</th>
+											<th>Name</th>
 											<th>Last Modified By</th>
 											<th>Last Modified Date</th>
 										</tr>

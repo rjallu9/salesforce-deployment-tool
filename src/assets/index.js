@@ -20,6 +20,11 @@ $(document).ready(function () {
     
     let refreshComps = [];
     let refreshCompsCount = 0;
+    
+    let exlcludeTypes = ['CustomLables','Workflow', 'AssignmentRules', 'AutoResponseRules', 'EscalationRules', 'CustomObjectTranslation',
+        'DataCategoryGroup', 'MatchingRules', 'SharingRules','ApexEmailNotifications', 'IframeWhiteListUrlSettings', 'AppMenu',
+        'NotificationTypeConfig', 'TopicsForObjects', 'Settings'
+    ];
 
     window.addEventListener('message', (event) => {
         if(event.data.command === 'orgsList') {
@@ -28,7 +33,8 @@ $(document).ready(function () {
             $("#overlay").hide();
             loadSourceOrgs();
         } else if(event.data.command === 'types') {
-            types = event.data.types;   
+            types = event.data.types; 
+            types = types.filter(type => exlcludeTypes.indexOf(type) < 0);
             $("#selection").show();
             refreshTypes(true);   
             refreshSelections(event.data.selections);  
@@ -93,6 +99,10 @@ $(document).ready(function () {
         $('#errors').text('');
         $('.selected').text('Selected (0)');
         $('#selecteddatatable').DataTable().clear().draw(); 
+        if($('.all-row-chk').is(':checked')) {
+            $('.all-row-chk').prop('checked', false);
+        }
+        $('#export').prop('disabled', true);
 
         $("#selection").hide(); 
         if($('#source-org-field').val() !== '') {
@@ -249,11 +259,11 @@ $(document).ready(function () {
             $('.dd-text-field').attr("placeholder", '0 Type(s) selected');  
             $("#overlay").hide();
         }  
-        if(selectedTypes.indexOf('CustomMetadata') >= 0) {
-            $("#errors").text('Custom Metadata audit fields are returned incorrect values, So date filter cannot be applied.');    
+        /*if(selectedTypes.indexOf('CustomMetadata') >= 0) {
+            $("#errors").text('Few Types (Custom Metadata, ) audit fields are returned incorrect values, So date filter cannot be applied.');    
         } else {
             $("#errors").text('');    
-        }      
+        }*/      
     });
 
     //Type checkbox
@@ -279,11 +289,11 @@ $(document).ready(function () {
             });
             refreshComponents();
         } 
-        if(selectedTypes.indexOf('CustomMetadata') >= 0) {
+        /*if(selectedTypes.indexOf('CustomMetadata') >= 0) {
             $("#errors").text('Custom Metadata audit fields are returned incorrect values, So date filter cannot be applied.');    
         } else {
             $("#errors").text('');    
-        }
+        }*/
         $('.dd-text-field').attr("placeholder", selectedTypes.length+ ' Type(s) selected');      
     });
 
@@ -410,7 +420,7 @@ $(document).ready(function () {
                 components = [...components, ...componentsMap.get(type)];
             }
         }); 
-        components = components.filter(cmp => (cmp.type === 'CustomMetadata' || new Date(cmp.lastModifiedDate).getTime() >= date.getTime()) && 
+        components = components.filter(cmp => (cmp.lastModifiedDate === '' || new Date(cmp.lastModifiedDate).getTime() >= date.getTime()) && 
                 ($(".state-field").val() === 'all' ? true : cmp.manageableState === $(".state-field").val()));
         $('#compsdatatable').DataTable().clear().rows.add(components).draw();
         $('.available').text('Available ('+components.length+')');
@@ -463,6 +473,9 @@ $(document).ready(function () {
                 }                
             }); 
         }
+        if($('.all-row-chk').is(':checked')) {
+            $('.all-row-chk').prop('checked', false);
+        }
         $('.selected').text('Selected ('+selectedComps.size+')');
         $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
         if(selectedComps.size === 0) {
@@ -495,7 +508,7 @@ $(document).ready(function () {
                 components = [...components, ...componentsMap.get(type)];
             }); 
             components.forEach(e => {
-                if((e.type === 'CustomMetadata' || new Date(e.lastModifiedDate).getTime() >= date.getTime()) 
+                if((e.lastModifiedDate === '' || new Date(e.lastModifiedDate).getTime() >= date.getTime()) 
                                     &&  ($(".state-field").val() === 'all' ? true : e.manageableState === $(".state-field").val())) {
                     selectedComps.set(e.type+"."+e.name, e);  
                 }
@@ -589,7 +602,7 @@ $(document).ready(function () {
         let components = [['Type','Name','Last Modified By','Last Modified Date']];
         componentsMap.keys().forEach(function(type) {
             componentsMap.get(type).forEach(e => {
-                if((e.type === 'CustomMetadata' || new Date(e.lastModifiedDate).getTime() >= date.getTime()) 
+                if((e.lastModifiedDate === '' || new Date(e.lastModifiedDate).getTime() >= date.getTime()) 
                                     &&  ($(".state-field").val() === 'all' ? true : e.manageableState === $(".state-field").val())) {
                     components.push([e.type, e.name, e.lastModifiedByName, e.lastModifiedDate]);
                 }

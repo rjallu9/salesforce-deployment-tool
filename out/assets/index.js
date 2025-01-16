@@ -20,6 +20,11 @@ $(document).ready(function () {
     
     let refreshComps = [];
     let refreshCompsCount = 0;
+    
+    let exlcludeTypes = ['CustomLables','Workflow', 'AssignmentRules', 'AutoResponseRules', 'EscalationRules', 'CustomObjectTranslation',
+        'DataCategoryGroup', 'MatchingRules', 'SharingRules','ApexEmailNotifications', 'IframeWhiteListUrlSettings', 'AppMenu',
+        'NotificationTypeConfig', 'TopicsForObjects', 'Settings'
+    ];
 
     window.addEventListener('message', (event) => {
         if(event.data.command === 'orgsList') {
@@ -28,7 +33,8 @@ $(document).ready(function () {
             $("#overlay").hide();
             loadSourceOrgs();
         } else if(event.data.command === 'types') {
-            types = event.data.types;   
+            types = event.data.types; 
+            types = types.filter(type => exlcludeTypes.indexOf(type) < 0);
             $("#selection").show();
             refreshTypes(true);   
             refreshSelections(event.data.selections);  
@@ -249,11 +255,11 @@ $(document).ready(function () {
             $('.dd-text-field').attr("placeholder", '0 Type(s) selected');  
             $("#overlay").hide();
         }  
-        if(selectedTypes.indexOf('CustomMetadata') >= 0) {
-            $("#errors").text('Custom Metadata audit fields are returned incorrect values, So date filter cannot be applied.');    
+        /*if(selectedTypes.indexOf('CustomMetadata') >= 0) {
+            $("#errors").text('Few Types (Custom Metadata, ) audit fields are returned incorrect values, So date filter cannot be applied.');    
         } else {
             $("#errors").text('');    
-        }      
+        }*/      
     });
 
     //Type checkbox
@@ -279,11 +285,11 @@ $(document).ready(function () {
             });
             refreshComponents();
         } 
-        if(selectedTypes.indexOf('CustomMetadata') >= 0) {
+        /*if(selectedTypes.indexOf('CustomMetadata') >= 0) {
             $("#errors").text('Custom Metadata audit fields are returned incorrect values, So date filter cannot be applied.');    
         } else {
             $("#errors").text('');    
-        }
+        }*/
         $('.dd-text-field').attr("placeholder", selectedTypes.length+ ' Type(s) selected');      
     });
 
@@ -410,13 +416,14 @@ $(document).ready(function () {
                 components = [...components, ...componentsMap.get(type)];
             }
         }); 
-        components = components.filter(cmp => (cmp.type === 'CustomMetadata' || new Date(cmp.lastModifiedDate).getTime() >= date.getTime()) && 
+        components = components.filter(cmp => (cmp.lastModifiedDate === '' || new Date(cmp.lastModifiedDate).getTime() >= date.getTime()) && 
                 ($(".state-field").val() === 'all' ? true : cmp.manageableState === $(".state-field").val()));
         $('#compsdatatable').DataTable().clear().rows.add(components).draw();
         $('.available').text('Available ('+components.length+')');
         if($('.all-row-chk').is(':checked')) {
             $('.all-row-chk').prop('checked', false);
-        }        
+        }  
+        $('#export').prop('disabled', components.length === 0);     
     }
 
     $(document).on('change', '.row-chk', function() {
@@ -462,6 +469,9 @@ $(document).ready(function () {
                 }                
             }); 
         }
+        if($('.all-row-chk').is(':checked')) {
+            $('.all-row-chk').prop('checked', false);
+        }
         $('.selected').text('Selected ('+selectedComps.size+')');
         $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
         if(selectedComps.size === 0) {
@@ -494,7 +504,7 @@ $(document).ready(function () {
                 components = [...components, ...componentsMap.get(type)];
             }); 
             components.forEach(e => {
-                if((e.type === 'CustomMetadata' || new Date(e.lastModifiedDate).getTime() >= date.getTime()) 
+                if((e.lastModifiedDate === '' || new Date(e.lastModifiedDate).getTime() >= date.getTime()) 
                                     &&  ($(".state-field").val() === 'all' ? true : e.manageableState === $(".state-field").val())) {
                     selectedComps.set(e.type+"."+e.name, e);  
                 }
@@ -581,6 +591,21 @@ $(document).ready(function () {
         let packagexml = getPackageXml();
         navigator.clipboard.writeText( `<?xml version="1.0" encoding="UTF-8"?>\n<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n${packagexml}\t<version>62.0</version>\n</Package>`);
         vscode.postMessage({ command: 'toastMessage', message: 'Package.xml copied to clipboard'});
+    });
+
+    $('#export').on('click', function (e) {
+        const date = new Date($(".date-field").val());
+        let components = [['Type','Name','Last Modified By','Last Modified Date']];
+        componentsMap.keys().forEach(function(type) {
+            componentsMap.get(type).forEach(e => {
+                if((e.lastModifiedDate === '' || new Date(e.lastModifiedDate).getTime() >= date.getTime()) 
+                                    &&  ($(".state-field").val() === 'all' ? true : e.manageableState === $(".state-field").val())) {
+                    components.push([e.type, e.name, e.lastModifiedByName, e.lastModifiedDate]);
+                }
+            });
+        }); 
+        navigator.clipboard.writeText(components.map(e => e.join(",")).join("\n"));
+        vscode.postMessage({ command: 'toastMessage', message: 'CSV content copied to clipboard'});
     });
 
     $('#previous').on('click', function (e) {
