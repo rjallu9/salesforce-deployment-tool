@@ -17,11 +17,11 @@ export function activate(context: vscode.ExtensionContext) {
 				{ enableScripts: true, retainContextWhenHidden: true }
 			);
 			const scriptPath = vscode.Uri.file(
-				path.join(context.extensionPath, 'out', 'assets/index.js')
+				path.join(context.extensionPath, 'src', 'assets/index.js')
 			);
 			const scriptUri = panel.webview.asWebviewUri(scriptPath);
 			const cssPath = vscode.Uri.file(
-				path.join(context.extensionPath, 'out', 'assets/index.css')
+				path.join(context.extensionPath, 'src', 'assets/index.css')
 			);
 			const cssUri = panel.webview.asWebviewUri(cssPath);
 
@@ -61,7 +61,7 @@ export function activate(context: vscode.ExtensionContext) {
 							getComponents(sourceOrg.accessToken, sourceOrg.instanceUrl, message.type, message.isFolder)
 							.then((data) => {
 								panel.webview.postMessage({ command: 'components', components: data, type: message.type });
-							}).catch((error) => {
+							}).catch((error) => {								
 								panel.webview.postMessage({ command: 'components', components: [], type: message.type });
 							});;
 						}
@@ -262,9 +262,9 @@ function extractComponents(zipfile:string, directory:string, alias:string) {
 
 function cancelDeploy(accessToken:string, endPoint:string, deployJobId:string) {
     return new Promise((resolve, reject) => {
-		sendSoapReuest(accessToken, endPoint, '<met:cancelDeploy><met:String>'+deployJobId+'</met:String></met:cancelDeploy>')
+		sendSoapMDRequest(accessToken, endPoint, '<met:cancelDeploy><met:String>'+deployJobId+'</met:String></met:cancelDeploy>')
 		.then((result:any) => {
-			const res = result['soapenv:Envelope']['soapenv:Body']['cancelDeployResponse']['result'];	
+			const res = result['cancelDeployResponse']['result'];	
 			resolve(res);	
         })
         .catch((error:any) => {
@@ -276,10 +276,10 @@ function cancelDeploy(accessToken:string, endPoint:string, deployJobId:string) {
 
 function quickDeploy(accessToken:string, endPoint:string, deployJobId:string) {
     return new Promise((resolve, reject) => {
-		sendSoapReuest(accessToken, endPoint, '<met:deployRecentValidation><met:validationId>'+deployJobId+
+		sendSoapMDRequest(accessToken, endPoint, '<met:deployRecentValidation><met:validationId>'+deployJobId+
 			'</met:validationId></met:deployRecentValidation>')
 		.then((result:any) => {
-			const res = result['soapenv:Envelope']['soapenv:Body']['deployRecentValidationResponse']['result'];	
+			const res = result['deployRecentValidationResponse']['result'];	
 			resolve(res);
         })
         .catch((error:any) => {
@@ -290,10 +290,10 @@ function quickDeploy(accessToken:string, endPoint:string, deployJobId:string) {
 
 function deployStatus(accessToken:string, endPoint:string, deployJobId:string) {
     return new Promise((resolve, reject) => {
-		sendSoapReuest(accessToken, endPoint, '<met:checkDeployStatus><met:asyncProcessId>'+deployJobId+
+		sendSoapMDRequest(accessToken, endPoint, '<met:checkDeployStatus><met:asyncProcessId>'+deployJobId+
 			'</met:asyncProcessId><met:includeDetails>true</met:includeDetails></met:checkDeployStatus>')
 		.then((result:any) => {
-			const res = result['soapenv:Envelope']['soapenv:Body']['checkDeployStatusResponse']['result'];	
+			const res = result['checkDeployStatusResponse']['result'];	
 			resolve(res);
         })
         .catch((error:any) => {
@@ -304,11 +304,11 @@ function deployStatus(accessToken:string, endPoint:string, deployJobId:string) {
 
 function deploy(accessToken:string, endPoint:string, zipfile:string, checkOnly:boolean, testLevel:string, testClasses:string) {
     return new Promise((resolve, reject) => {
-		sendSoapReuest(accessToken, endPoint, '<met:deploy><met:ZipFile>'+zipfile+'</met:ZipFile><met:DeployOptions>'+
+		sendSoapMDRequest(accessToken, endPoint, '<met:deploy><met:ZipFile>'+zipfile+'</met:ZipFile><met:DeployOptions>'+
 			'<met:checkOnly>'+checkOnly+'</met:checkOnly><met:testLevel>'+testLevel+'</met:testLevel>'+testClasses+
 			'<met:singlePackage>true</met:singlePackage></met:DeployOptions></met:deploy>')
 		.then((result:any) => {
-			const retrieveId = result['soapenv:Envelope']['soapenv:Body']['deployResponse']['result']['id'];	
+			const retrieveId = result['deployResponse']['result']['id'];	
 			resolve(retrieveId);	
         })
         .catch((error:any) => {
@@ -319,10 +319,10 @@ function deploy(accessToken:string, endPoint:string, zipfile:string, checkOnly:b
 
 function retrieveStatus(accessToken:string, endPoint:string, retrieveJobId:string) {
     return new Promise((resolve, reject) => {
-		sendSoapReuest(accessToken, endPoint, '<met:checkRetrieveStatus><met:asyncProcessId>'+retrieveJobId+
+		sendSoapMDRequest(accessToken, endPoint, '<met:checkRetrieveStatus><met:asyncProcessId>'+retrieveJobId+
 			'</met:asyncProcessId><met:includeZip>true</met:includeZip></met:checkRetrieveStatus>')
 		.then((result:any) => {
-			const res = result['soapenv:Envelope']['soapenv:Body']['checkRetrieveStatusResponse']['result'];	
+			const res = result['checkRetrieveStatusResponse']['result'];	
 			let fileNames = new Map();
 			if(res['done'] === 'true') {
 				let tmp = res['fileProperties'] instanceof Array ? res['fileProperties'] : [res['fileProperties']];
@@ -344,10 +344,10 @@ function retrieveStatus(accessToken:string, endPoint:string, retrieveJobId:strin
 
 function retrieve(accessToken:string, endPoint:string, packagexml:string) {
     return new Promise((resolve, reject) => {
-		sendSoapReuest(accessToken, endPoint, '<met:retrieve><met:retrieveRequest><met:apiVersion>62.0</met:apiVersion>'+
+		sendSoapMDRequest(accessToken, endPoint, '<met:retrieve><met:retrieveRequest><met:apiVersion>62.0</met:apiVersion>'+
 			'<met:singlePackage>true</met:singlePackage><met:unpackaged>'+packagexml+'</met:unpackaged></met:retrieveRequest></met:retrieve>')
 		.then((result:any) => {
-			const retrieveId = result['soapenv:Envelope']['soapenv:Body']['retrieveResponse']['result']['id'];	
+			const retrieveId = result['retrieveResponse']['result']['id'];	
 			resolve(retrieveId);
         })
         .catch((error:any) => {
@@ -358,17 +358,17 @@ function retrieve(accessToken:string, endPoint:string, packagexml:string) {
 
 function getComponents(accessToken:string, endPoint:string, type:string, isFolder:boolean) {
     return new Promise((resolve, reject) => {
-		sendSoapReuest(accessToken, endPoint, '<met:listMetadata><met:queries><met:type>'+type+(isFolder ? 'Folder' : '')+'</met:type></met:queries></met:listMetadata>')
+		sendSoapMDRequest(accessToken, endPoint, '<met:listMetadata><met:queries><met:type>'+type+(isFolder ? 'Folder' : '')+'</met:type></met:queries></met:listMetadata>')
 		.then((result:any) => {
-			const comps = result['soapenv:Envelope']['soapenv:Body']['listMetadataResponse'];
+			const comps = result['listMetadataResponse'];
 			let results = buildComponents(comps);	
 			if(isFolder) {
 				let folderresults:Object[] = [];	
 				const promises = results.map((element:any) => {
-					return sendSoapReuest(accessToken, endPoint, '<met:listMetadata><met:queries><met:type>'+type+
+					return sendSoapMDRequest(accessToken, endPoint, '<met:listMetadata><met:queries><met:type>'+type+
 						'</met:type><met:folder>'+element.name+'</met:folder></met:queries></met:listMetadata>')
 					.then((result:any) => {
-						const comps = result['soapenv:Envelope']['soapenv:Body']['listMetadataResponse'];
+						const comps = result['listMetadataResponse'];
 						let fldresults = buildComponents(comps);	
 						folderresults = [...folderresults, ...fldresults];
 					});
@@ -390,7 +390,9 @@ function getComponents(accessToken:string, endPoint:string, type:string, isFolde
 							tmp.forEach(r => {
 								records.set(r['sf:Id'] instanceof Array ? r['sf:Id'][0] : r['sf:Id'], r['sf:SystemModstamp']);
 							});							
-						});
+						}).catch((error:any) => {
+							reject(error);			
+						});;
 					});
 					Promise.all(promises)
 					.then(() => {
@@ -424,7 +426,10 @@ function buildComponents(comps:any) {
 						comp['createdDate'] !== auditDate ? new Date(comp['createdDate']).toLocaleDateString() : '',
 			manageableState: comp['manageableState'] === undefined ? 'unmanaged' : comp['manageableState']
 		}));	
-		results = results.filter(cmp => cmp.id !== '');		
+		//results = results.filter(cmp => cmp.id !== '');	
+		results = Array.from(
+			new Map(results.map(item => [item.type+item.name, item])).values()
+		);	
 	}
 	return results;
 }
@@ -437,9 +442,9 @@ function getTypes(accessToken:string, endPoint:string, globalStorageUri:string) 
 	}
 
     return new Promise((resolve, reject) => {
-		sendSoapReuest(accessToken, endPoint, '<met:describeMetadata><met:asOfVersion>62.0</met:asOfVersion></met:describeMetadata>')
+		sendSoapMDRequest(accessToken, endPoint, '<met:describeMetadata><met:asOfVersion>62.0</met:asOfVersion></met:describeMetadata>')
 		.then((result:any) => {
-			const types = result['soapenv:Envelope']['soapenv:Body']['describeMetadataResponse']['result']['metadataObjects'];			
+			const types = result['describeMetadataResponse']['result']['metadataObjects'];			
 			const typesList:Object[] = [];
 			types.forEach((element:any) => {
 				typesList.push({
@@ -468,7 +473,7 @@ function getTypes(accessToken:string, endPoint:string, globalStorageUri:string) 
     });
 }
 
-function sendSoapReuest(accessToken:string,  endPoint:string, body:string) {
+function sendSoapMDRequest(accessToken:string,  endPoint:string, body:string) {
 	const parser = new xml2js.Parser({ explicitArray: false, ignoreAttrs: true });	
 	let reuest =  '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:met="http://soap.sforce.com/2006/04/metadata">'+
 		'<soapenv:Header><met:SessionHeader><met:sessionId>'+accessToken+'</met:sessionId></met:SessionHeader></soapenv:Header>'+
@@ -486,7 +491,7 @@ function sendSoapReuest(accessToken:string,  endPoint:string, body:string) {
 					vscode.window.showErrorMessage("Error parsing SOAP XML:", err);
 					return;
 				}		
-				resolve(result);
+				resolve(result['soapenv:Envelope']['soapenv:Body']);
 			});
 		})
 		.catch((error:any) => {
@@ -528,7 +533,7 @@ function getMetdata(accessToken:string,  endPoint:string, name:string) {
 
 function getAuthOrgs() {
     return new Promise((resolve, reject) => {
-        exec('sf org list --json', (error:any, stdout:any, stderr:any) => {
+        /*exec('sf org list --json', (error:any, stdout:any, stderr:any) => {
             if (error) {
                 reject(`Error: ${error}`);
             } else {
@@ -555,7 +560,16 @@ function getAuthOrgs() {
                     reject(`Parse Error: ${parseError.message}`);
                 }
             }
-        });
+        });*/
+
+		resolve([{"alias": "SiriApp", "name": "SiriApp(ramu.jallu@yahoo.in)", "orgId": "00D6g00000360OaEAI","instanceUrl": "https://siriapp-dev-ed.my.salesforce.com",
+		"accessToken": "00D6g00000360Oa!AQcAQF7uyZFdvQOMRFAetbpFchusNaFwiW93T0hUpSGJvGigA9jLMvY9_eyFJvfCcVhK7G3rR1vU3cvVHXvpI9Fg4qLr8hMz"},
+		{"alias": "ICE", "name": "ICE(ramu.jallu@gmail.com)", "orgId": "00D3t000004pIgVEAU","instanceUrl": "https://ice7-dev-ed.my.salesforce.com",
+			"accessToken": "00D3t000004pIgV!AQgAQLlXpVAMxcbomCUKCBZayLesskTg8RGcvA4P8HBgwbLBAUnXnaRi_SD9ct.S8MChbI4pb_.EFoh.nyUWUrlyy9rEmyEF"},
+		{"name": "AgentForce(epic.321e1730601128842@orgfarm.th)", "orgId": "00D6P000000kU2zUAE","instanceUrl": "https://d6p000000ku2zuae-dev-ed.develop.my.salesforce.com",
+			"accessToken": "00D6P000000kU2z!AQ4AQDkTYbK6nbyv1Yn2HOMipXHkNxI.7RozVfEDATrZSHRARBYMZDEhuxKJsU84JNgBl0CudDmcSws4x7_JXHIkpYmjstLp"},
+		{"name": "Functions(https://ice3.my.salesforce.com)", "orgId": "00D8c000002gRogEAE","instanceUrl": "https://ice3.my.salesforce.com",
+			"accessToken": "00D8c000002gRog!ARAAQP3nZCbpdPA5SN91zvrKqQ9AAujV3nfUg10nS3rFFFuGiPhzrfbARk0LDPbxcuXnhLmk4Ihpss0EYnlfkvK8p4OSDbu5"}]);
     });
 }
 
@@ -697,6 +711,9 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 										</tr>
 									</thead>
 								</table>
+								<div>
+									<button type="button" style="padding: 7px; width: 75px;" id="exportselected" disabled>Export</button>
+								</div>
 							</div>
 						</div>							
 					</div>

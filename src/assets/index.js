@@ -58,6 +58,7 @@ $(document).ready(function () {
                     $('.selected').text('Selected ('+selectedComps.size+')');
                     $('#next').prop('disabled', false);
                     $('#packagexml').prop('disabled', false);
+                    $('#exportselected').prop('disabled', false); 
                     $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
                 } 
                 refreshComponents();            
@@ -103,6 +104,7 @@ $(document).ready(function () {
             $('.all-row-chk').prop('checked', false);
         }
         $('#export').prop('disabled', true);
+        $('#exportselected').prop('disabled', true);
 
         $("#selection").hide(); 
         if($('#source-org-field').val() !== '') {
@@ -447,11 +449,13 @@ $(document).ready(function () {
         if(selectedComps.size > 0) {
             $('#next').prop('disabled', false);
             $('#packagexml').prop('disabled', false);
+            $('#exportselected').prop('disabled', false); 
             $('#add-selection').show();
             $('#save-selection').show();
         } else {
             $('#next').prop('disabled', true);
             $('#packagexml').prop('disabled', true);
+            $('#exportselected').prop('disabled', true); 
             $('#add-selection').hide();
             $('#save-selection').hide();
         }
@@ -481,6 +485,7 @@ $(document).ready(function () {
         if(selectedComps.size === 0) {
             $('#next').prop('disabled', true);
             $('#packagexml').prop('disabled', true);
+            $('#exportselected').prop('disabled', true); 
             $('#add-selection').hide();
             $('#save-selection').hide();
         }
@@ -516,6 +521,7 @@ $(document).ready(function () {
 
             $('#next').prop('disabled', false);
             $('#packagexml').prop('disabled', false);  
+            $('#exportselected').prop('disabled', false); 
             $('#add-selection').show();
             $('#save-selection').show();
         } else {
@@ -528,6 +534,7 @@ $(document).ready(function () {
             }); 
             $('#next').prop('disabled', true);
             $('#packagexml').prop('disabled', true);
+            $('#exportselected').prop('disabled', true); 
             $('#add-selection').hide();
             $('#save-selection').hide();
         }   
@@ -608,6 +615,15 @@ $(document).ready(function () {
                 }
             });
         }); 
+        navigator.clipboard.writeText(components.map(e => e.join(",")).join("\n"));
+        vscode.postMessage({ command: 'toastMessage', message: 'CSV content copied to clipboard'});
+    });
+
+    $('#exportselected').on('click', function (e) {
+        let components = [['Type','Name','Last Modified By','Last Modified Date']];
+        Array.from(selectedComps.values()).forEach(comp => {
+            components.push([comp.type, comp.name, comp.lastModifiedByName, comp.lastModifiedDate]);
+        });
         navigator.clipboard.writeText(components.map(e => e.join(",")).join("\n"));
         vscode.postMessage({ command: 'toastMessage', message: 'CSV content copied to clipboard'});
     });
@@ -1020,6 +1036,7 @@ $(document).ready(function () {
             $('.selected').text('Selected ('+selectedComps.size+')');
             $('#next').prop('disabled', false);
             $('#packagexml').prop('disabled', false);
+            $('#exportselected').prop('disabled', false); 
             $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
             $("#overlay").hide();
         }            

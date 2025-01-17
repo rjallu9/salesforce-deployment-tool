@@ -1,14 +1,625 @@
-"use strict";var __createBinding=this&&this.__createBinding||(Object.create?function(a,s,e,l){l===void 0&&(l=e);var i=Object.getOwnPropertyDescriptor(s,e);(!i||("get"in i?!s.__esModule:i.writable||i.configurable))&&(i={enumerable:!0,get:function(){return s[e]}}),Object.defineProperty(a,l,i)}:function(a,s,e,l){l===void 0&&(l=e),a[l]=s[e]}),__setModuleDefault=this&&this.__setModuleDefault||(Object.create?function(a,s){Object.defineProperty(a,"default",{enumerable:!0,value:s})}:function(a,s){a.default=s}),__importStar=this&&this.__importStar||function(){var a=function(s){return a=Object.getOwnPropertyNames||function(e){var l=[];for(var i in e)Object.prototype.hasOwnProperty.call(e,i)&&(l[l.length]=i);return l},a(s)};return function(s){if(s&&s.__esModule)return s;var e={};if(s!=null)for(var l=a(s),i=0;i<l.length;i++)l[i]!=="default"&&__createBinding(e,s,l[i]);return __setModuleDefault(e,s),e}}();Object.defineProperty(exports,"__esModule",{value:!0}),exports.activate=activate,exports.deactivate=deactivate;const vscode=__importStar(require("vscode")),path=require("path"),axios=require("axios"),xml2js=require("xml2js"),{exec}=require("child_process"),fs=require("fs"),AdmZip=require("adm-zip");let tmpDirectory="";function activate(a){const s=vscode.commands.registerCommand("salesforce-deployment-tool.build",()=>{const e=vscode.window.createWebviewPanel("packageBuilder","Salesforce Deployment Tool",vscode.ViewColumn.One,{enableScripts:!0,retainContextWhenHidden:!0}),l=vscode.Uri.file(path.join(a.extensionPath,"out","assets/index.js")),i=e.webview.asWebviewUri(l),n=vscode.Uri.file(path.join(a.extensionPath,"out","assets/index.css")),d=e.webview.asWebviewUri(n);e.webview.html=getWebviewContent(a.extensionPath,i,d);let o=[],c=!1;tmpDirectory=a.globalStorageUri.fsPath+"/tmp",e.webview.onDidReceiveMessage(t=>{switch(t.command){case"getAuthOrgs":getAuthOrgs().then(p=>{o=p,e.webview.postMessage({command:"orgsList",orgs:p})});break;case"loadTypes":var r=o.find(p=>p.orgId===t.sourceOrgId);let y=[];const b=path.join(a.globalStorageUri.fsPath,"selections.json");fs.existsSync(b)&&(y=JSON.parse(fs.readFileSync(b,"utf-8"))),getTypes(r.accessToken,r.instanceUrl,a.globalStorageUri.fsPath).then(p=>{e.webview.postMessage({command:"types",types:p,selections:y})});break;case"loadComponents":if(t.type){var r=o.find(f=>f.orgId===t.sourceOrgId);getComponents(r.accessToken,r.instanceUrl,t.type,t.isFolder).then(f=>{e.webview.postMessage({command:"components",components:f,type:t.type})}).catch(f=>{e.webview.postMessage({command:"components",components:[],type:t.type})})}break;case"updateFavorites":if(t.data){const p=path.dirname(a.globalStorageUri.fsPath+"/favorites.json");fs.existsSync(p)||fs.mkdirSync(p,{recursive:!0}),fs.writeFileSync(a.globalStorageUri.fsPath+"/favorites.json",JSON.stringify(t.data,null,2),"utf8",f=>{f&&vscode.window.showErrorMessage("Unable to update favorites..!!")})}break;case"updateSelections":if(t.data){const p=path.dirname(a.globalStorageUri.fsPath+"/selections.json");fs.existsSync(p)||fs.mkdirSync(p,{recursive:!0}),fs.writeFile(a.globalStorageUri.fsPath+"/selections.json",JSON.stringify(t.data,null,2),"utf8",f=>{f&&vscode.window.showErrorMessage("Unable to update selections..!!")})}break;case"deploy":e.webview.postMessage({command:"deployStatus",result:{stage:"retrieve",message:"Retrieve components Initiated"}});var r=o.find(p=>p.orgId===t.sourceOrgId),h=o.find(p=>p.orgId===t.destOrgId);retrieve(r.accessToken,r.instanceUrl,t.packagexml).then(p=>{e.webview.postMessage({command:"deployStatus",result:{stage:"retrieve",message:"Retrieve components Inprogress"}});let f=p,m=setInterval(()=>{retrieveStatus(r.accessToken,r.instanceUrl,f).then(u=>{u.done==="true"&&(e.webview.postMessage({command:"deployStatus",result:{stage:"retrieveCompleted",message:"Retrieve components Completed"}}),clearInterval(m),c?e.webview.postMessage({command:"deployStatus",result:{stage:"deployment",message:t.checkOnly?"Validation Cancelled":"Deployment Cancelled"}}):(e.webview.postMessage({command:"deployStatus",result:{stage:"deployment",message:t.checkOnly?"Validation Initiated":"Deployment Initiated"}}),deploy(h.accessToken,h.instanceUrl,u.zipFile,t.checkOnly,t.testLevel,t.testClasses).then(E=>{let I=E,M=setInterval(()=>{c&&(cancelDeploy(h.accessToken,h.instanceUrl,I),c=!1),deployStatus(h.accessToken,h.instanceUrl,I).then(w=>{w.done==="true"&&clearInterval(M),w.stage="deploymentStatus",e.webview.postMessage({command:"deployStatus",result:w})}).catch(w=>{clearInterval(M)})},2e3)})))}).catch(u=>{clearInterval(m)})},1e3)});break;case"quickDeploy":var h=o.find(p=>p.orgId===t.destOrgId);e.webview.postMessage({command:"deployStatus",result:{stage:"deployment",message:"Deployment Initiated"}}),quickDeploy(h.accessToken,h.instanceUrl,t.id).then(p=>{let f=p,m=setInterval(()=>{deployStatus(h.accessToken,h.instanceUrl,f).then(u=>{u.done==="true"&&clearInterval(m),u.stage="deploymentStatus",e.webview.postMessage({command:"deployStatus",result:u})}).catch(u=>{clearInterval(m)})},2e3)});break;case"cancelDeploy":c=!0;break;case"toastMessage":vscode.window.showInformationMessage(`${t.message}`);break;case"compare":let g=new Map,x=new Map;var r=o.find(p=>p.orgId===t.sourceOrgId),h=o.find(p=>p.orgId===t.destOrgId),v=Date.now();let S=!1,k=!1;retrieve(r.accessToken,r.instanceUrl,t.packagexml).then(p=>{let f=p,m=setInterval(()=>{retrieveStatus(r.accessToken,r.instanceUrl,f).then(u=>{u.done==="true"&&(clearInterval(m),g=u.fileNames,extractComponents(u.zipFile,tmpDirectory+"/"+v,r.alias),S=!0)}).catch(u=>{vscode.window.showErrorMessage(`Error: ${JSON.stringify(u)}`),clearInterval(m)})},1e3)}),retrieve(h.accessToken,h.instanceUrl,t.packagexml).then(p=>{let f=p,m=setInterval(()=>{retrieveStatus(h.accessToken,h.instanceUrl,f).then(u=>{u.done==="true"&&(clearInterval(m),x=u.fileNames,extractComponents(u.zipFile,tmpDirectory+"/"+v,h.alias),k=!0)}).catch(u=>{vscode.window.showErrorMessage(`Error: ${JSON.stringify(u)}`),clearInterval(m)})},1e3)});let P=setInterval(()=>{S&&k&&(postCompareResults(g,x,tmpDirectory+"/"+v+"/"+r.alias,tmpDirectory+"/"+v+"/"+h.alias,e),clearInterval(P))},1e3);break;case"filePreview":let D=t.file+": Source \u2194 Target";vscode.commands.executeCommand("vscode.diff",vscode.Uri.file(t.source),vscode.Uri.file(t.dest),D,{preview:!1});break;default:console.log("Unknown command:",t.command)}}),e.onDidDispose(()=>{if(tmpDirectory&&fs.existsSync(tmpDirectory))try{fs.rmSync(tmpDirectory,{recursive:!0,force:!0})}catch{}})});a.subscriptions.push(s)}function postCompareResults(a,s,e,l,i){let n=[];a.forEach((d,o)=>{let c={name:o,source:e+"/"+d,dest:""};s.has(o)&&(c.dest=l+"/"+s.get(o)),n.push(c)}),i.webview.postMessage({command:"compareResults",files:n})}function extractComponents(a,s,e){const l=Buffer.from(a,"base64");fs.existsSync(s+"/"+e)||fs.mkdirSync(s+"/"+e,{recursive:!0});const i=path.join(s,e+".zip");fs.writeFileSync(i,l),new AdmZip(i).extractAllTo(s+"/"+e,!0)}function cancelDeploy(a,s,e){return new Promise((l,i)=>{sendSoapReuest(a,s,"<met:cancelDeploy><met:String>"+e+"</met:String></met:cancelDeploy>").then(n=>{const d=n["soapenv:Envelope"]["soapenv:Body"].cancelDeployResponse.result;l(d)}).catch(n=>{vscode.window.showErrorMessage(`Error: ${JSON.stringify(n)}`),i(n)})})}function quickDeploy(a,s,e){return new Promise((l,i)=>{sendSoapReuest(a,s,"<met:deployRecentValidation><met:validationId>"+e+"</met:validationId></met:deployRecentValidation>").then(n=>{const d=n["soapenv:Envelope"]["soapenv:Body"].deployRecentValidationResponse.result;l(d)}).catch(n=>{i(n)})})}function deployStatus(a,s,e){return new Promise((l,i)=>{sendSoapReuest(a,s,"<met:checkDeployStatus><met:asyncProcessId>"+e+"</met:asyncProcessId><met:includeDetails>true</met:includeDetails></met:checkDeployStatus>").then(n=>{const d=n["soapenv:Envelope"]["soapenv:Body"].checkDeployStatusResponse.result;l(d)}).catch(n=>{i(n)})})}function deploy(a,s,e,l,i,n){return new Promise((d,o)=>{sendSoapReuest(a,s,"<met:deploy><met:ZipFile>"+e+"</met:ZipFile><met:DeployOptions><met:checkOnly>"+l+"</met:checkOnly><met:testLevel>"+i+"</met:testLevel>"+n+"<met:singlePackage>true</met:singlePackage></met:DeployOptions></met:deploy>").then(c=>{const t=c["soapenv:Envelope"]["soapenv:Body"].deployResponse.result.id;d(t)}).catch(c=>{o(c)})})}function retrieveStatus(a,s,e){return new Promise((l,i)=>{sendSoapReuest(a,s,"<met:checkRetrieveStatus><met:asyncProcessId>"+e+"</met:asyncProcessId><met:includeZip>true</met:includeZip></met:checkRetrieveStatus>").then(n=>{const d=n["soapenv:Envelope"]["soapenv:Body"].checkRetrieveStatusResponse.result;let o=new Map;d.done==="true"&&(d.fileProperties instanceof Array?d.fileProperties:[d.fileProperties]).forEach(t=>{o.set(t.type+"."+t.fullName,t.fileName)}),l({done:d.done,zipFile:d.zipFile,fileNames:o})}).catch(n=>{i(n)})})}function retrieve(a,s,e){return new Promise((l,i)=>{sendSoapReuest(a,s,"<met:retrieve><met:retrieveRequest><met:apiVersion>62.0</met:apiVersion><met:singlePackage>true</met:singlePackage><met:unpackaged>"+e+"</met:unpackaged></met:retrieveRequest></met:retrieve>").then(n=>{const d=n["soapenv:Envelope"]["soapenv:Body"].retrieveResponse.result.id;l(d)}).catch(n=>{i(n)})})}function getComponents(a,s,e,l){return new Promise((i,n)=>{sendSoapReuest(a,s,"<met:listMetadata><met:queries><met:type>"+e+(l?"Folder":"")+"</met:type></met:queries></met:listMetadata>").then(d=>{const o=d["soapenv:Envelope"]["soapenv:Body"].listMetadataResponse;let c=buildComponents(o);if(l){let t=[];const r=c.map(h=>sendSoapReuest(a,s,"<met:listMetadata><met:queries><met:type>"+e+"</met:type><met:folder>"+h.name+"</met:folder></met:queries></met:listMetadata>").then(v=>{const y=v["soapenv:Envelope"]["soapenv:Body"].listMetadataResponse;let b=buildComponents(y);t=[...t,...b]}));Promise.all(r).then(()=>{i(t)})}else if(e==="CustomMetadata"){const t=new Set;c.forEach(v=>{t.add(v.name.split(".")[0]+"__mdt")});let r=new Map;const h=Array.from(t).map(v=>getMetdata(a,s,""+v).then(y=>{(y instanceof Array?y:[y]).forEach(g=>{r.set(g["sf:Id"]instanceof Array?g["sf:Id"][0]:g["sf:Id"],g["sf:SystemModstamp"])})}));Promise.all(h).then(()=>{c.forEach(v=>{v.lastModifiedDate=new Date(r.get(v.id)).toLocaleDateString()}),i(c)})}else i(c)}).catch(d=>{n(d)})})}function buildComponents(a){let s=[],e="1970-01-01T00:00:00.000Z";return a!==""&&(s=(a.result instanceof Array?a.result:[a.result]).map(i=>({name:i.fullName,id:i.id,type:i.type,lastModifiedByName:i.lastModifiedByName,lastModifiedDate:i.lastModifiedDate!==e?new Date(i.lastModifiedDate).toLocaleDateString():i.createdDate!==e?new Date(i.createdDate).toLocaleDateString():"",manageableState:i.manageableState===void 0?"unmanaged":i.manageableState})),s=s.filter(i=>i.id!=="")),s}function getTypes(a,s,e){let l=[];const i=path.join(e,"favorites.json");return fs.existsSync(i)&&(l=JSON.parse(fs.readFileSync(i,"utf-8"))),new Promise((n,d)=>{sendSoapReuest(a,s,"<met:describeMetadata><met:asOfVersion>62.0</met:asOfVersion></met:describeMetadata>").then(o=>{const c=o["soapenv:Envelope"]["soapenv:Body"].describeMetadataResponse.result.metadataObjects,t=[];c.forEach(r=>{t.push({name:r.xmlName,isFavorite:l.indexOf(r.xmlName)>=0,hidden:!1,inFolder:r.inFolder}),r.childXmlNames&&(r.childXmlNames instanceof Array?r.childXmlNames:[r.childXmlNames]).forEach(v=>{t.push({name:v,isFavorite:l.indexOf(r.xmlName)>=0,hidden:!1,inFolder:"false"})})}),n(t)}).catch(o=>{d(o)})})}function sendSoapReuest(a,s,e){const l=new xml2js.Parser({explicitArray:!1,ignoreAttrs:!0});let i='<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:met="http://soap.sforce.com/2006/04/metadata"><soapenv:Header><met:SessionHeader><met:sessionId>'+a+"</met:sessionId></met:SessionHeader></soapenv:Header><soapenv:Body>"+e+"</soapenv:Body></soapenv:Envelope>";return new Promise((n,d)=>{axios.post(s+"/services/Soap/m/62.0",i,{headers:{"Content-Type":"text/xml; charset=utf-8",SOAPAction:"Update"}}).then(o=>{l.parseString(o.data,(c,t)=>{if(c){vscode.window.showErrorMessage("Error parsing SOAP XML:",c);return}n(t)})}).catch(o=>{l.parseString(o.response.data,(c,t)=>{d(t["soapenv:Envelope"]["soapenv:Body"]["soapenv:Fault"].faultstring)})})})}function getMetdata(a,s,e){const l=new xml2js.Parser({explicitArray:!1,ignoreAttrs:!0});let i='<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:partner.soap.sforce.com"><soapenv:Header><urn:SessionHeader><urn:sessionId>'+a+"</urn:sessionId></urn:SessionHeader></soapenv:Header><soapenv:Body><urn:query><urn:queryString>SELECT Id, SystemModstamp FROM "+e+"</urn:queryString></urn:query></soapenv:Body></soapenv:Envelope>";return new Promise((n,d)=>{axios.post(s+"/services/Soap/u/62.0",i,{headers:{"Content-Type":"text/xml; charset=utf-8",SOAPAction:"Update"}}).then(o=>{l.parseString(o.data,(c,t)=>{if(c){vscode.window.showErrorMessage("Error parsing SOAP XML:",c);return}const r=t["soapenv:Envelope"]["soapenv:Body"].queryResponse.result.records;n(r instanceof Array?r:[r])})}).catch(o=>{})})}function getAuthOrgs(){return new Promise((a,s)=>{exec("sf org list --json",(e,l,i)=>{if(e)s(`Error: ${e}`);else try{const n=JSON.parse(l).result,d=[],o=[],c=[];o.push(...n.other,...n.sandboxes,...n.nonScratchOrgs,...n.devHubs,...n.scratchOrgs),o.forEach(t=>{t.connectedStatus==="Connected"&&c.indexOf(t.orgId)<0&&(d.push({name:t.alias+"("+t.username+")",alias:t.alias,orgId:t.orgId,accessToken:t.accessToken,instanceUrl:t.instanceUrl}),c.push(t.orgId))}),a(d)}catch(n){s(`Parse Error: ${n.message}`)}})})}function getWebviewContent(a,s,e){return`<!doctype html>
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.activate = activate;
+exports.deactivate = deactivate;
+const vscode = __importStar(require("vscode"));
+const path = require('path');
+const axios = require('axios');
+const xml2js = require('xml2js');
+const { exec } = require('child_process');
+const fs = require('fs');
+const AdmZip = require('adm-zip');
+let tmpDirectory = '';
+function activate(context) {
+    const disposable = vscode.commands.registerCommand('salesforce-deployment-tool.build', () => {
+        const panel = vscode.window.createWebviewPanel('packageBuilder', 'Salesforce Deployment Tool', vscode.ViewColumn.One, { enableScripts: true, retainContextWhenHidden: true });
+        const scriptPath = vscode.Uri.file(path.join(context.extensionPath, 'src', 'assets/index.js'));
+        const scriptUri = panel.webview.asWebviewUri(scriptPath);
+        const cssPath = vscode.Uri.file(path.join(context.extensionPath, 'src', 'assets/index.css'));
+        const cssUri = panel.webview.asWebviewUri(cssPath);
+        panel.webview.html = getWebviewContent(context.extensionPath, scriptUri, cssUri);
+        let orgsList = [];
+        let isCancelDeploy = false;
+        tmpDirectory = context.globalStorageUri.fsPath + "/tmp";
+        panel.webview.onDidReceiveMessage((message) => {
+            switch (message.command) {
+                case 'getAuthOrgs':
+                    getAuthOrgs().then((result) => {
+                        orgsList = result;
+                        panel.webview.postMessage({ command: 'orgsList', orgs: result });
+                    });
+                    break;
+                case 'loadTypes':
+                    var sourceOrg = orgsList.find((org) => org.orgId === message.sourceOrgId);
+                    let selections = [];
+                    const selectionsPath = path.join(context.globalStorageUri.fsPath, 'selections.json');
+                    if (fs.existsSync(selectionsPath)) {
+                        selections = JSON.parse(fs.readFileSync(selectionsPath, 'utf-8'));
+                    }
+                    getTypes(sourceOrg.accessToken, sourceOrg.instanceUrl, context.globalStorageUri.fsPath)
+                        .then((data) => {
+                        panel.webview.postMessage({ command: 'types', types: data, selections: selections });
+                    });
+                    break;
+                case 'loadComponents':
+                    if (message.type) {
+                        var sourceOrg = orgsList.find((org) => org.orgId === message.sourceOrgId);
+                        getComponents(sourceOrg.accessToken, sourceOrg.instanceUrl, message.type, message.isFolder)
+                            .then((data) => {
+                            panel.webview.postMessage({ command: 'components', components: data, type: message.type });
+                        }).catch((error) => {
+                            panel.webview.postMessage({ command: 'components', components: [], type: message.type });
+                        });
+                        ;
+                    }
+                    break;
+                case 'updateFavorites':
+                    if (message.data) {
+                        const dir = path.dirname(context.globalStorageUri.fsPath + "/favorites.json");
+                        if (!fs.existsSync(dir)) {
+                            fs.mkdirSync(dir, { recursive: true });
+                        }
+                        fs.writeFileSync(context.globalStorageUri.fsPath + "/favorites.json", JSON.stringify(message.data, null, 2), 'utf8', (err) => {
+                            if (err) {
+                                vscode.window.showErrorMessage(`Unable to update favorites..!!`);
+                            }
+                        });
+                    }
+                    break;
+                case 'updateSelections':
+                    if (message.data) {
+                        const dir = path.dirname(context.globalStorageUri.fsPath + "/selections.json");
+                        if (!fs.existsSync(dir)) {
+                            fs.mkdirSync(dir, { recursive: true });
+                        }
+                        fs.writeFile(context.globalStorageUri.fsPath + "/selections.json", JSON.stringify(message.data, null, 2), 'utf8', (err) => {
+                            if (err) {
+                                vscode.window.showErrorMessage(`Unable to update selections..!!`);
+                            }
+                        });
+                    }
+                    break;
+                case 'deploy':
+                    panel.webview.postMessage({ command: 'deployStatus', result: { stage: "retrieve", message: 'Retrieve components Initiated' } });
+                    var sourceOrg = orgsList.find((org) => org.orgId === message.sourceOrgId);
+                    var destOrg = orgsList.find((org) => org.orgId === message.destOrgId);
+                    retrieve(sourceOrg.accessToken, sourceOrg.instanceUrl, message.packagexml).then((result) => {
+                        panel.webview.postMessage({ command: 'deployStatus', result: { stage: "retrieve", message: 'Retrieve components Inprogress' } });
+                        let retrieveJobId = result;
+                        let intervalId = setInterval(() => {
+                            retrieveStatus(sourceOrg.accessToken, sourceOrg.instanceUrl, retrieveJobId).then((result) => {
+                                if (result.done === 'true') {
+                                    panel.webview.postMessage({ command: 'deployStatus', result: { stage: "retrieveCompleted", message: 'Retrieve components Completed' } });
+                                    clearInterval(intervalId);
+                                    if (!isCancelDeploy) {
+                                        panel.webview.postMessage({ command: 'deployStatus', result: { stage: "deployment",
+                                                message: message.checkOnly ? 'Validation Initiated' : 'Deployment Initiated' } });
+                                        deploy(destOrg.accessToken, destOrg.instanceUrl, result.zipFile, message.checkOnly, message.testLevel, message.testClasses).then((result) => {
+                                            let deployJobId = result;
+                                            let deployIntervalId = setInterval(() => {
+                                                if (isCancelDeploy) {
+                                                    cancelDeploy(destOrg.accessToken, destOrg.instanceUrl, deployJobId);
+                                                    isCancelDeploy = false;
+                                                }
+                                                deployStatus(destOrg.accessToken, destOrg.instanceUrl, deployJobId).then((result) => {
+                                                    if (result.done === 'true') {
+                                                        clearInterval(deployIntervalId);
+                                                    }
+                                                    result['stage'] = "deploymentStatus";
+                                                    panel.webview.postMessage({ command: 'deployStatus', result: result });
+                                                }).catch((error) => {
+                                                    clearInterval(deployIntervalId);
+                                                });
+                                            }, 2000);
+                                        });
+                                    }
+                                    else {
+                                        panel.webview.postMessage({ command: 'deployStatus', result: { stage: "deployment",
+                                                message: message.checkOnly ? 'Validation Cancelled' : 'Deployment Cancelled' } });
+                                    }
+                                }
+                            }).catch((error) => {
+                                clearInterval(intervalId);
+                            });
+                        }, 1000);
+                    });
+                    break;
+                case 'quickDeploy':
+                    var destOrg = orgsList.find((org) => org.orgId === message.destOrgId);
+                    panel.webview.postMessage({ command: 'deployStatus', result: { stage: "deployment", message: 'Deployment Initiated' } });
+                    quickDeploy(destOrg.accessToken, destOrg.instanceUrl, message.id).then((result) => {
+                        let deployJobId = result;
+                        let intervalId = setInterval(() => {
+                            deployStatus(destOrg.accessToken, destOrg.instanceUrl, deployJobId).then((result) => {
+                                if (result.done === 'true') {
+                                    clearInterval(intervalId);
+                                }
+                                result['stage'] = "deploymentStatus";
+                                panel.webview.postMessage({ command: 'deployStatus', result: result });
+                            }).catch((error) => {
+                                clearInterval(intervalId);
+                            });
+                        }, 2000);
+                    });
+                    break;
+                case 'cancelDeploy':
+                    isCancelDeploy = true;
+                    break;
+                case 'toastMessage':
+                    vscode.window.showInformationMessage(`${message.message}`);
+                    break;
+                case 'compare':
+                    let sourceOrgFiles = new Map();
+                    let destOrgFiles = new Map();
+                    var sourceOrg = orgsList.find((org) => org.orgId === message.sourceOrgId);
+                    var destOrg = orgsList.find((org) => org.orgId === message.destOrgId);
+                    var time = Date.now();
+                    let sourceProcess = false, destProcess = false;
+                    retrieve(sourceOrg.accessToken, sourceOrg.instanceUrl, message.packagexml).then((result) => {
+                        let retrieveJobId = result;
+                        let intervalId = setInterval(() => {
+                            retrieveStatus(sourceOrg.accessToken, sourceOrg.instanceUrl, retrieveJobId).then((result) => {
+                                if (result.done === 'true') {
+                                    clearInterval(intervalId);
+                                    sourceOrgFiles = result.fileNames;
+                                    extractComponents(result.zipFile, tmpDirectory + '/' + time, sourceOrg.alias);
+                                    sourceProcess = true;
+                                }
+                            }).catch((error) => {
+                                vscode.window.showErrorMessage(`Error: ${JSON.stringify(error)}`);
+                                clearInterval(intervalId);
+                            });
+                        }, 1000);
+                    });
+                    retrieve(destOrg.accessToken, destOrg.instanceUrl, message.packagexml).then((result) => {
+                        let destRetrieveJobId = result;
+                        let destIntervalId = setInterval(() => {
+                            retrieveStatus(destOrg.accessToken, destOrg.instanceUrl, destRetrieveJobId).then((result) => {
+                                if (result.done === 'true') {
+                                    clearInterval(destIntervalId);
+                                    destOrgFiles = result.fileNames;
+                                    extractComponents(result.zipFile, tmpDirectory + '/' + time, destOrg.alias);
+                                    destProcess = true;
+                                }
+                            }).catch((error) => {
+                                vscode.window.showErrorMessage(`Error: ${JSON.stringify(error)}`);
+                                clearInterval(destIntervalId);
+                            });
+                        }, 1000);
+                    });
+                    let responseIntervalId = setInterval(() => {
+                        if (sourceProcess && destProcess) {
+                            postCompareResults(sourceOrgFiles, destOrgFiles, tmpDirectory + "/" + time + "/" + sourceOrg.alias, tmpDirectory + "/" + time + "/" + destOrg.alias, panel);
+                            clearInterval(responseIntervalId);
+                        }
+                    }, 1000);
+                    break;
+                case 'filePreview':
+                    let title = message.file + ': Source ↔ Target';
+                    vscode.commands.executeCommand('vscode.diff', vscode.Uri.file(message.source), vscode.Uri.file(message.dest), title, { preview: false });
+                    break;
+                default:
+                    console.log('Unknown command:', message.command);
+            }
+        });
+        panel.onDidDispose(() => {
+            if (tmpDirectory && fs.existsSync(tmpDirectory)) {
+                try {
+                    fs.rmSync(tmpDirectory, { recursive: true, force: true });
+                }
+                catch (err) {
+                }
+            }
+        });
+    });
+    context.subscriptions.push(disposable);
+}
+function postCompareResults(sourceOrgFiles, destOrgFiles, sourceOrgPath, destOrgPath, panel) {
+    let files = [];
+    sourceOrgFiles.forEach((value, key) => {
+        let tmp = { name: key, source: sourceOrgPath + "/" + value, dest: "" };
+        if (destOrgFiles.has(key)) {
+            tmp.dest = destOrgPath + "/" + destOrgFiles.get(key);
+        }
+        files.push(tmp);
+    });
+    panel.webview.postMessage({ command: 'compareResults', files: files });
+}
+function extractComponents(zipfile, directory, alias) {
+    const buffer = Buffer.from(zipfile, 'base64');
+    if (!fs.existsSync(directory + "/" + alias)) {
+        fs.mkdirSync(directory + "/" + alias, { recursive: true });
+    }
+    const zipFilePath = path.join(directory, alias + '.zip');
+    fs.writeFileSync(zipFilePath, buffer);
+    const zip = new AdmZip(zipFilePath);
+    zip.extractAllTo(directory + "/" + alias, true);
+}
+function cancelDeploy(accessToken, endPoint, deployJobId) {
+    return new Promise((resolve, reject) => {
+        sendSoapReuest(accessToken, endPoint, '<met:cancelDeploy><met:String>' + deployJobId + '</met:String></met:cancelDeploy>')
+            .then((result) => {
+            const res = result['soapenv:Envelope']['soapenv:Body']['cancelDeployResponse']['result'];
+            resolve(res);
+        })
+            .catch((error) => {
+            vscode.window.showErrorMessage(`Error: ${JSON.stringify(error)}`);
+            reject(error);
+        });
+    });
+}
+function quickDeploy(accessToken, endPoint, deployJobId) {
+    return new Promise((resolve, reject) => {
+        sendSoapReuest(accessToken, endPoint, '<met:deployRecentValidation><met:validationId>' + deployJobId +
+            '</met:validationId></met:deployRecentValidation>')
+            .then((result) => {
+            const res = result['soapenv:Envelope']['soapenv:Body']['deployRecentValidationResponse']['result'];
+            resolve(res);
+        })
+            .catch((error) => {
+            reject(error);
+        });
+    });
+}
+function deployStatus(accessToken, endPoint, deployJobId) {
+    return new Promise((resolve, reject) => {
+        sendSoapReuest(accessToken, endPoint, '<met:checkDeployStatus><met:asyncProcessId>' + deployJobId +
+            '</met:asyncProcessId><met:includeDetails>true</met:includeDetails></met:checkDeployStatus>')
+            .then((result) => {
+            const res = result['soapenv:Envelope']['soapenv:Body']['checkDeployStatusResponse']['result'];
+            resolve(res);
+        })
+            .catch((error) => {
+            reject(error);
+        });
+    });
+}
+function deploy(accessToken, endPoint, zipfile, checkOnly, testLevel, testClasses) {
+    return new Promise((resolve, reject) => {
+        sendSoapReuest(accessToken, endPoint, '<met:deploy><met:ZipFile>' + zipfile + '</met:ZipFile><met:DeployOptions>' +
+            '<met:checkOnly>' + checkOnly + '</met:checkOnly><met:testLevel>' + testLevel + '</met:testLevel>' + testClasses +
+            '<met:singlePackage>true</met:singlePackage></met:DeployOptions></met:deploy>')
+            .then((result) => {
+            const retrieveId = result['soapenv:Envelope']['soapenv:Body']['deployResponse']['result']['id'];
+            resolve(retrieveId);
+        })
+            .catch((error) => {
+            reject(error);
+        });
+    });
+}
+function retrieveStatus(accessToken, endPoint, retrieveJobId) {
+    return new Promise((resolve, reject) => {
+        sendSoapReuest(accessToken, endPoint, '<met:checkRetrieveStatus><met:asyncProcessId>' + retrieveJobId +
+            '</met:asyncProcessId><met:includeZip>true</met:includeZip></met:checkRetrieveStatus>')
+            .then((result) => {
+            const res = result['soapenv:Envelope']['soapenv:Body']['checkRetrieveStatusResponse']['result'];
+            let fileNames = new Map();
+            if (res['done'] === 'true') {
+                let tmp = res['fileProperties'] instanceof Array ? res['fileProperties'] : [res['fileProperties']];
+                tmp.forEach((file) => {
+                    fileNames.set(file.type + "." + file.fullName, file.fileName);
+                });
+            }
+            resolve({
+                done: res['done'],
+                zipFile: res['zipFile'],
+                fileNames: fileNames
+            });
+        })
+            .catch((error) => {
+            reject(error);
+        });
+    });
+}
+function retrieve(accessToken, endPoint, packagexml) {
+    return new Promise((resolve, reject) => {
+        sendSoapReuest(accessToken, endPoint, '<met:retrieve><met:retrieveRequest><met:apiVersion>62.0</met:apiVersion>' +
+            '<met:singlePackage>true</met:singlePackage><met:unpackaged>' + packagexml + '</met:unpackaged></met:retrieveRequest></met:retrieve>')
+            .then((result) => {
+            const retrieveId = result['soapenv:Envelope']['soapenv:Body']['retrieveResponse']['result']['id'];
+            resolve(retrieveId);
+        })
+            .catch((error) => {
+            reject(error);
+        });
+    });
+}
+function getComponents(accessToken, endPoint, type, isFolder) {
+    return new Promise((resolve, reject) => {
+        sendSoapReuest(accessToken, endPoint, '<met:listMetadata><met:queries><met:type>' + type + (isFolder ? 'Folder' : '') + '</met:type></met:queries></met:listMetadata>')
+            .then((result) => {
+            const comps = result['soapenv:Envelope']['soapenv:Body']['listMetadataResponse'];
+            let results = buildComponents(comps);
+            if (isFolder) {
+                let folderresults = [];
+                const promises = results.map((element) => {
+                    return sendSoapReuest(accessToken, endPoint, '<met:listMetadata><met:queries><met:type>' + type +
+                        '</met:type><met:folder>' + element.name + '</met:folder></met:queries></met:listMetadata>')
+                        .then((result) => {
+                        const comps = result['soapenv:Envelope']['soapenv:Body']['listMetadataResponse'];
+                        let fldresults = buildComponents(comps);
+                        folderresults = [...folderresults, ...fldresults];
+                    });
+                });
+                Promise.all(promises)
+                    .then(() => {
+                    resolve(folderresults);
+                });
+            }
+            else {
+                if (type === 'CustomMetadata') {
+                    const names = new Set();
+                    results.forEach((e) => {
+                        names.add(e.name.split('.')[0] + '__mdt');
+                    });
+                    let records = new Map();
+                    const promises = Array.from(names).map(e => {
+                        return getMetdata(accessToken, endPoint, '' + e).then((result) => {
+                            let tmp = result instanceof Array ? result : [result];
+                            tmp.forEach(r => {
+                                records.set(r['sf:Id'] instanceof Array ? r['sf:Id'][0] : r['sf:Id'], r['sf:SystemModstamp']);
+                            });
+                        }).catch((error) => {
+                            reject(error);
+                        });
+                        ;
+                    });
+                    Promise.all(promises)
+                        .then(() => {
+                        results.forEach((e) => {
+                            e.lastModifiedDate = new Date(records.get(e.id)).toLocaleDateString();
+                        });
+                        resolve(results);
+                    });
+                }
+                else if (type === 'CustomObject') {
+                    const names = new Set();
+                    results.forEach((e) => {
+                        if (!e.name.endsWith('__c')) {
+                            names.add(e.name);
+                        }
+                    });
+                    getCustomFields(accessToken, endPoint, Array.from(names)).then((result) => {
+                        let tmp = result instanceof Array ? result : [result];
+                    }).catch((error) => {
+                        reject(error);
+                    });
+                }
+                else {
+                    resolve(results);
+                }
+            }
+        })
+            .catch((error) => {
+            reject(error);
+        });
+    });
+}
+function buildComponents(comps) {
+    let results = [];
+    let auditDate = '1970-01-01T00:00:00.000Z';
+    if (comps !== "") {
+        let tmp = comps['result'] instanceof Array ? comps['result'] : [comps['result']];
+        results = tmp.map((comp) => ({
+            name: comp['fullName'],
+            id: comp['id'],
+            type: comp['type'],
+            lastModifiedByName: comp['lastModifiedByName'],
+            lastModifiedDate: comp['lastModifiedDate'] !== auditDate ? new Date(comp['lastModifiedDate']).toLocaleDateString() :
+                comp['createdDate'] !== auditDate ? new Date(comp['createdDate']).toLocaleDateString() : '',
+            manageableState: comp['manageableState'] === undefined ? 'unmanaged' : comp['manageableState']
+        }));
+        //results = results.filter(cmp => cmp.id !== '');	
+        results = Array.from(new Map(results.map(item => [item.type + item.name, item])).values());
+    }
+    return results;
+}
+function getTypes(accessToken, endPoint, globalStorageUri) {
+    let favorites = [];
+    const favoritesPath = path.join(globalStorageUri, 'favorites.json');
+    if (fs.existsSync(favoritesPath)) {
+        favorites = JSON.parse(fs.readFileSync(favoritesPath, 'utf-8'));
+    }
+    return new Promise((resolve, reject) => {
+        sendSoapReuest(accessToken, endPoint, '<met:describeMetadata><met:asOfVersion>62.0</met:asOfVersion></met:describeMetadata>')
+            .then((result) => {
+            const types = result['soapenv:Envelope']['soapenv:Body']['describeMetadataResponse']['result']['metadataObjects'];
+            const typesList = [];
+            types.forEach((element) => {
+                typesList.push({
+                    name: element['xmlName'],
+                    isFavorite: favorites.indexOf(element['xmlName']) >= 0,
+                    hidden: false,
+                    inFolder: element['inFolder']
+                });
+                if (element['childXmlNames']) {
+                    let tmp = element['childXmlNames'] instanceof Array ? element['childXmlNames'] : [element['childXmlNames']];
+                    tmp.forEach((childname) => {
+                        typesList.push({
+                            name: childname,
+                            isFavorite: favorites.indexOf(element['xmlName']) >= 0,
+                            hidden: false,
+                            inFolder: 'false'
+                        });
+                    });
+                }
+            });
+            resolve(typesList);
+        })
+            .catch((error) => {
+            reject(error);
+        });
+    });
+}
+function sendSoapReuest(accessToken, endPoint, body) {
+    const parser = new xml2js.Parser({ explicitArray: false, ignoreAttrs: true });
+    let reuest = '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:met="http://soap.sforce.com/2006/04/metadata">' +
+        '<soapenv:Header><met:SessionHeader><met:sessionId>' + accessToken + '</met:sessionId></met:SessionHeader></soapenv:Header>' +
+        '<soapenv:Body>' + body + '</soapenv:Body></soapenv:Envelope>';
+    return new Promise((resolve, reject) => {
+        axios.post(endPoint + "/services/Soap/m/62.0", reuest, { headers: {
+                'Content-Type': 'text/xml; charset=utf-8',
+                'SOAPAction': 'Update',
+            },
+        }).then((response) => {
+            parser.parseString(response.data, (err, result) => {
+                if (err) {
+                    vscode.window.showErrorMessage("Error parsing SOAP XML:", err);
+                    return;
+                }
+                resolve(result);
+            });
+        })
+            .catch((error) => {
+            parser.parseString(error.response.data, (err, result) => {
+                /*vscode.window.showWarningMessage('Unable to connect to the Org. Message: '+
+                    result['soapenv:Envelope']['soapenv:Body']['soapenv:Fault']['faultstring']);*/
+                reject(result['soapenv:Envelope']['soapenv:Body']['soapenv:Fault']['faultstring']);
+            });
+        });
+    });
+}
+function getMetdata(accessToken, endPoint, name) {
+    const parser = new xml2js.Parser({ explicitArray: false, ignoreAttrs: true });
+    let reuest = '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:partner.soap.sforce.com">' +
+        '<soapenv:Header><urn:SessionHeader><urn:sessionId>' + accessToken + '</urn:sessionId></urn:SessionHeader></soapenv:Header>' +
+        '<soapenv:Body><urn:query><urn:queryString>SELECT Id, SystemModstamp FROM ' + name + '</urn:queryString></urn:query></soapenv:Body></soapenv:Envelope>';
+    return new Promise((resolve, reject) => {
+        axios.post(endPoint + "/services/Soap/u/62.0", reuest, { headers: {
+                'Content-Type': 'text/xml; charset=utf-8',
+                'SOAPAction': 'Update',
+            },
+        }).then((response) => {
+            parser.parseString(response.data, (err, result) => {
+                if (err) {
+                    vscode.window.showErrorMessage("Error parsing SOAP XML:", err);
+                    return;
+                }
+                const records = result['soapenv:Envelope']['soapenv:Body']['queryResponse']['result']['records'];
+                resolve(records instanceof Array ? records : [records]);
+            });
+        })
+            .catch((error) => {
+        });
+    });
+}
+function getCustomFields(accessToken, endPoint, objects) {
+    let objectNames = '';
+    for (let i = 0; i < objects.length; i++) {
+        if (i === 100) {
+            break;
+        }
+        objectNames += '<urn:sObjectType>' + objects[i] + '</urn:sObjectType>';
+    }
+    const parser = new xml2js.Parser({ explicitArray: false, ignoreAttrs: true });
+    let reuest = '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:partner.soap.sforce.com">' +
+        '<soapenv:Header><urn:SessionHeader><urn:sessionId>' + accessToken + '</urn:sessionId></urn:SessionHeader></soapenv:Header>' +
+        '<soapenv:Body><urn:describeSObjects>' + objectNames + '</urn:describeSObjects></soapenv:Body></soapenv:Envelope>';
+    return new Promise((resolve, reject) => {
+        axios.post(endPoint + "/services/Soap/u/62.0", reuest, { headers: {
+                'Content-Type': 'text/xml; charset=utf-8',
+                'SOAPAction': 'Update',
+            },
+        }).then((response) => {
+            parser.parseString(response.data, (err, result) => {
+                if (err) {
+                    vscode.window.showErrorMessage("Error parsing SOAP XML:", err);
+                    return;
+                }
+                const records = result['soapenv:Envelope']['soapenv:Body']['describeSObjectsResponse']['result']['fields'];
+                resolve(records instanceof Array ? records : [records]);
+            });
+        })
+            .catch((error) => {
+        });
+    });
+}
+function getAuthOrgs() {
+    return new Promise((resolve, reject) => {
+        /*exec('sf org list --json', (error:any, stdout:any, stderr:any) => {
+            if (error) {
+                reject(`Error: ${error}`);
+            } else {
+                try {
+                    const data = JSON.parse(stdout).result;
+                    const orgList:Object[] = [];
+                    const orgs = [];
+                    const orgIds:string[] = [];
+                    orgs.push(...data.other, ...data.sandboxes, ...data.nonScratchOrgs, ...data.devHubs, ...data.scratchOrgs);
+                    orgs.forEach((org:any) => {
+                        if(org.connectedStatus === 'Connected' && orgIds.indexOf(org['orgId']) < 0) {
+                            orgList.push({
+                                name: org['alias']+'('+org['username']+')',
+                                alias: org['alias'],
+                                orgId: org['orgId'],
+                                accessToken: org['accessToken'],
+                                instanceUrl: org['instanceUrl']
+                            });
+                            orgIds.push(org['orgId']);
+                        }
+                    });
+                    resolve(orgList);
+                } catch (parseError:any) {
+                    reject(`Parse Error: ${parseError.message}`);
+                }
+            }
+        });*/
+        resolve([{ "alias": "SiriApp", "name": "SiriApp(ramu.jallu@yahoo.in)", "orgId": "00D6g00000360OaEAI", "instanceUrl": "https://siriapp-dev-ed.my.salesforce.com",
+                "accessToken": "00D6g00000360Oa!AQcAQF7uyZFdvQOMRFAetbpFchusNaFwiW93T0hUpSGJvGigA9jLMvY9_eyFJvfCcVhK7G3rR1vU3cvVHXvpI9Fg4qLr8hMz" },
+            { "alias": "ICE", "name": "ICE(ramu.jallu@gmail.com)", "orgId": "00D3t000004pIgVEAU", "instanceUrl": "https://ice7-dev-ed.my.salesforce.com",
+                "accessToken": "00D3t000004pIgV!AQgAQLlXpVAMxcbomCUKCBZayLesskTg8RGcvA4P8HBgwbLBAUnXnaRi_SD9ct.S8MChbI4pb_.EFoh.nyUWUrlyy9rEmyEF" },
+            { "name": "AgentForce(epic.321e1730601128842@orgfarm.th)", "orgId": "00D6P000000kU2zUAE", "instanceUrl": "https://d6p000000ku2zuae-dev-ed.develop.my.salesforce.com",
+                "accessToken": "00D6P000000kU2z!AQ4AQDkTYbK6nbyv1Yn2HOMipXHkNxI.7RozVfEDATrZSHRARBYMZDEhuxKJsU84JNgBl0CudDmcSws4x7_JXHIkpYmjstLp" },
+            { "name": "Functions(https://ice3.my.salesforce.com)", "orgId": "00D8c000002gRogEAE", "instanceUrl": "https://ice3.my.salesforce.com",
+                "accessToken": "00D8c000002gRog!ARAAQP3nZCbpdPA5SN91zvrKqQ9AAujV3nfUg10nS3rFFFuGiPhzrfbARk0LDPbxcuXnhLmk4Ihpss0EYnlfkvK8p4OSDbu5" }]);
+    });
+}
+function getWebviewContent(basedpath, scriptUri, cssUri) {
+    return `<!doctype html>
 			<html lang="en">
 			<head>
 				<meta charset="UTF-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 				<title>Salesforce Deployment Tool</title>
-				<script src="https://code.jquery.com/jquery-3.7.1.min.js"><\/script>
-				<script src="https://code.jquery.com/ui/1.14.1/jquery-ui.min.js"><\/script>
-				<script src="https://cdn.datatables.net/2.1.8/js/dataTables.min.js"><\/script>				
+				<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+				<script src="https://code.jquery.com/ui/1.14.1/jquery-ui.min.js"></script>
+				<script src="https://cdn.datatables.net/2.1.8/js/dataTables.min.js"></script>				
 				<link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.dataTables.min.css">
-				<script src="https://cdn.datatables.net/select/2.1.0/js/dataTables.select.min.js"><\/script>				
+				<script src="https://cdn.datatables.net/select/2.1.0/js/dataTables.select.min.js"></script>				
 				<link rel="stylesheet" href="https://cdn.datatables.net/select/2.1.0/css/select.dataTables.min.css">
 				<link rel="stylesheet" href="https://code.jquery.com/ui/1.14.1/themes/base/jquery-ui.css">
 			</head>
@@ -27,7 +638,7 @@
 									<div>	
 										<label for="text" for="dd-text-field" class="top-label">Type: </label>
 										<input type="text" class="dd-text-field" id="dd-text-field"></input>								
-										<span style="margin-left:-20px;pointer-events: none;color: #888;">\u25BC</span>
+										<span style="margin-left:-20px;pointer-events: none;color: #888;">▼</span>
 									</div>
 									<div class="dd-option-box">
 										<div style="padding:5px 10px 5px 10px;" id="select-all-div">
@@ -134,6 +745,9 @@
 										</tr>
 									</thead>
 								</table>
+								<div>
+									<button type="button" style="padding: 7px; width: 75px;" id="exportselected" disabled>Export</button>
+								</div>
 							</div>
 						</div>							
 					</div>
@@ -244,6 +858,17 @@
 					</div>
 				</div>
 			</body>
-			<script src=${s}><\/script>
-			<link rel="stylesheet" href=${e}>
-			</html>`}function deactivate(){if(tmpDirectory&&fs.existsSync(tmpDirectory))try{fs.rmSync(tmpDirectory,{recursive:!0,force:!0})}catch{}}
+			<script src=${scriptUri}></script>
+			<link rel="stylesheet" href=${cssUri}>
+			</html>`;
+}
+function deactivate() {
+    if (tmpDirectory && fs.existsSync(tmpDirectory)) {
+        try {
+            fs.rmSync(tmpDirectory, { recursive: true, force: true });
+        }
+        catch (err) {
+        }
+    }
+}
+//# sourceMappingURL=extension.js.map
