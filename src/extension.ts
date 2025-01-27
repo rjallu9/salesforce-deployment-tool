@@ -41,44 +41,46 @@ export function activate(context: vscode.ExtensionContext) {
 							panel.webview.postMessage({command: 'orgsList', orgs: result});				
 						});						
 						break;
-					case 'loadTypes':
+					case 'loadTypesComponents':
 						var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);	
 						
-						let selections:string[] = [];
-						const selectionsPath = path.join(context.globalStorageUri.fsPath, 'selections.json');
+						var selections:string[] = [];
+						var selectionsPath = path.join(context.globalStorageUri.fsPath+"/"+sourceOrg.orgId, 'selections.json');
 						if (fs.existsSync(selectionsPath)) {
 							selections = JSON.parse(fs.readFileSync(selectionsPath, 'utf-8'));
 						}
 
-						getTypes(sourceOrg.accessToken, sourceOrg.instanceUrl, context.globalStorageUri.fsPath)
-                        .then((data) => {
-                            panel.webview.postMessage({ command: 'types', types: data, selections:selections });
-                        });
-						break;
-					case 'loadComponents':
-						if(message.type) {
-							var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);
-							getComponents(sourceOrg.accessToken, sourceOrg.instanceUrl, message.type, message.isFolder)
-							.then((data) => {
-								panel.webview.postMessage({ command: 'components', components: data, type: message.type });
-							}).catch((error) => {								
-								panel.webview.postMessage({ command: 'components', components: [], type: message.type });
-							});;
-						}
-						break;
-					case 'updateFavorites':
-						if(message.data) {
-							const dir = path.dirname(context.globalStorageUri.fsPath+"/favorites.json");
-							if (!fs.existsSync(dir)) {
-								fs.mkdirSync(dir, { recursive: true });
+						var metdataPath = path.join(context.globalStorageUri.fsPath+"/"+sourceOrg.orgId, 'metadata.json');
+						if (fs.existsSync(metdataPath)) {
+							const metadata = new Map(JSON.parse(fs.readFileSync(metdataPath, 'utf-8')));
+							for (const [key, value] of metadata) {
+								panel.webview.postMessage({ command: 'components', components:value, type:key });								
 							}
-							fs.writeFileSync(context.globalStorageUri.fsPath+"/favorites.json", JSON.stringify(message.data, null, 2), 'utf8', (err:any) => {
-								if (err) {
-									vscode.window.showErrorMessage(`Unable to update favorites..!!`);
-								}
+							panel.webview.postMessage({ command: 'typesComponents', components: '', selections:selections });
+						} else {
+							getTypesComponents(sourceOrg.accessToken, sourceOrg.instanceUrl, context.globalStorageUri.fsPath, panel)
+							.then((data:any) => {
+								panel.webview.postMessage({ command: 'typesComponents', components: data, selections:selections });
+
+								let metadata = data.components;
+								Array.from(data.sobjects.values()).flat().forEach((name:any) => {
+									metadata.get('CustomField').push({ name, type:'CustomField', lastModifiedByName:'', lastModifiedDate:'' });
+								});
+
+								const dir = path.dirname(context.globalStorageUri.fsPath+"/"+sourceOrg.orgId+"/metadata.json");
+								if (!fs.existsSync(dir)) {
+									fs.mkdirSync(dir, { recursive: true });
+								}	
+								fs.writeFile(context.globalStorageUri.fsPath+"/"+sourceOrg.orgId+"/metadata.json", JSON.stringify(Array.from(metadata), null, 2), 'utf8', (err:any) => {
+									if (err) {
+										vscode.window.showErrorMessage(`Error..!! ${err}`);
+									}
+								});
+							}).catch(error => {
+								vscode.window.showErrorMessage(`Error ${error}`);
 							});
-						}
-						break;	
+						}						
+						break;
 					case 'updateSelections':
 						if(message.data) {
 							const dir = path.dirname(context.globalStorageUri.fsPath+"/selections.json");
@@ -356,55 +358,112 @@ function retrieve(accessToken:string, endPoint:string, packagexml:string) {
     });
 }
 
-function getComponents(accessToken:string, endPoint:string, type:string, isFolder:boolean) {
+function getTypesComponents(accessToken:string, endPoint:string, globalStorageUri:string, panel:vscode.WebviewPanel) {
     return new Promise((resolve, reject) => {
-		sendSoapMDRequest(accessToken, endPoint, '<met:listMetadata><met:queries><met:type>'+type+(isFolder ? 'Folder' : '')+'</met:type></met:queries></met:listMetadata>')
+		let components = new Map();
+		let sobjects = new Map();
+		sendSoapMDRequest(accessToken, endPoint, '<met:describeMetadata><met:asOfVersion>62.0</met:asOfVersion></met:describeMetadata>')
 		.then((result:any) => {
-			const comps = result['listMetadataResponse'];
-			let results = buildComponents(comps);	
-			if(isFolder) {
-				let folderresults:Object[] = [];	
-				const promises = results.map((element:any) => {
-					return sendSoapMDRequest(accessToken, endPoint, '<met:listMetadata><met:queries><met:type>'+type+
-						'</met:type><met:folder>'+element.name+'</met:folder></met:queries></met:listMetadata>')
+			const types = result['describeMetadataResponse']['result']['metadataObjects'];			
+			const typesList:{name:string; inFolder:string;}[] = [];
+			types.forEach((element:any) => {
+				typesList.push({ name: element['xmlName'], inFolder: element['inFolder']});
+				if(element['childXmlNames']) {
+					let tmp = element['childXmlNames'] instanceof Array ? element['childXmlNames'] : [element['childXmlNames']];
+					tmp.forEach((childname:any) => {
+						typesList.push({ name: childname, inFolder: 'false'});
+					});	
+				}
+			});		
+			panel.webview.postMessage({ command: 'loading', message: 'Refreshing Components(0/'+typesList.length+')'});	
+
+			Promise.all(typesList.map((e:{name:string; inFolder:string;}) => {
+				return sendSoapMDRequest(accessToken, endPoint, '<met:listMetadata><met:queries><met:type>'+e.name+(e.inFolder === 'true' ? 'Folder' : '')
+											+'</met:type></met:queries></met:listMetadata>')
 					.then((result:any) => {
 						const comps = result['listMetadataResponse'];
-						let fldresults = buildComponents(comps);	
-						folderresults = [...folderresults, ...fldresults];
-					});
-				});
-				Promise.all(promises)
-				.then(() => {
-					resolve(folderresults);
-				});
-			} else {
-				if(type === 'CustomMetadata') {
-					const names = new Set();
-					results.forEach((e:{ name: string; id: string; type: string, lastModifiedByName: string; lastModifiedDate: string; manageableState: string }) => {
-						names.add(e.name.split('.')[0]+'__mdt');
-					});
-					let records = new Map();
-					const promises = Array.from(names).map(e => {
-						return getMetdata(accessToken, endPoint, ''+e).then((result:any) => {
-							let tmp = result instanceof Array ? result : [result];
-							tmp.forEach(r => {
-								records.set(r['sf:Id'] instanceof Array ? r['sf:Id'][0] : r['sf:Id'], r['sf:SystemModstamp']);
-							});							
-						}).catch((error:any) => {
-							reject(error);			
-						});;
-					});
-					Promise.all(promises)
-					.then(() => {
-						results.forEach((e:{ name: string; id: string; type: string, lastModifiedByName: string; lastModifiedDate: string; manageableState: string }) => {
-							e.lastModifiedDate = new Date(records.get(e.id)).toLocaleDateString();
-						});
-						resolve(results);
-					});
-				} else {
-					resolve(results);
-				}					
-			}			
+						let results = buildComponents(comps);	
+						if(e.inFolder === 'true') {
+							let folderresults:Object[] = [];	
+							return Promise.all(results.map((element:any) => {
+								return sendSoapMDRequest(accessToken, endPoint, '<met:listMetadata><met:queries><met:type>'+e.name+
+									'</met:type><met:folder>'+element.name+'</met:folder></met:queries></met:listMetadata>')
+								.then((result:any) => {
+									const comps = result['listMetadataResponse'];
+									let fldresults = buildComponents(comps);	
+									folderresults = [...folderresults, ...fldresults];
+								});
+							}))
+							.then(() => {
+								components.set(e.name, folderresults);
+								panel.webview.postMessage({ command: 'loading', message: 'Refreshing Components('+components.size+'/'+typesList.length+')'});
+								panel.webview.postMessage({ command: 'components', components:folderresults, type:e.name });	
+							}).catch(error => {
+								vscode.window.showErrorMessage(`Error ${error}`);
+							});	
+						} else if(e.name === 'CustomObject') {
+							components.set(e.name, results);
+							const mdobjects = new Set(results.map(obj => obj.name));
+							return sendSoapAPIRequest(accessToken, endPoint, '<urn:describeGlobal/>')
+								.then((result:any) => {
+									const comps = result['describeGlobalResponse']['result']['sobjects'];
+									let objects:string[] = [];	
+									comps.forEach((e:any) => {
+										if(e['custom'] === 'false' && mdobjects.has(e['name'])) {
+											objects.push(e['name']);
+										}
+									});
+									const chunks = [];
+									for (let i = 0; i < objects.length; i += 100) {
+										chunks.push(objects.slice(i, i + 100));
+									}
+									return Promise.all(chunks.map((chunk:string[]) => {
+										var payload = '';
+										chunk.forEach((e:any) => {
+											payload += '<urn:sObjectType>'+e+'</urn:sObjectType>';
+										});
+										return sendSoapAPIRequest(accessToken, endPoint, '<urn:describeSObjects>'+ payload + '</urn:describeSObjects>')
+										.then((result:any) => {
+											const objs = result['describeSObjectsResponse']['result'];
+											const exclFields = new Set(['Id', 'IsDeleted', 'CreatedById', 'CreatedDate', 'LastModifiedById', 'LastModifiedDate', 
+												'LastReferencedDate', 'LastViewedDate', 'SystemModstamp']);
+											objs.forEach((obj:any) => {
+												let tmp:string[] = [];
+												obj['fields'].forEach((e:any) => {
+													if(e['custom'] === 'false' && !exclFields.has(e['name']) ) {
+														tmp.push(obj['name']+'.'+e['name']);
+													}
+												});
+												sobjects.set(obj['name'], tmp);
+												panel.webview.postMessage({ command: 'standardfields', name:obj['name'], fields: tmp});
+											});	
+										}).catch(error => {
+											vscode.window.showErrorMessage(`Error ${error}`);
+										});
+									}))
+									.then(() => {
+									}).catch(error => {
+										vscode.window.showErrorMessage(`Error ${error}`);
+									});			
+								}
+							).catch(error => {
+								vscode.window.showErrorMessage(`Error ${error}`);
+							});
+						} else {
+							components.set(e.name, results);
+							panel.webview.postMessage({ command: 'loading', message: 'Refreshing Components('+components.size+'/'+typesList.length+')'});
+							panel.webview.postMessage({ command: 'components', components:results, type:e.name });
+						}			
+					}
+				).catch(error => {
+					vscode.window.showErrorMessage(`Error ${error}`);
+				});			
+			}))
+			.then(() => {
+				resolve({'components': components, 'sobjects':sobjects});
+			}).catch(error => {
+				vscode.window.showErrorMessage(`Error ${error}`);
+			});
         })
         .catch((error:any) => {
             reject(error);			
@@ -413,64 +472,22 @@ function getComponents(accessToken:string, endPoint:string, type:string, isFolde
 }
 
 function buildComponents(comps:any) {
-	let results: { name: string; id: string; type: string, lastModifiedByName: string; lastModifiedDate: string; manageableState: string }[] = [];
+	let results: { name: string; type: string, lastModifiedByName: string; lastModifiedDate: string;}[] = [];
 	let auditDate = '1970-01-01T00:00:00.000Z';
 	if(comps !== "") {
 		let tmp = comps['result'] instanceof Array ? comps['result'] : [comps['result']];
 		results = tmp.map((comp: any) => ({
 			name: comp['fullName'],
-			id: comp['id'],
 			type: comp['type'],
 			lastModifiedByName: comp['lastModifiedByName'],
 			lastModifiedDate: comp['lastModifiedDate'] !== auditDate ? new Date(comp['lastModifiedDate']).toLocaleDateString() : 
-						comp['createdDate'] !== auditDate ? new Date(comp['createdDate']).toLocaleDateString() : '',
-			manageableState: comp['manageableState'] === undefined ? 'unmanaged' : comp['manageableState']
+						comp['createdDate'] !== auditDate ? new Date(comp['createdDate']).toLocaleDateString() : ''
 		}));	
-		//results = results.filter(cmp => cmp.id !== '');	
 		results = Array.from(
 			new Map(results.map(item => [item.type+item.name, item])).values()
 		);	
 	}
 	return results;
-}
-
-function getTypes(accessToken:string, endPoint:string, globalStorageUri:string) {
-	let favorites:string[] = [];
-	const favoritesPath = path.join(globalStorageUri, 'favorites.json');
-	if (fs.existsSync(favoritesPath)) {
-		favorites = JSON.parse(fs.readFileSync(favoritesPath, 'utf-8'));
-	}
-
-    return new Promise((resolve, reject) => {
-		sendSoapMDRequest(accessToken, endPoint, '<met:describeMetadata><met:asOfVersion>62.0</met:asOfVersion></met:describeMetadata>')
-		.then((result:any) => {
-			const types = result['describeMetadataResponse']['result']['metadataObjects'];			
-			const typesList:Object[] = [];
-			types.forEach((element:any) => {
-				typesList.push({
-					name: element['xmlName'],
-					isFavorite: favorites.indexOf(element['xmlName']) >= 0,
-					hidden: false,
-					inFolder: element['inFolder']
-				});
-				if(element['childXmlNames']) {
-					let tmp = element['childXmlNames'] instanceof Array ? element['childXmlNames'] : [element['childXmlNames']];
-					tmp.forEach((childname:any) => {
-						typesList.push({
-							name: childname,
-							isFavorite: favorites.indexOf(element['xmlName']) >= 0,
-							hidden: false,
-							inFolder: 'false'
-						});
-					});	
-				}
-			});			
-			resolve(typesList);
-        })
-        .catch((error:any) => {
-            reject(error);			
-        });
-    });
 }
 
 function sendSoapMDRequest(accessToken:string,  endPoint:string, body:string) {
@@ -504,14 +521,14 @@ function sendSoapMDRequest(accessToken:string,  endPoint:string, body:string) {
 	});
 }
 
-function getMetdata(accessToken:string,  endPoint:string, name:string) {
+function sendSoapAPIRequest(accessToken:string,  endPoint:string, body:string) {
 	const parser = new xml2js.Parser({ explicitArray: false, ignoreAttrs: true });	
-	let reuest =  '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:partner.soap.sforce.com">'+
+	let request =  '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:partner.soap.sforce.com">'+
 		'<soapenv:Header><urn:SessionHeader><urn:sessionId>'+accessToken+'</urn:sessionId></urn:SessionHeader></soapenv:Header>'+
-		'<soapenv:Body><urn:query><urn:queryString>SELECT Id, SystemModstamp FROM '+name+'</urn:queryString></urn:query></soapenv:Body></soapenv:Envelope>';
+		'<soapenv:Body>'+body+'</soapenv:Body></soapenv:Envelope>';
 	
 	return new Promise((resolve, reject) => {
-		axios.post(endPoint+"/services/Soap/u/62.0", reuest, { headers: {
+		axios.post(endPoint+"/services/Soap/u/62.0", request, { headers: {
 					'Content-Type': 'text/xml; charset=utf-8',
 					'SOAPAction': 'Update',
 				},
@@ -521,12 +538,14 @@ function getMetdata(accessToken:string,  endPoint:string, name:string) {
 				if (err) {
 					vscode.window.showErrorMessage("Error parsing SOAP XML:", err);
 					return;
-				}	
-				const records = result['soapenv:Envelope']['soapenv:Body']['queryResponse']['result']['records'];
-				resolve(records instanceof Array ? records : [records]);
+				}		
+				resolve(result['soapenv:Envelope']['soapenv:Body']);
 			});
 		})
-		.catch((error:any) => {	
+		.catch((error:any) => {
+			parser.parseString(error.response.data, (err:any, result:any) => {	
+				reject(result['soapenv:Envelope']['soapenv:Body']['soapenv:Fault']['faultstring']);
+			});		
 		});
 	});
 }
@@ -565,7 +584,7 @@ function getAuthOrgs() {
 		resolve([{"alias": "SiriApp", "name": "SiriApp(ramu.jallu@yahoo.in)", "orgId": "00D6g00000360OaEAI","instanceUrl": "https://siriapp-dev-ed.my.salesforce.com",
 		"accessToken": "00D6g00000360Oa!AQcAQF7uyZFdvQOMRFAetbpFchusNaFwiW93T0hUpSGJvGigA9jLMvY9_eyFJvfCcVhK7G3rR1vU3cvVHXvpI9Fg4qLr8hMz"},
 		{"alias": "ICE", "name": "ICE(ramu.jallu@gmail.com)", "orgId": "00D3t000004pIgVEAU","instanceUrl": "https://ice7-dev-ed.my.salesforce.com",
-			"accessToken": "00D3t000004pIgV!AQgAQLlXpVAMxcbomCUKCBZayLesskTg8RGcvA4P8HBgwbLBAUnXnaRi_SD9ct.S8MChbI4pb_.EFoh.nyUWUrlyy9rEmyEF"},
+			"accessToken": "00D3t000004pIgV!AQgAQEUEwIuQJGU6tTF6bvaEyCHYDG9LksUNDdCLoncFBEB9L0oo1ljz3vAQZTlLjbydlu7IgihpxIsiNbDRVPaH.w0VDbAE"},
 		{"name": "AgentForce(epic.321e1730601128842@orgfarm.th)", "orgId": "00D6P000000kU2zUAE","instanceUrl": "https://d6p000000ku2zuae-dev-ed.develop.my.salesforce.com",
 			"accessToken": "00D6P000000kU2z!AQ4AQDkTYbK6nbyv1Yn2HOMipXHkNxI.7RozVfEDATrZSHRARBYMZDEhuxKJsU84JNgBl0CudDmcSws4x7_JXHIkpYmjstLp"},
 		{"name": "Functions(https://ice3.my.salesforce.com)", "orgId": "00D8c000002gRogEAE","instanceUrl": "https://ice3.my.salesforce.com",
@@ -597,7 +616,7 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 						<select type="text" class="source-org-field" id="source-org-field" style="height:36px;">
 						</select>		
 					</div>
-					<div id="selection" style="display:none">
+					<div id="actions" style="display:none">
 						<div class="form-panel">
 							<div>
 								<div style="float:left;" >
@@ -616,18 +635,6 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 											</ui>
 										</div>
 									</div>
-								</div>
-								<div style="float:left;padding-left:10px;">	
-									<label for="text" for="date-field" class="top-label">Modified-Since: </label>
-									<input type="text" class="date-field" id="date-field" style="height:30px;width:100px;" readonly></input>		
-								</div>
-								<div style="float:left;padding-left:5px;">	
-									<label for="text" for="state-field" class="top-label">State: </label>
-									<select type="text" class="state-field" id="state-field" style="height:36px;">
-										<option value="all">All</option>
-										<option value="unmanaged" selected>Unmanaged</option>
-										<option value="installed">Installed</option>
-									</select>		
 								</div>
 							</div>
 							<div style="margin-top:22px;margin-left: auto;">

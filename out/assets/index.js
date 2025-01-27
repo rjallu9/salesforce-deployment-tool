@@ -18,13 +18,8 @@ $(document).ready(function () {
     let selections = new Map();  
     let selectionsComps = [];
     
-    let refreshComps = [];
-    let refreshCompsCount = 0;
-    
-    let exlcludeTypes = ['CustomLabels','Workflow', 'AssignmentRules', 'AutoResponseRules', 'EscalationRules', 'CustomObjectTranslation',
-        'DataCategoryGroup', 'MatchingRules', 'SharingRules','ApexEmailNotifications', 'IframeWhiteListUrlSettings', 'AppMenu',
-        'NotificationTypeConfig', 'TopicsForObjects', 'Settings'
-    ];
+    let refreshComps = [];   
+    let sobjectsMap = new Map(); 
 
     window.addEventListener('message', (event) => {
         if(event.data.command === 'orgsList') {
@@ -32,39 +27,30 @@ $(document).ready(function () {
             $("#source-org").show();
             $("#overlay").hide();
             loadSourceOrgs();
-        } else if(event.data.command === 'types') {
-            types = event.data.types; 
-            types = types.filter(type => exlcludeTypes.indexOf(type.name) < 0);
-            $("#selection").show();
-            refreshTypes(true);   
-            refreshSelections(event.data.selections);  
-            $('#compsdatatable').DataTable().draw();           
+        } else if(event.data.command === 'loading') {
+            $(".spinnerlabel").text(event.data.message);       
         } else if(event.data.command === 'components') {
-            componentsMap.set(event.data.type, event.data.components);
-            refreshComps = $.grep(refreshComps, function(type) {
-                return type !== event.data.type;
-            });
-            if(selectionsComps.length > 0){
-                event.data.components.forEach(cmp => {
-                    if(selectionsComps.indexOf(cmp.type+"."+cmp.name) >= 0) {
-                        selectedComps.set(cmp.type+"."+cmp.name, cmp);
-                    }
+            componentsMap.set(event.data.type, event.data.components);              
+        } else if(event.data.command === 'standardfields') { 
+            sobjectsMap.set(event.data.name, event.data.fields);
+        } else if(event.data.command === 'typesComponents') {
+            if(sobjectsMap.size > 0) {
+                componentsMap.keys().forEach(function(type) {
+                    if(type === 'CustomField') {
+                        const sobjectsfields = Array.from(sobjectsMap.values()).flat();
+                        /*let fields = componentsMap.get(type).filter(e => sobjectsfields.indexOf(e.name) >= 0);
+    
+                        const existingfields = new Set(fields.map((obj) => obj.name));
+                        const standardfields = sobjectsfields.filter((str) => !existingfields.has(str));*/
+                        sobjectsfields.forEach((name) => {
+                            componentsMap.get(type).push({ name, type:'CustomField', lastModifiedByName:'', lastModifiedDate:'' });
+                        });
+                    }             
                 });
-            } 
-            if(refreshComps.length === 0) {
-                refreshCompsCount = 0;
-                $("#overlay").hide();
-                if(selectionsComps.length > 0){                    
-                    $('.selected').text('Selected ('+selectedComps.size+')');
-                    $('#next').prop('disabled', false);
-                    $('#packagexml').prop('disabled', false);
-                    $('#exportselected').prop('disabled', false); 
-                    $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
-                } 
-                refreshComponents();            
-            } else {
-                $(".spinnerlabel").text("Refreshing Components ("+(refreshCompsCount-refreshComps.length)+"/"+refreshCompsCount+")");
-            }                     
+            }            
+            $("#overlay").hide();    
+            $("#actions").show();            
+            $('#compsdatatable').DataTable().clear().rows.add(Array.from(componentsMap.values()).flat()).draw();
         } else if(event.data.command === 'deployStatus') {
             updateDeploymentStatus(event.data.result);
         } else if(event.data.command === 'compareResults') {
@@ -106,9 +92,11 @@ $(document).ready(function () {
         $('#export').prop('disabled', true);
         $('#exportselected').prop('disabled', true);
 
-        $("#selection").hide(); 
+        $("#actions").hide(); 
         if($('#source-org-field').val() !== '') {
-            vscode.postMessage({ command: 'loadTypes', sourceOrgId: $(this).val()});
+            vscode.postMessage({ command: 'loadTypesComponents', sourceOrgId: $(this).val()});
+            $("#overlay").show();   
+            $(".spinnerlabel").text("Refreshing Components");
     
             $('#dest-org-field').empty();
             $('#dest-org-field').append($("<option>").val('').text(''));
@@ -299,22 +287,6 @@ $(document).ready(function () {
         $('.dd-text-field').attr("placeholder", selectedTypes.length+ ' Type(s) selected');      
     });
 
-    $('.dd-options ui').on('click', '.dd-option-fav', function (e) {
-        let title = $(this).prop('title');
-        let favs = [];
-        types.forEach(function(type) {
-            if(type.name === title) {
-                type.isFavorite = !type.isFavorite;
-            }  
-            if(type.isFavorite) {
-                favs.push(type.name);
-            }          
-        });
-        refreshTypes(false);
-        vscode.postMessage({ command: 'updateFavorites', data:favs});
-        e.stopPropagation();  
-    });
-
 	$("body").on("click",function(e){
         $(".dd-option-box").hide();
 	});
@@ -332,54 +304,12 @@ $(document).ready(function () {
        }
     });
 
-    $('.date-field').datepicker({
-        dateFormat: 'mm/dd/yy',
-        changeMonth: true,
-        changeYear: true,
-        showAnim: 'slideDown'
-    });
-
-    const today = new Date();
-    const last30Days = new Date();
-    last30Days.setDate(today.getDate() - 365);
-    $('.date-field').datepicker("setDate", last30Days);
-
-    $(".date-field").on("change", function(e){
-        refreshComponents();
-    });
-
-    $(".state-field").on("change", function(e){
-        refreshComponents();
-    });
-
     function refreshTypes(init) {
         $('.dd-options ui').empty();
-        types.sort(function (a, b) {
-            if(a.isFavorite === b.isFavorite) {
-                return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
-            } 
-            return b.isFavorite - a.isFavorite;                 
-        });
-        if(init) {
-            types.forEach(function(type) {
-                if(type.inFolder === 'true') {
-                    foldertypes.push(type.name);
-                }
-            });
-        }
         var visibleTypesCount = 0;
         types.forEach(function(type) {
             if(!type.hidden) {
                 visibleTypesCount++;
-                let fav = `<label class="dd-option-fav" title=${type.name}>☆</label>`;
-                if(type.isFavorite) {
-                    fav = `<label class="dd-option-fav" style="color:darkgoldenrod;" title=${type.name}>&#9733;</label>`;
-                    if(init) {
-                        selectedTypes.push(type.name);
-                        vscode.postMessage({ command: 'loadComponents', type:type.name, isFolder:foldertypes.indexOf(type.name)>=0, 
-                            sourceOrgId: $('#source-org-field').val()});
-                    }                    
-                }
                 $('.dd-options ui').append(`
                     <li class="dd-option" ${(selectedTypes.indexOf(type.name) >= 0) ? "style='background:#0078D7'" : ""}>
                         <div>
@@ -387,13 +317,12 @@ $(document).ready(function () {
                                     ${(init && type.isFavorite) || (selectedTypes.indexOf(type.name) >= 0) ? "checked" : ""}>
                             <label class="dd-option-lbl" for=${type.name}>${type.name}</label>
                         </div>
-                        ${fav}
                     </li>
                 `);
             }
         }); 
         $('.dd-text-field').attr("placeholder", selectedTypes.length+ ' Type(s) selected');
-        if(visibleTypesCount > 0) {
+        if(visibleTypesCount > 5) {
             $('#select-all-div').show();
             if(selectedTypes.length === visibleTypesCount) {
                 $('.dd-select-all').prop('checked', true);
@@ -585,7 +514,7 @@ $(document).ready(function () {
         if(orgs.length === 1) {
             $("#errors").text('There are no destination orgs available to deploy.');    
         } else {
-            $("#selection").hide();
+            $("#actions").hide();
             $("#source-org").hide();
             $("#preview").show();
             $('.preview').text('Selected ('+selectedComps.size+')');            
@@ -629,7 +558,7 @@ $(document).ready(function () {
     });
 
     $('#previous').on('click', function (e) {
-        $("#selection").show();
+        $("#actions").show();
         $("#source-org").show();
         $("#preview").hide();
     });
