@@ -7,7 +7,8 @@ $(document).ready(function () {
 
     loadOrgs();
 
-    $("#tabs").tabs();
+    $("#selectiontabs").tabs();
+    $("#selectiontabs").hide();
     $("#previewtabs").tabs();
 
     let orgs = [];    
@@ -28,6 +29,18 @@ $(document).ready(function () {
             loadSourceOrgs();
         } else if(event.data.command === 'loading') {
             $(".spinnerlabel").text(event.data.message);       
+        } else if(event.data.command === 'error') {
+            $("#errors").text(event.data.message);   
+            $("#spinner").hide();
+        } else if(event.data.command === 'previewerror') {
+            $("#previewerrors").text(event.data.message);  
+            $("#deploystatus").hide(); 
+            $("#progressbar").hide();
+            $("#deploy-buttons").show();
+            $("#dest-org-field").prop('disabled', false);
+            $("#previous").prop('disabled', false);
+            $("#cancel-deploy").hide(); 
+            $("#spinner").hide();
         } else if(event.data.command === 'components') {
             componentsMap.set(event.data.type, event.data.components);              
         } else if(event.data.command === 'stdFields') { 
@@ -50,7 +63,8 @@ $(document).ready(function () {
             types.sort((a, b) => a.name.localeCompare(b.name));
             refreshTypes();    
             $("#spinner").hide();    
-            $("#actions").show();      
+            $("#actions").show();
+            $('#selectiontabs').show();        
             refreshComponents();
             refreshSnapshots(event.data.snapshots);
         } else if(event.data.command === 'deployStatus') {
@@ -87,6 +101,7 @@ $(document).ready(function () {
 
         $("#actions").hide();
         $("#errors").text('');
+        $('#selectiontabs').hide();
         if($('#source-org-field').val() !== '') {
             vscode.postMessage({ command: 'loadTypesComponents', sourceOrgId: $(this).val()});
             $("#spinner").show();   
@@ -414,7 +429,8 @@ $(document).ready(function () {
         if(orgs.length === 1) {
             $("#errors").text('There are no destination orgs available to deploy.');    
         } else {
-            $("#actions").hide();            
+            $("#actions").hide();
+            $('#selectiontabs').hide();
             $("#source-org").hide();
             $("#preview").show();
             $('.preview').text('Selected ('+selectedComps.size+')');            
@@ -428,7 +444,8 @@ $(document).ready(function () {
     });
 
     $('#previous').on('click', function (e) {
-        $("#actions").show();      
+        $("#actions").show();        
+        $('#selectiontabs').show();
         $("#source-org").show();
         $("#preview").hide();
     });
@@ -513,6 +530,7 @@ $(document).ready(function () {
         $("#deploy-buttons").hide();
         $("#dest-org-field").prop('disabled', true);
         $("#previous").prop('disabled', true);
+        $("#previewerrors").text('');
 
         $('.path-list').empty();
         $('.path-list').append('<li class="path path-notstarted retrieve"><p>Retrieve</p><p style="width:0px;"><span/></p></li>');
@@ -740,6 +758,7 @@ $(document).ready(function () {
     });
 
     $("#compare").on('click', function (e) {
+        $("#previewerrors").text('');
         $(".spinnerlabel").text("Comparing");
         $("#spinner").show();
         let packagexml = getPackageXml();

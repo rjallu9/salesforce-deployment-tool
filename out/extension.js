@@ -64,38 +64,36 @@ function activate(context) {
                     break;
                 case 'loadTypesComponents':
                     var sourceOrg = orgsList.find((org) => org.orgId === message.sourceOrgId);
-                    var snapshots = [];
-                    var snapshotPath = path.join(context.globalStorageUri.fsPath + "/" + sourceOrg.orgId, 'snapshots.json');
-                    if (fs.existsSync(snapshotPath)) {
-                        snapshots = JSON.parse(fs.readFileSync(snapshotPath, 'utf-8'));
-                    }
-                    var metdataPath = path.join(context.globalStorageUri.fsPath + "/" + sourceOrg.orgId, 'metadata.json');
-                    if (fs.existsSync(metdataPath)) {
-                        const metadata = new Map(JSON.parse(fs.readFileSync(metdataPath, 'utf-8')));
-                        for (const [key, value] of metadata) {
-                            panel.webview.postMessage({ command: 'components', components: value, type: key });
-                        }
-                        panel.webview.postMessage({ command: 'typesComponents', components: '', snapshots: snapshots });
-                    }
-                    else {
-                        getTypesComponents(sourceOrg.accessToken, sourceOrg.instanceUrl, context.globalStorageUri.fsPath, panel)
-                            .then((data) => {
-                            panel.webview.postMessage({ command: 'typesComponents', components: data, snapshots: snapshots });
-                            saveMetadata(data.components, data.sobjects, context.globalStorageUri.fsPath, sourceOrg.orgId);
-                        }).catch(error => {
-                            if (error.indexOf('INVALID_SESSION_ID') >= 0) {
-                                getAuthOrgs().then((result) => {
-                                    orgsList = result;
-                                    sourceOrg = orgsList.find((org) => org.orgId === message.sourceOrgId);
-                                    getTypesComponents(sourceOrg.accessToken, sourceOrg.instanceUrl, context.globalStorageUri.fsPath, panel)
-                                        .then((data) => {
-                                        panel.webview.postMessage({ command: 'typesComponents', components: data, snapshots: snapshots });
-                                        saveMetadata(data.components, data.sobjects, context.globalStorageUri.fsPath, sourceOrg.orgId);
-                                    });
+                    validateSession(sourceOrg.accessToken, sourceOrg.instanceUrl, message.sourceOrgId)
+                        .then((result) => {
+                        if (result.valid) {
+                            if (result.orgsList) {
+                                orgsList = result.orgsList;
+                            }
+                            var snapshots = [];
+                            var snapshotPath = path.join(context.globalStorageUri.fsPath + "/" + sourceOrg.orgId, 'snapshots.json');
+                            if (fs.existsSync(snapshotPath)) {
+                                snapshots = JSON.parse(fs.readFileSync(snapshotPath, 'utf-8'));
+                            }
+                            var metdataPath = path.join(context.globalStorageUri.fsPath + "/" + sourceOrg.orgId, 'metadata.json');
+                            if (fs.existsSync(metdataPath)) {
+                                const metadata = new Map(JSON.parse(fs.readFileSync(metdataPath, 'utf-8')));
+                                for (const [key, value] of metadata) {
+                                    panel.webview.postMessage({ command: 'components', components: value, type: key });
+                                }
+                                panel.webview.postMessage({ command: 'typesComponents', components: '', snapshots: snapshots });
+                            }
+                            else {
+                                getTypesComponents(sourceOrg.accessToken, sourceOrg.instanceUrl, context.globalStorageUri.fsPath, panel)
+                                    .then((data) => {
+                                    panel.webview.postMessage({ command: 'typesComponents', components: data, snapshots: snapshots });
+                                    saveMetadata(data.components, data.sobjects, context.globalStorageUri.fsPath, sourceOrg.orgId);
                                 });
                             }
-                        });
-                    }
+                        }
+                    }).catch((error) => {
+                        panel.webview.postMessage({ command: 'error', message: 'Unable to connect to the Org.' });
+                    });
                     break;
                 case 'updateSnapshot':
                     if (message.data) {
@@ -114,45 +112,52 @@ function activate(context) {
                     panel.webview.postMessage({ command: 'deployStatus', result: { stage: "retrieve", message: 'Retrieve components Initiated' } });
                     var sourceOrg = orgsList.find((org) => org.orgId === message.sourceOrgId);
                     var destOrg = orgsList.find((org) => org.orgId === message.destOrgId);
-                    retrieve(sourceOrg.accessToken, sourceOrg.instanceUrl, message.packagexml).then((result) => {
-                        panel.webview.postMessage({ command: 'deployStatus', result: { stage: "retrieve", message: 'Retrieve components Inprogress' } });
-                        let retrieveJobId = result;
-                        let intervalId = setInterval(() => {
-                            retrieveStatus(sourceOrg.accessToken, sourceOrg.instanceUrl, retrieveJobId).then((result) => {
-                                if (result.done === 'true') {
-                                    panel.webview.postMessage({ command: 'deployStatus', result: { stage: "retrieveCompleted", message: 'Retrieve components Completed' } });
-                                    clearInterval(intervalId);
-                                    if (!isCancelDeploy) {
-                                        panel.webview.postMessage({ command: 'deployStatus', result: { stage: "deployment",
-                                                message: message.checkOnly ? 'Validation Initiated' : 'Deployment Initiated' } });
-                                        deploy(destOrg.accessToken, destOrg.instanceUrl, result.zipFile, message.checkOnly, message.testLevel, message.testClasses).then((result) => {
-                                            let deployJobId = result;
-                                            let deployIntervalId = setInterval(() => {
-                                                if (isCancelDeploy) {
-                                                    cancelDeploy(destOrg.accessToken, destOrg.instanceUrl, deployJobId);
-                                                    isCancelDeploy = false;
-                                                }
-                                                deployStatus(destOrg.accessToken, destOrg.instanceUrl, deployJobId).then((result) => {
-                                                    if (result.done === 'true') {
-                                                        clearInterval(deployIntervalId);
-                                                    }
-                                                    result['stage'] = "deploymentStatus";
-                                                    panel.webview.postMessage({ command: 'deployStatus', result: result });
-                                                }).catch((error) => {
-                                                    clearInterval(deployIntervalId);
+                    validateSession(destOrg.accessToken, destOrg.instanceUrl, message.destOrgId)
+                        .then((result) => {
+                        if (result.valid) {
+                            retrieve(sourceOrg.accessToken, sourceOrg.instanceUrl, message.packagexml).then((result) => {
+                                panel.webview.postMessage({ command: 'deployStatus', result: { stage: "retrieve", message: 'Retrieve components Inprogress' } });
+                                let retrieveJobId = result;
+                                let intervalId = setInterval(() => {
+                                    retrieveStatus(sourceOrg.accessToken, sourceOrg.instanceUrl, retrieveJobId).then((result) => {
+                                        if (result.done === 'true') {
+                                            panel.webview.postMessage({ command: 'deployStatus', result: { stage: "retrieveCompleted", message: 'Retrieve components Completed' } });
+                                            clearInterval(intervalId);
+                                            if (!isCancelDeploy) {
+                                                panel.webview.postMessage({ command: 'deployStatus', result: { stage: "deployment",
+                                                        message: message.checkOnly ? 'Validation Initiated' : 'Deployment Initiated' } });
+                                                deploy(destOrg.accessToken, destOrg.instanceUrl, result.zipFile, message.checkOnly, message.testLevel, message.testClasses).then((result) => {
+                                                    let deployJobId = result;
+                                                    let deployIntervalId = setInterval(() => {
+                                                        if (isCancelDeploy) {
+                                                            cancelDeploy(destOrg.accessToken, destOrg.instanceUrl, deployJobId);
+                                                            isCancelDeploy = false;
+                                                        }
+                                                        deployStatus(destOrg.accessToken, destOrg.instanceUrl, deployJobId).then((result) => {
+                                                            if (result.done === 'true') {
+                                                                clearInterval(deployIntervalId);
+                                                            }
+                                                            result['stage'] = "deploymentStatus";
+                                                            panel.webview.postMessage({ command: 'deployStatus', result: result });
+                                                        }).catch((error) => {
+                                                            clearInterval(deployIntervalId);
+                                                        });
+                                                    }, 2000);
                                                 });
-                                            }, 2000);
-                                        });
-                                    }
-                                    else {
-                                        panel.webview.postMessage({ command: 'deployStatus', result: { stage: "deployment",
-                                                message: message.checkOnly ? 'Validation Cancelled' : 'Deployment Cancelled' } });
-                                    }
-                                }
-                            }).catch((error) => {
-                                clearInterval(intervalId);
+                                            }
+                                            else {
+                                                panel.webview.postMessage({ command: 'deployStatus', result: { stage: "deployment",
+                                                        message: message.checkOnly ? 'Validation Cancelled' : 'Deployment Cancelled' } });
+                                            }
+                                        }
+                                    }).catch((error) => {
+                                        clearInterval(intervalId);
+                                    });
+                                }, 1000);
                             });
-                        }, 1000);
+                        }
+                    }).catch((error) => {
+                        panel.webview.postMessage({ command: 'previewerror', message: 'Unable to connect to the Org.' });
                     });
                     break;
                 case 'quickDeploy':
@@ -202,21 +207,28 @@ function activate(context) {
                             });
                         }, 1000);
                     });
-                    retrieve(destOrg.accessToken, destOrg.instanceUrl, message.packagexml).then((result) => {
-                        let destRetrieveJobId = result;
-                        let destIntervalId = setInterval(() => {
-                            retrieveStatus(destOrg.accessToken, destOrg.instanceUrl, destRetrieveJobId).then((result) => {
-                                if (result.done === 'true') {
-                                    clearInterval(destIntervalId);
-                                    destOrgFiles = result.fileNames;
-                                    extractComponents(result.zipFile, tmpDirectory + '/' + time, destOrg.alias);
-                                    destProcess = true;
-                                }
-                            }).catch((error) => {
-                                vscode.window.showErrorMessage(`Error: ${JSON.stringify(error)}`);
-                                clearInterval(destIntervalId);
+                    validateSession(destOrg.accessToken, destOrg.instanceUrl, message.destOrgId)
+                        .then((result) => {
+                        if (result.valid) {
+                            retrieve(destOrg.accessToken, destOrg.instanceUrl, message.packagexml).then((result) => {
+                                let destRetrieveJobId = result;
+                                let destIntervalId = setInterval(() => {
+                                    retrieveStatus(destOrg.accessToken, destOrg.instanceUrl, destRetrieveJobId).then((result) => {
+                                        if (result.done === 'true') {
+                                            clearInterval(destIntervalId);
+                                            destOrgFiles = result.fileNames;
+                                            extractComponents(result.zipFile, tmpDirectory + '/' + time, destOrg.alias);
+                                            destProcess = true;
+                                        }
+                                    }).catch((error) => {
+                                        vscode.window.showErrorMessage(`Error: ${JSON.stringify(error)}`);
+                                        clearInterval(destIntervalId);
+                                    });
+                                }, 1000);
                             });
-                        }, 1000);
+                        }
+                    }).catch((error) => {
+                        panel.webview.postMessage({ command: 'previewerror', message: 'Unable to connect to the Org.' });
                     });
                     let responseIntervalId = setInterval(() => {
                         if (sourceProcess && destProcess) {
@@ -244,6 +256,38 @@ function activate(context) {
         });
     });
     context.subscriptions.push(disposable);
+}
+function validateSession(accessToken, endPoint, orgId) {
+    return new Promise((resolve, reject) => {
+        sendSoapAPIRequest(accessToken, endPoint, '<urn:getUserInfo/>')
+            .then((result) => {
+            resolve({ valid: true });
+        }).catch((error) => {
+            if (error.indexOf('INVALID_SESSION_ID') >= 0) {
+                let attempts = 0;
+                function retry() {
+                    attempts++;
+                    getAuthOrgs().then((orgsList) => {
+                        let org = orgsList.find((org) => org.orgId === orgId);
+                        return sendSoapAPIRequest(org.accessToken, org.instanceUrl, '<urn:getUserInfo/>')
+                            .then((res) => {
+                            resolve({ valid: true, orgsList });
+                        })
+                            .catch((err) => {
+                            if (attempts < 5) {
+                                retry();
+                            }
+                            else {
+                                reject(new Error('Max retries reached. Session validation failed.'));
+                            }
+                        });
+                    });
+                }
+                retry();
+            }
+        });
+        ;
+    });
 }
 function saveMetadata(metadata, sobjects, fsPath, orgId) {
     Array.from(sobjects.values()).flat().forEach((name) => {
@@ -581,10 +625,14 @@ function getAuthOrgs() {
                 }
             }
         });*/
-        resolve([
+        resolve([{ "alias": "SiriApp", "name": "SiriApp(ramu.jallu@yahoo.in)", "orgId": "00D6g00000360OaEAI", "instanceUrl": "https://siriapp-dev-ed.my.salesforce.com",
+                "accessToken": "00D6g00000360Oa!AQcAQF7uyZFdvQOMRFAetbpFchusNaFwiW93T0hUpSGJvGigA9jLMvY9_eyFJvfCcVhK7G3rR1vU3cvVHXvpI9Fg4qLr8hMz" },
             { "alias": "ICE", "name": "ICE(ramu.jallu@gmail.com)", "orgId": "00D3t000004pIgVEAU", "instanceUrl": "https://ice7-dev-ed.my.salesforce.com",
-                "accessToken": "00D3t000004pIgV!AQgAQEUEwIuQJGU6tTF6bvaEyCHYDG9LksUNDdCLoncFBEB9L0oo1ljz3vAQZTlLjbydlu7IgihpxIsiNbDRVPaH.w0VDbAE" }
-        ]);
+                "accessToken": "00D3t000004pIgV!AQgAQEUEwIuQJGU6tTF6bvaEyCHYDG9LksUNDdCLoncFBEB9L0oo1ljz3vAQZTlLjbydlu7IgihpxIsiNbDRVPaH.w0VDbAE" },
+            { "name": "AgentForce(epic.321e1730601128842@orgfarm.th)", "orgId": "00D6P000000kU2zUAE", "instanceUrl": "https://d6p000000ku2zuae-dev-ed.develop.my.salesforce.com",
+                "accessToken": "00D6P000000kU2z!AQ4AQDkTYbK6nbyv1Yn2HOMipXHkNxI.7RozVfEDATrZSHRARBYMZDEhuxKJsU84JNgBl0CudDmcSws4x7_JXHIkpYmjstLp" },
+            { "name": "Functions(https://ice3.my.salesforce.com)", "orgId": "00D8c000002gRogEAE", "instanceUrl": "https://ice3.my.salesforce.com",
+                "accessToken": "00D8c000002gRog!ARAAQP3nZCbpdPA5SN91zvrKqQ9AAujV3nfUg10nS3rFFFuGiPhzrfbARk0LDPbxcuXnhLmk4Ihpss0EYnlfkvK8p4OSDbu5" }]);
     });
 }
 function getWebviewContent(basedpath, scriptUri, cssUri) {
@@ -605,118 +653,118 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 			<body>	
 				<div style="margin: 20px;">
 					<h1>Salesforce Deployment Tool</h1>		
-					<div id="source-org" style="float:left;margin-right:5px;display:none;">	
-						<label for="text" for="source-org-field" class="top-label">Source Org: </label>
-						<select type="text" class="source-org-field" id="source-org-field" style="height:36px;">
-						</select>		
-					</div>			
-					<div id="actions" style="display:none">
-						<div class="form-panel">
+					<div style="display:flex;">			
+						<div id="source-org" style="margin-right:5px;display:none;">	
+							<label for="text" for="source-org-field" class="top-label">Source Org: </label>
+							<select type="text" class="source-org-field" id="source-org-field" style="height:36px;">
+							</select>		
+						</div>
+						<div id="actions" style="display:none;flex:1;">
+							<div class="form-panel">
+								<div>
+									<div style="float:left;" >
+										<div>	
+											<label for="text" for="dd-text-field" class="top-label">Type: </label>
+											<input type="text" class="dd-text-field" id="dd-text-field"></input>								
+											<span style="margin-left:-20px;pointer-events: none;color: #888;">▼</span>
+										</div>
+										<div class="dd-option-box">
+											<div style="padding:5px 10px 5px 10px;" id="select-all-div">
+												<input type="checkbox" value="All" class="dd-select-all">
+												<label for="select-all">All</label>
+											</div>
+											<div class="dd-options">
+												<ui style="list-style-type: none;">                       
+												</ui>
+											</div>
+										</div>
+									</div>
+								</div>
+								<div style="margin-top:22px;margin-left: auto;">
+									<button type="button" style="padding: 7px; width: 75px;float:right;" id="next" disabled>Next</button>
+									<button type="button" style="padding: 7px; width:100px;float:right;margin-right:5px" id="packagexml" disabled>Package.xml</button>	
+									<div style="float: left;padding-left: 5px;margin-right: 5px;" id="snapshot-view">
+										<div style="float:left;margin-top:-20px;margin-right: 5px;">	
+											<label for="text" for="snapshot-list" class="top-label">Snapshots: </label>
+											<select type="text" id="snapshot-list" style="height:33px;min-width:150px;">
+											</select>		
+										</div>
+										<p style="float: left;margin-bottom:0;margin-top: 4px;margin-right: 5px;display:none;cursor:pointer;" id="delete-snapshot">
+											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+												<circle cx="25" cy="25" r="24" fill="#f14c4c" stroke="#f14c4c" stroke-width="2"></circle>
+												<line x1="17" y1="17" x2="33" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
+												<line x1="33" y1="17" x2="17" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
+											</svg>
+										</p>
+										<p style="float: left;margin-bottom:0;margin-top: 4px;cursor:pointer;display:none;" id="add-snapshot">
+											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+												<circle cx="25" cy="25" r="24" fill="#4daafc" stroke="#4daafc" stroke-width="2"></circle>
+												<line x1="25" y1="15" x2="25" y2="35" stroke="white" stroke-width="4" stroke-linecap="round"></line>
+												<line x1="15" y1="25" x2="35" y2="25" stroke="white" stroke-width="4" stroke-linecap="round"></line>
+											</svg>
+										</p>									
+									</div>
+									<div style="float: left;padding-left: 5px;margin-right: 5px;display:none;" id="snapshot-form">
+										<div style="float:left;margin-top:-20px;margin-right: 5px;">	
+											<label for="text" for="snapshot-name" class="top-label">Snapshot Name: </label>
+											<input type="text" id="snapshot-name" style="height:27px;"></input>			
+										</div>	
+										<p style="float: left;margin-bottom:0;margin-top: 4px;margin-right: 5px;cursor:pointer;" id="save-snapshot">
+											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+												<circle cx="25" cy="25" r="24" fill="#2a6927" stroke="#2a6927" stroke-width="2"></circle>
+												<polyline points="15,25 22,32 35,18" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></polyline>
+											</svg>
+										</p>
+										<p style="float: left;margin-bottom:0;margin-top: 4px;margin-right: 5px;cursor:pointer;" id="close-snapshot">
+											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+												<circle cx="25" cy="25" r="24" fill="#f14c4c" stroke="#f14c4c" stroke-width="2"></circle>
+												<line x1="17" y1="17" x2="33" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
+												<line x1="33" y1="17" x2="17" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
+											</svg>
+										</p>									
+									</div>
+								</div>
+							</div>					
+						</div>
+					</div>
+					<p style="color:#f14c4c;margin-bottom:0;margin-top:5px;" id="errors"></p>
+					<div id="selectiontabs" style="margin-top:10px;">
+						<ul>
+							<li class="tab" name="compsdatatable"><a href="#available" class="available">Available (0)</a></li>
+							<li class="tab" name="selecteddatatable"><a href="#selected" class="selected">Selected (0)</a></li>
+						</ul>
+						<div id="available">
+							<table id="compsdatatable" class="display" style="width:100%">
+								<thead>
+									<tr>
+										<th><input type="checkbox" id="all-row-chk" class='all-row-chk'/></th>	
+										<th>Type</th>
+										<th>Name</th>
+										<th>Last Modified By</th>
+										<th>Last Modified Date</th>
+									</tr>
+								</thead>
+							</table>
 							<div>
-								<div style="float:left;" >
-									<div>	
-										<label for="text" for="dd-text-field" class="top-label">Type: </label>
-										<input type="text" class="dd-text-field" id="dd-text-field"></input>								
-										<span style="margin-left:-20px;pointer-events: none;color: #888;">▼</span>
-									</div>
-									<div class="dd-option-box">
-										<div style="padding:5px 10px 5px 10px;" id="select-all-div">
-											<input type="checkbox" value="All" class="dd-select-all">
-											<label for="select-all">All</label>
-										</div>
-										<div class="dd-options">
-											<ui style="list-style-type: none;">                       
-											</ui>
-										</div>
-									</div>
-								</div>
+								<button type="button" style="padding: 7px; width: 75px;" id="export" disabled>Export</button>
 							</div>
-							<div style="margin-top:22px;margin-left: auto;">
-								<button type="button" style="padding: 7px; width: 75px;float:right;" id="next" disabled>Next</button>
-								<button type="button" style="padding: 7px; width:100px;float:right;margin-right:5px" id="packagexml" disabled>Package.xml</button>	
-								<div style="float: left;padding-left: 5px;margin-right: 5px;" id="selection-view">
-									<div style="float:left;margin-top:-20px;margin-right: 5px;">	
-										<label for="text" for="selection-list" class="top-label">Snapshots: </label>
-										<select type="text" id="selection-list" style="height:33px;min-width:150px;">
-										</select>		
-									</div>
-									<p style="float: left;margin-top: 4px;margin-right: 5px;display:none;cursor:pointer;" id="delete-selection">
-										<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-											<circle cx="25" cy="25" r="24" fill="#f14c4c" stroke="#f14c4c" stroke-width="2"></circle>
-											<line x1="17" y1="17" x2="33" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-											<line x1="33" y1="17" x2="17" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-										</svg>
-									</p>
-									<p style="float: left;margin-top: 4px;cursor:pointer;display:none;" id="add-selection">
-										<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-											<circle cx="25" cy="25" r="24" fill="#4daafc" stroke="#4daafc" stroke-width="2"></circle>
-											<line x1="25" y1="15" x2="25" y2="35" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-											<line x1="15" y1="25" x2="35" y2="25" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-										</svg>
-									</p>									
-								</div>
-								<div style="float: left;padding-left: 5px;margin-right: 5px;display:none;" id="selection-form">
-									<div style="float:left;margin-top:-20px;margin-right: 5px;">	
-										<label for="text" for="selection-name" class="top-label">Selection Name: </label>
-										<input type="text" id="selection-name" style="height:27px;"></input>			
-									</div>	
-									<p style="float: left;margin-top: 4px;margin-right: 5px;cursor:pointer;" id="save-selection">
-										<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-											<circle cx="25" cy="25" r="24" fill="#2a6927" stroke="#2a6927" stroke-width="2"></circle>
-											<polyline points="15,25 22,32 35,18" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></polyline>
-										</svg>
-									</p>
-									<p style="float: left;margin-top: 4px;margin-right: 5px;cursor:pointer;" id="close-selection">
-										<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-											<circle cx="25" cy="25" r="24" fill="#f14c4c" stroke="#f14c4c" stroke-width="2"></circle>
-											<line x1="17" y1="17" x2="33" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-											<line x1="33" y1="17" x2="17" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-										</svg>
-									</p>									
-								</div>
+						</div>
+						<div id="selected">
+							<table id="selecteddatatable" class="display" style="width:100%">
+								<thead>
+									<tr>	
+										<th></th>	
+										<th>Type</th>
+										<th>Name</th>
+										<th>Last Modified By</th>
+										<th>Last Modified Date</th>
+									</tr>
+								</thead>
+							</table>
+							<div>
+								<button type="button" style="padding: 7px; width: 75px;" id="exportselected" disabled>Export</button>
 							</div>
-						</div>	
-						<div>
-							<p style="color:#f14c4c;" id="errors"></p>
-						</div>				
-						<div id="tabs" style="margin-top:10px;">
-							<ul>
-								<li class="tab" name="compsdatatable"><a href="#available" class="available">Available (0)</a></li>
-								<li class="tab" name="selecteddatatable"><a href="#selected" class="selected">Selected (0)</a></li>
-							</ul>
-							<div id="available">
-								<table id="compsdatatable" class="display" style="width:100%">
-									<thead>
-										<tr>
-											<th><input type="checkbox" id="all-row-chk" class='all-row-chk'/></th>	
-											<th>Type</th>
-											<th>Name</th>
-											<th>Last Modified By</th>
-											<th>Last Modified Date</th>
-										</tr>
-									</thead>
-								</table>
-								<div>
-									<button type="button" style="padding: 7px; width: 75px;" id="export" disabled>Export</button>
-								</div>
-							</div>
-							<div id="selected">
-								<table id="selecteddatatable" class="display" style="width:100%">
-									<thead>
-										<tr>	
-											<th></th>	
-											<th>Type</th>
-											<th>Name</th>
-											<th>Last Modified By</th>
-											<th>Last Modified Date</th>
-										</tr>
-									</thead>
-								</table>
-								<div>
-									<button type="button" style="padding: 7px; width: 75px;" id="exportselected" disabled>Export</button>
-								</div>
-							</div>
-						</div>							
+						</div>
 					</div>
 					<div id="preview" style="display:none">
 						<div style="display:flex;">
@@ -745,6 +793,7 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 								<button type="button" style="padding: 7px; width: 75px;margin-top:22px;" id="previous">Back</button>							
 							</div>	
 						</div>
+						<p style="color:#f14c4c;margin-bottom:0;margin-top:5px;" id="previewerrors"></p>
 						<div id="deploystatus">
 							<p><span id="deploylabel">Deployment Status:</span> &nbsp;&nbsp; 
 								<a href="#" id="quick-deploy" style="display:none">Quick Deploy</a>
