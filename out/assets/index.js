@@ -1,63 +1,80 @@
 $(document).ready(function () {
     const vscode = acquireVsCodeApi();
         
-    const requestUserData = () => {
+    const loadOrgs = () => {
         vscode.postMessage({ command: 'getAuthOrgs' });
     };
 
-    requestUserData();
+    loadOrgs();
 
-    let types = [];
-    let foldertypes = [];
-    let orgs = [];
-    let selectedTypes = [];
+    $("#selectiontabs").tabs();
+    $("#selectiontabs").hide();
+    $("#previewtabs").tabs();
+
+    let orgs = [];    
+    let types = [];    
+    let selectedTypes = new Set();
     let testClasses = '';
     
     let componentsMap = new Map();  
     let selectedComps = new Map(); 
-    let selections = new Map();  
-    let selectionsComps = [];
-    
-    let refreshComps = [];   
-    let sobjectsMap = new Map(); 
+    let snapshots = new Map();
+    let stdFieldsMap = new Map(); 
 
     window.addEventListener('message', (event) => {
         if(event.data.command === 'orgsList') {
-            orgs = event.data.orgs; 
+            orgs = event.data.orgs;
             $("#source-org").show();
-            $("#overlay").hide();
+            $("#spinner").hide();
+            $("#source-org-refresh").hide();	
             loadSourceOrgs();
         } else if(event.data.command === 'loading') {
             $(".spinnerlabel").text(event.data.message);       
+        } else if(event.data.command === 'error') {
+            if(event.data.message.indexOf('INVALID_SESSION_ID') !== -1 && event.data.source === 'sourceorg') {
+                $("#errors").text('Session has expired. Please refresh the orgs and try again.'); 	
+                $("#source-org-refresh").show();				
+            }    
+            $("#spinner").hide();
         } else if(event.data.command === 'components') {
             componentsMap.set(event.data.type, event.data.components);              
-        } else if(event.data.command === 'standardfields') { 
-            sobjectsMap.set(event.data.name, event.data.fields);
+        } else if(event.data.command === 'stdFields') { 
+            stdFieldsMap.set(event.data.name, event.data.fields);
         } else if(event.data.command === 'typesComponents') {
-            if(sobjectsMap.size > 0) {
+            if(stdFieldsMap.size > 0) {
                 componentsMap.keys().forEach(function(type) {
                     if(type === 'CustomField') {
-                        const sobjectsfields = Array.from(sobjectsMap.values()).flat();
-                        /*let fields = componentsMap.get(type).filter(e => sobjectsfields.indexOf(e.name) >= 0);
-    
-                        const existingfields = new Set(fields.map((obj) => obj.name));
-                        const standardfields = sobjectsfields.filter((str) => !existingfields.has(str));*/
-                        sobjectsfields.forEach((name) => {
+                        const stdFields = Array.from(stdFieldsMap.values()).flat();
+                        stdFields.forEach((name) => {
                             componentsMap.get(type).push({ name, type:'CustomField', lastModifiedByName:'', lastModifiedDate:'' });
                         });
                     }             
                 });
-            }            
-            $("#overlay").hide();    
-            $("#actions").show();            
-            $('#compsdatatable').DataTable().clear().rows.add(Array.from(componentsMap.values()).flat()).draw();
+            }  
+            componentsMap.keys().forEach((name) => {
+                types.push({name, hidden: false, count: componentsMap.get(name).length});
+                selectedTypes.add(name);
+            });
+            types.sort((a, b) => a.name.localeCompare(b.name));
+            refreshTypes();    
+            $("#spinner").hide();    
+            $("#actions").show();
+            $('#selectiontabs').show();        
+            refreshComponents();
+            refreshSnapshots(event.data.snapshots);
         } else if(event.data.command === 'deployStatus') {
             updateDeploymentStatus(event.data.result);
         } else if(event.data.command === 'compareResults') {
-            $("#overlay").hide();
+            $("#spinner").hide();
             console.log(event.data.files);
             loadCompareResults(event.data.files);
         } 
+    });
+
+    $("#source-org-reload").on('click', function (e) {
+        $("#spinner").show();   
+        $(".spinnerlabel").text("Refreshing Orgs");
+        vscode.postMessage({ command: 'getAuthOrgs' });
     });
 
     function loadSourceOrgs() {
@@ -70,32 +87,25 @@ $(document).ready(function () {
 
     $('#source-org-field').on("change", function(e){
         types = [];
-        selectedTypes = [];
-        componentsMap = new Map();
-        selectedComps = new Map();
-        $('.dd-options ui').empty();
-        $('.dd-text-field').val('');
-        $('.dd-select-all').prop('checked', false);
-        $('.dd-text-field').attr("placeholder", 'No Types selected');   
-        $('.available').text('Available (0)');   
-        $('#compsdatatable').DataTable().clear().rows.add([]).draw();
-        $('#next').prop('disabled', true);
-        $('#add-selection').hide();
-        $('#save-selection').hide();
-        $('#packagexml').prop('disabled', true);
-        $('#errors').text('');
+        selectedTypes.clear();
+        componentsMap.clear();
+        selectedComps.clear();
+        snapshots.clear();
+        stdFieldsMap.clear();
+
+        refreshTypes();  
+        refreshComponents();
+
         $('.selected').text('Selected (0)');
         $('#selecteddatatable').DataTable().clear().draw(); 
-        if($('.all-row-chk').is(':checked')) {
-            $('.all-row-chk').prop('checked', false);
-        }
-        $('#export').prop('disabled', true);
         $('#exportselected').prop('disabled', true);
 
-        $("#actions").hide(); 
+        $("#actions").hide();
+        $("#errors").text('');
+        $('#selectiontabs').hide();
         if($('#source-org-field').val() !== '') {
             vscode.postMessage({ command: 'loadTypesComponents', sourceOrgId: $(this).val()});
-            $("#overlay").show();   
+            $("#spinner").show();   
             $(".spinnerlabel").text("Refreshing Components");
     
             $('#dest-org-field').empty();
@@ -108,9 +118,6 @@ $(document).ready(function () {
             $("#deploystatus").hide();
         }       
     });
-
-    $("#tabs").tabs();
-    $("#previewtabs").tabs();
 
     $('#compsdatatable').DataTable({
         paging: true,
@@ -201,7 +208,7 @@ $(document).ready(function () {
         types.forEach(function(type) {
             type.hidden = txt !== '' ? !type.name.toLowerCase().startsWith(txt) : false;           
         });
-        refreshTypes(false);
+        refreshTypes();
     });
 
     $('.dd-option-box').on('click', function (e) {
@@ -211,32 +218,16 @@ $(document).ready(function () {
     //'All' checkbox
     $(document).on('change', '.dd-select-all', function() {
         $(".spinnerlabel").text("Refreshing Components");
-        $("#overlay").show();
+        $("#spinner").show();
         if ($(this).is(':checked')) {
-            let apiCallSent = false;
-            let needRefresh = false;
             $('.dd-option-chk').each(function(indx, chxbox) {
                 if(!$(chxbox).prop('checked')) {
                     $(chxbox).prop('checked', true);
                     $(chxbox).parent().parent().css("background",'#0078D7');
                     const selectedValue = $(chxbox).val();
-                    selectedTypes.push(selectedValue);
-                    if(!componentsMap.has(selectedValue)) {
-                        vscode.postMessage({ command: 'loadComponents', type:selectedValue, isFolder:foldertypes.indexOf(selectedValue)>=0, 
-                            sourceOrgId: $('#source-org-field').val()});
-                        refreshComps.push(selectedValue);
-                        refreshCompsCount = refreshComps.length;
-                        apiCallSent = true;
-                    } else {
-                        needRefresh = true;
-                    }
+                    selectedTypes.add(selectedValue);
                 }                
-            });   
-            if(!apiCallSent && needRefresh) {
-                refreshComponents();
-                $("#overlay").hide();
-            }            
-            $('.dd-text-field').attr("placeholder", selectedTypes.length+' Type(s) selected');  
+            });
         } else {
             $('.dd-option-chk').each(function(indx, chxbox) {
                 if($(chxbox).prop('checked')) {
@@ -244,47 +235,25 @@ $(document).ready(function () {
                     $(chxbox).parent().parent().css("background",'');
                 }                
             });  
-            selectedTypes = [];
-            refreshComponents();
-            $('.dd-text-field').attr("placeholder", '0 Type(s) selected');  
-            $("#overlay").hide();
-        }  
-        /*if(selectedTypes.indexOf('CustomMetadata') >= 0) {
-            $("#errors").text('Few Types (Custom Metadata, ) audit fields are returned incorrect values, So date filter cannot be applied.');    
-        } else {
-            $("#errors").text('');    
-        }*/      
+            selectedTypes.clear();
+        }
+        refreshComponents();
+        $('.dd-text-field').attr("placeholder", selectedTypes.size+' Type(s) selected');  
+        $("#spinner").hide();  
     });
 
     //Type checkbox
     $(document).on('change', '.dd-option-chk', function() {
         if ($(this).is(':checked')) {
             $(this).parent().parent().css("background",'#0078D7');
-            const selectedValue = $(this).val();
-            selectedTypes.push(selectedValue);
-            if(componentsMap.has(selectedValue)) {
-                refreshComponents();
-            } else {
-                vscode.postMessage({ command: 'loadComponents', type:selectedValue, isFolder:foldertypes.indexOf(selectedValue)>=0, 
-                        sourceOrgId: $('#source-org-field').val()});
-                refreshComps.push(selectedValue);
-                $("#overlay").show();
-                $(".spinnerlabel").text("Refreshing Components");
-            }            
+            selectedTypes.add($(this).val());           
         } else {
             $(this).parent().parent().css("background",'');
-            const selectedValue = $(this).val();
-            selectedTypes = $.grep(selectedTypes, function(type) {
-                return type !== selectedValue;
-            });
-            refreshComponents();
-        } 
-        /*if(selectedTypes.indexOf('CustomMetadata') >= 0) {
-            $("#errors").text('Custom Metadata audit fields are returned incorrect values, So date filter cannot be applied.');    
-        } else {
-            $("#errors").text('');    
-        }*/
-        $('.dd-text-field').attr("placeholder", selectedTypes.length+ ' Type(s) selected');      
+            selectedTypes.delete($(this).val());
+        }        
+        refreshComponents();
+        $('.dd-select-all').prop('checked', selectedTypes.size === types.length);
+        $('.dd-text-field').attr("placeholder", selectedTypes.size+ ' Type(s) selected');      
     });
 
 	$("body").on("click",function(e){
@@ -304,169 +273,100 @@ $(document).ready(function () {
        }
     });
 
-    function refreshTypes(init) {
+    function refreshTypes() {
         $('.dd-options ui').empty();
         var visibleTypesCount = 0;
         types.forEach(function(type) {
             if(!type.hidden) {
                 visibleTypesCount++;
                 $('.dd-options ui').append(`
-                    <li class="dd-option" ${(selectedTypes.indexOf(type.name) >= 0) ? "style='background:#0078D7'" : ""}>
+                    <li class="dd-option" ${(selectedTypes.has(type.name)) ? "style='background:#0078D7'" : ""}>
                         <div>
                             <input type="checkbox" value=${type.name} id=${type.name} class="dd-option-chk" 
-                                    ${(init && type.isFavorite) || (selectedTypes.indexOf(type.name) >= 0) ? "checked" : ""}>
-                            <label class="dd-option-lbl" for=${type.name}>${type.name}</label>
+                                    ${selectedTypes.has(type.name)? "checked" : ""}>
+                            <label class="dd-option-lbl" for=${type.name}>${type.name} (${type.count})</label>
                         </div>
                     </li>
                 `);
             }
         }); 
-        $('.dd-text-field').attr("placeholder", selectedTypes.length+ ' Type(s) selected');
-        if(visibleTypesCount > 5) {
+        $('.dd-text-field').attr("placeholder", selectedTypes.size+ ' Type(s) selected');
+        if(types.length === visibleTypesCount) {
             $('#select-all-div').show();
-            if(selectedTypes.length === visibleTypesCount) {
-                $('.dd-select-all').prop('checked', true);
-            } else {
-                $('.dd-select-all').prop('checked', false);
-            }
+            $('.dd-select-all').prop('checked', selectedTypes.size === types.length);
         } else {
             $('#select-all-div').hide();
         }        
     }
 
-    function refreshSelections(sel) {
-        $('#selection-list').empty();
-        $('#selection-list').append($("<option>").val('').text(''));
+    function refreshSnapshots(sel) {
+        $('#snapshot-list').empty();
+        $('#snapshot-list').append($("<option>").val('').text(''));
         sel.forEach((s) => {
-            $('#selection-list').append($("<option>").val(s.name).text(s.name));
-            selections.set(s.name, s);
+            $('#snapshot-list').append($("<option>").val(s.name).text(s.name));
+            snapshots.set(s.name, s);
         });
     }
 
     function refreshComponents() {
-        const date = new Date( $(".date-field").val());
         let components = [];
         selectedTypes.forEach(function(type) {
             if(componentsMap.has(type)) {
                 components = [...components, ...componentsMap.get(type)];
             }
         }); 
-        components = components.filter(cmp => (cmp.lastModifiedDate === '' || new Date(cmp.lastModifiedDate).getTime() >= date.getTime()) && 
-                ($(".state-field").val() === 'all' ? true : cmp.manageableState === $(".state-field").val()));
         $('#compsdatatable').DataTable().clear().rows.add(components).draw();
         $('.available').text('Available ('+components.length+')');
-        if($('.all-row-chk').is(':checked')) {
-            $('.all-row-chk').prop('checked', false);
-        }  
+        $('.all-row-chk').prop('checked', false);
         $('#export').prop('disabled', components.length === 0);     
     }
 
     $(document).on('change', '.row-chk', function() {
         let val = $(this).val();
         if ($(this).is(':checked')) {
-            selectedComps.set(val, $('#compsdatatable').DataTable().row($(this).closest('tr')).data());  
-            $(this).parent().parent().css('background', '#64b7ff');       
+            selectedComps.set(val, $('#compsdatatable').DataTable().row($(this).closest('tr')).data());       
         } else {
             selectedComps.delete(val);
-            $(this).parent().parent().css('background', '');
-            if($('.all-row-chk').is(':checked')) {
-                $('.all-row-chk').prop('checked', false);
-            }
         } 
-        $('.selected').text('Selected ('+selectedComps.size+')');
-        $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
-        if(selectedComps.size > 0) {
-            $('#next').prop('disabled', false);
-            $('#packagexml').prop('disabled', false);
-            $('#exportselected').prop('disabled', false); 
-            $('#add-selection').show();
-            $('#save-selection').show();
-        } else {
-            $('#next').prop('disabled', true);
-            $('#packagexml').prop('disabled', true);
-            $('#exportselected').prop('disabled', true); 
-            $('#add-selection').hide();
-            $('#save-selection').hide();
-        }
-        $("#deploystatus").hide();
-        $('.deployerrors').text('Deployment Errors (0)');
-        $('.testcoverages').text('Test Coverage (0)');
-        $('#errortable').DataTable().clear().draw(); 
-        $('.testfailures').text('Test Class Failures (0)');
-        $('#testerrortable').DataTable().clear().draw(); 
+        refreshSelection();
     });
 
     $(document).on('change', '.delete-row-chk', function() {
         if (!$(this).is(':checked')) {
-            selectedComps.delete($(this).val()); 
-            $('.row-chk').each(function(indx, chxbox) {
-                if($(chxbox).val() === $(this).val()) {
-                    $(chxbox).prop('checked', false);                    
-                    $(chxbox).parent().parent().css('background', '');
-                }                
-            }); 
+            selectedComps.delete($(this).val());
         }
-        if($('.all-row-chk').is(':checked')) {
-            $('.all-row-chk').prop('checked', false);
-        }
-        $('.selected').text('Selected ('+selectedComps.size+')');
-        $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
-        if(selectedComps.size === 0) {
-            $('#next').prop('disabled', true);
-            $('#packagexml').prop('disabled', true);
-            $('#exportselected').prop('disabled', true); 
-            $('#add-selection').hide();
-            $('#save-selection').hide();
-        }
-        $("#deploystatus").hide();
-        $('.deployerrors').text('Deployment Errors (0)');
-        $('.testcoverages').text('Test Coverage (0)');
-        $('#errortable').DataTable().clear().draw(); 
-        $('.testfailures').text('Test Class Failures (0)');
-        $('#testerrortable').DataTable().clear().draw(); 
+        refreshSelection();
     });
 
     $('.all-row-chk').on('change', function() {
         if ($(this).is(':checked')) {
-            $('.row-chk').each(function(indx, chxbox) {
-                if(!$(chxbox).prop('checked')) {
-                    $(chxbox).prop('checked', true);
-                    selectedComps.set($(chxbox).val(), $('#compsdatatable').DataTable().row($(chxbox).closest('tr')).data());  
-                    $(chxbox).parent().parent().css('background', '#64b7ff');    
-                }                
+            $('#compsdatatable').DataTable().data().each(e => {
+                selectedComps.set(e.type+"."+e.name, e);  
             });
-            //To Make Check components from all pages 
-            const date = new Date($(".date-field").val());
-            let components = [];
-            componentsMap.keys().forEach(function(type) {
-                components = [...components, ...componentsMap.get(type)];
-            }); 
-            components.forEach(e => {
-                if((e.lastModifiedDate === '' || new Date(e.lastModifiedDate).getTime() >= date.getTime()) 
-                                    &&  ($(".state-field").val() === 'all' ? true : e.manageableState === $(".state-field").val())) {
-                    selectedComps.set(e.type+"."+e.name, e);  
-                }
-            });
-
-            $('#next').prop('disabled', false);
-            $('#packagexml').prop('disabled', false);  
-            $('#exportselected').prop('disabled', false); 
-            $('#add-selection').show();
-            $('#save-selection').show();
         } else {
             selectedComps = new Map();
-            $('.row-chk').each(function(indx, chxbox) {
-                if($(chxbox).prop('checked')) {
-                    $(chxbox).prop('checked', false);                    
-                    $(chxbox).parent().parent().css('background', '');
-                }                
-            }); 
-            $('#next').prop('disabled', true);
-            $('#packagexml').prop('disabled', true);
-            $('#exportselected').prop('disabled', true); 
-            $('#add-selection').hide();
-            $('#save-selection').hide();
         }   
+        refreshSelection();
+    });
+
+    function refreshSelection() {
+        if(selectedComps.size === 0) {            
+            $('#add-snapshot').hide();
+            $('#save-snapshot').hide();
+        } else {
+            $('#add-snapshot').show();
+            $('#save-snapshot').show();
+        }
+        $('.row-chk').each(function(indx, chxbox) {
+            $(chxbox).prop('checked', selectedComps.has($(chxbox).val()));
+            $(chxbox).parent().parent().css('background', selectedComps.has($(chxbox).val()) ? '#64b7ff' : '');                
+        });
+
+        $('.all-row-chk').prop('checked', $('#compsdatatable').DataTable().data().length === selectedComps.size);
+        $('#next').prop('disabled', selectedComps.size === 0);
+        $('#packagexml').prop('disabled', selectedComps.size === 0);
+        $('#exportselected').prop('disabled', selectedComps.size === 0); 
+
         $('.selected').text('Selected ('+selectedComps.size+')');   
         $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw();  
         $("#deploystatus").hide();
@@ -475,7 +375,7 @@ $(document).ready(function () {
         $('#errortable').DataTable().clear().draw(); 
         $('.testfailures').text('Test Class Failures (0)');
         $('#testerrortable').DataTable().clear().draw(); 
-    });
+    }
 
     $('#previewtable').DataTable({
         paging: true,
@@ -510,11 +410,28 @@ $(document).ready(function () {
         ],
     });
 
+    $('#packagexml').on('click', function (e) {
+        let packagexml = getPackageXml();
+        navigator.clipboard.writeText( `<?xml version="1.0" encoding="UTF-8"?>\n<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n${packagexml}\t<version>62.0</version>\n</Package>`);
+        vscode.postMessage({ command: 'toastMessage', message: 'Package.xml copied to clipboard'});
+    });
+
+    $('#export').on('click', function (e) {
+        let components = [['Type','Name','Last Modified By','Last Modified Date']];
+        Array.from(componentsMap.values()).flat().forEach(e => {
+            components.push([e.type, e.name, e.lastModifiedByName, e.lastModifiedDate]);
+        });
+        navigator.clipboard.writeText(components.map(e => e.join(",")).join("\n"));
+        vscode.postMessage({ command: 'toastMessage', message: 'CSV content copied to clipboard'});
+    });
+
+
     $('#next').on('click', function (e) {        
         if(orgs.length === 1) {
             $("#errors").text('There are no destination orgs available to deploy.');    
         } else {
             $("#actions").hide();
+            $('#selectiontabs').hide();
             $("#source-org").hide();
             $("#preview").show();
             $('.preview').text('Selected ('+selectedComps.size+')');            
@@ -527,25 +444,11 @@ $(document).ready(function () {
         }
     });
 
-    $('#packagexml').on('click', function (e) {
-        let packagexml = getPackageXml();
-        navigator.clipboard.writeText( `<?xml version="1.0" encoding="UTF-8"?>\n<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n${packagexml}\t<version>62.0</version>\n</Package>`);
-        vscode.postMessage({ command: 'toastMessage', message: 'Package.xml copied to clipboard'});
-    });
-
-    $('#export').on('click', function (e) {
-        const date = new Date($(".date-field").val());
-        let components = [['Type','Name','Last Modified By','Last Modified Date']];
-        componentsMap.keys().forEach(function(type) {
-            componentsMap.get(type).forEach(e => {
-                if((e.lastModifiedDate === '' || new Date(e.lastModifiedDate).getTime() >= date.getTime()) 
-                                    &&  ($(".state-field").val() === 'all' ? true : e.manageableState === $(".state-field").val())) {
-                    components.push([e.type, e.name, e.lastModifiedByName, e.lastModifiedDate]);
-                }
-            });
-        }); 
-        navigator.clipboard.writeText(components.map(e => e.join(",")).join("\n"));
-        vscode.postMessage({ command: 'toastMessage', message: 'CSV content copied to clipboard'});
+    $('#previous').on('click', function (e) {
+        $("#actions").show();        
+        $('#selectiontabs').show();
+        $("#source-org").show();
+        $("#preview").hide();
     });
 
     $('#exportselected').on('click', function (e) {
@@ -555,12 +458,6 @@ $(document).ready(function () {
         });
         navigator.clipboard.writeText(components.map(e => e.join(",")).join("\n"));
         vscode.postMessage({ command: 'toastMessage', message: 'CSV content copied to clipboard'});
-    });
-
-    $('#previous').on('click', function (e) {
-        $("#actions").show();
-        $("#source-org").show();
-        $("#preview").hide();
     });
 
     $('#dest-org-field').on("change", function(e){
@@ -862,7 +759,7 @@ $(document).ready(function () {
 
     $("#compare").on('click', function (e) {
         $(".spinnerlabel").text("Comparing");
-        $("#overlay").show();
+        $("#spinner").show();
         let packagexml = getPackageXml();
         vscode.postMessage({ command: 'compare', sourceOrgId: $('#source-org-field').val(), 
             packagexml:packagexml, destOrgId: $("#dest-org-field").val()});  
@@ -909,113 +806,68 @@ $(document).ready(function () {
         $('#previewtable').DataTable().clear().rows.add(Array.from(selectedComps.values())).order([[4, 'desc'],[0, 'asc'],[1, 'asc']]).draw();
     }
 
-    $("#selection-list").on('change', function (e) {
-        $(".spinnerlabel").text("Loading Selection");
-        $("#overlay").show();
-        $("#delete-selection").show();
-        $("#add-selection").show();
+    $("#snapshot-list").on('change', function (e) {
+        $("#delete-snapshot").show();
+        $("#add-snapshot").show();
 
-        if($("#selection-list").val() === '') {
+        if($("#snapshot-list").val() === '') {
             return;
         }
 
-        var selection = selections.get($("#selection-list").val());
-        $(".date-field").val(selection.date);
+        var snapshot = snapshots.get($("#snapshot-list").val());
         selectedComps = new Map(); 
-        selectedTypes = [];
-        if($('#source-org-field').val() !== selection.orgId) {
-            $('#source-org-field').val(selection.orgId);
-            componentsMap = new Map();
-        }
-        selection.components.forEach(comp => {
-            if(selectedTypes.indexOf(comp.split('.')[0]) < 0) {
-                selectedTypes = [...selectedTypes, comp.split('.')[0]];
-            }            
-            selectionsComps.push(comp);
+        selectedTypes.clear();
+        let tmp = new Set();
+        snapshot.components.forEach(comp => {
+            selectedTypes.add(comp.split('.')[0]);       
+            tmp.add(comp);
         });
-
-        let apiCallSent = false;
-        let needRefresh = false;
-        $('.dd-option-chk').each(function(indx, chxbox) {
-            $(chxbox).prop('checked', false);     
-            $(chxbox).parent().parent().css("background",'');        
-        });   
-        $('.dd-option-chk').each(function(indx, chxbox) {
-            if(selectedTypes.indexOf($(chxbox).val()) >= 0) {
-                $(chxbox).prop('checked', true);
-                $(chxbox).parent().parent().css("background",'#0078D7');
-                const selectedValue = $(chxbox).val();
-                if(!componentsMap.has(selectedValue)) {
-                    vscode.postMessage({ command: 'loadComponents', type:selectedValue, isFolder:foldertypes.indexOf(selectedValue)>=0, 
-                        sourceOrgId: $('#source-org-field').val()});
-                    refreshComps.push(selectedValue);
-                    apiCallSent = true;
-                } else {
-                    componentsMap.get(selectedValue).forEach(cmp => {
-                        if(selectionsComps.indexOf(cmp.type+"."+cmp.name) >= 0) {
-                            selectedComps.set(cmp.type+"."+cmp.name, cmp);
-                        }
-                    });
-                    needRefresh = true;
+        selectedTypes.forEach(type => {
+            componentsMap.get(type).forEach(cmp => {
+                if(tmp.has(cmp.type+"."+cmp.name)) {
+                    selectedComps.set(cmp.type+"."+cmp.name, cmp);
                 }
-            }                
-        });   
-        if(!apiCallSent && needRefresh) {
-            refreshComponents();
-            $('.selected').text('Selected ('+selectedComps.size+')');
-            $('#next').prop('disabled', false);
-            $('#packagexml').prop('disabled', false);
-            $('#exportselected').prop('disabled', false); 
-            $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
-            $("#overlay").hide();
-        }            
-        $('.dd-text-field').attr("placeholder", selectedTypes.length+' Type(s) selected');  
-    });
-
-    $("#add-selection").on('click', function (e) {
-        $("#selection-form").show();
-        $("#selection-view").hide();
-    });
-
-    $("#delete-selection").on('click', function (e) {
-        selections.delete($("#selection-list").val());
-        var allselections = selections.values();
-        refreshSelections(selections);
-        $("#delete-selection").hide();
-        vscode.postMessage({ command: 'updateSelections', data: allselections}); 
-        $("#selection-form").hide();
-        $("#selection-view").show();
-    });
-
-    $("#close-selection").on('click', function (e) {
-        $("#selection-form").hide();
-        $("#selection-view").show();
-    });
-
-    $("#save-selection").on('click', function (e) {
-        if($("#selection-name").val().trim() === '' || selections.has($("#selection-name").val().trim())) {
-            $('#selection-name').css('border' ,'1px solid #f00');
-        } else {
-            var allselections = selections.values();
-            var comps = [];
-            Array.from(selectedComps.values()).forEach(comp => {
-                comps.push(comp.type+"."+comp.name);
             });
+        });
+        refreshTypes();
+        refreshComponents();
+        refreshSelection();
+    });
 
-            var sel = {
-                name: $("#selection-name").val().trim(), 
-                orgId: $('#source-org-field').val(),
-                date: $(".date-field").val(),
-                components:comps
-            };
-            allselections = [...allselections, sel];
-            selections.set(sel.name, sel);
-            refreshSelections(selections);
-            $("#selection-list").val(sel.name);
-            $("#delete-selection").show();
-            vscode.postMessage({ command: 'updateSelections', data: allselections}); 
-            $("#selection-form").hide();
-            $("#selection-view").show();
+    $("#add-snapshot").on('click', function (e) {
+        $("#snapshot-form").show();
+        $("#snapshot-view").hide();
+    });
+
+    $("#delete-snapshot").on('click', function (e) {
+        snapshots.delete($("#snapshot-list").val());
+        var allsnapshots = snapshots.values();
+        refreshSnapshots(allsnapshots);
+        $("#delete-snapshot").hide();
+        vscode.postMessage({ command: 'updateSnapshot', data: allsnapshots}); 
+        $("#snapshot-form").hide();
+        $("#snapshot-view").show();
+    });
+
+    $("#close-snapshot").on('click', function (e) {
+        $("#snapshot-form").hide();
+        $("#snapshot-view").show();
+    });
+
+    $("#save-snapshot").on('click', function (e) {
+        if($("#snapshot-name").val().trim() === '' || snapshots.has($("#snapshot-name").val().trim())) {
+            $('#snapshot-name').css('border' ,'1px solid #f00');
+        } else {
+            var allsnapshots = snapshots.values();
+            var sel = { name: $("#snapshot-name").val().trim(),  components:selectedComps.keys()};
+            allsnapshots = [...allsnapshots, sel];
+            snapshots.set(sel.name, sel);
+            refreshSnapshots(snapshots);            
+            vscode.postMessage({ command: 'updateSnapshot', data: allsnapshots}); 
+            $("#snapshot-form").hide();
+            $("#snapshot-view").show();
+            $("#snapshot-list").val(sel.name);
+            $("#delete-snapshot").show();
         }
     });
 });

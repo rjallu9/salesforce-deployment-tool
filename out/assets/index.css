@@ -32,11 +32,6 @@
 .dd-option:hover {
     background-color: #f7f5f4;
 }
-.dd-option-fav {
-    margin-left: auto;
-    font-size: medium;
-    cursor: pointer;
-}
 .progress-label {
     position: absolute;
     width: 100%;
@@ -155,7 +150,7 @@ label {
     margin-left: 1rem;
     margin-right: 1rem;
 }
-#overlay{	
+#spinner{	
     position: fixed;
     top: 0;
     z-index: 100;
