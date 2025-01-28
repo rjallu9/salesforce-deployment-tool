@@ -7,8 +7,7 @@ $(document).ready(function () {
 
     loadOrgs();
 
-    $("#selectiontabs").tabs();
-    $("#selectiontabs").hide();
+    $("#tabs").tabs();
     $("#previewtabs").tabs();
 
     let orgs = [];    
@@ -29,12 +28,6 @@ $(document).ready(function () {
             loadSourceOrgs();
         } else if(event.data.command === 'loading') {
             $(".spinnerlabel").text(event.data.message);       
-        } else if(event.data.command === 'error') {
-            if(event.data.message.indexOf('INVALID_SESSION_ID') !== -1 && event.data.source === 'sourceorg') {
-                $("#errors").text('Session has expired. Please refresh the orgs and try again.'); 	
-                $("#source-org-refresh").show();				
-            }    
-            $("#spinner").hide();
         } else if(event.data.command === 'components') {
             componentsMap.set(event.data.type, event.data.components);              
         } else if(event.data.command === 'stdFields') { 
@@ -57,8 +50,7 @@ $(document).ready(function () {
             types.sort((a, b) => a.name.localeCompare(b.name));
             refreshTypes();    
             $("#spinner").hide();    
-            $("#actions").show();
-            $('#selectiontabs').show();        
+            $("#actions").show();      
             refreshComponents();
             refreshSnapshots(event.data.snapshots);
         } else if(event.data.command === 'deployStatus') {
@@ -68,14 +60,6 @@ $(document).ready(function () {
             console.log(event.data.files);
             loadCompareResults(event.data.files);
         } 
-    });
-
-    $("#source-org-reload").on('click', function (e) {
-        $("#spinner").show();   
-        $(".spinnerlabel").text("Refreshing Orgs");
-        $("#errors").text(''); 	
-        $("#source-org-refresh").hide();
-        vscode.postMessage({ command: 'getAuthOrgs' });
     });
 
     function loadSourceOrgs() {
@@ -103,7 +87,6 @@ $(document).ready(function () {
 
         $("#actions").hide();
         $("#errors").text('');
-        $('#selectiontabs').hide();
         if($('#source-org-field').val() !== '') {
             vscode.postMessage({ command: 'loadTypesComponents', sourceOrgId: $(this).val()});
             $("#spinner").show();   
@@ -431,8 +414,7 @@ $(document).ready(function () {
         if(orgs.length === 1) {
             $("#errors").text('There are no destination orgs available to deploy.');    
         } else {
-            $("#actions").hide();
-            $('#selectiontabs').hide();
+            $("#actions").hide();            
             $("#source-org").hide();
             $("#preview").show();
             $('.preview').text('Selected ('+selectedComps.size+')');            
@@ -446,8 +428,7 @@ $(document).ready(function () {
     });
 
     $('#previous').on('click', function (e) {
-        $("#actions").show();        
-        $('#selectiontabs').show();
+        $("#actions").show();      
         $("#source-org").show();
         $("#preview").hide();
     });
