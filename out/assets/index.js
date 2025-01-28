@@ -33,10 +33,16 @@ $(document).ready(function () {
             $("#errors").text(event.data.message);   
             $("#spinner").hide();
         } else if(event.data.command === 'previewerror') {
-            $("#previewerrors").text(event.data.message);   
+            $("#previewerrors").text(event.data.message);  
+            $("#deploystatus").hide(); 
+            $("#progressbar").hide();
+            $("#deploy-buttons").show();
+            $("#dest-org-field").prop('disabled', false);
+            $("#previous").prop('disabled', false);
+            $("#cancel-deploy").hide(); 
             $("#spinner").hide();
         } else if(event.data.command === 'components') {
-            componentsMap.set(event.data.type, event.data.components);              
+            componentsMap.set(event.data.type, event.data.components);                         
         } else if(event.data.command === 'stdFields') { 
             stdFieldsMap.set(event.data.name, event.data.fields);
         } else if(event.data.command === 'typesComponents') {
@@ -58,7 +64,9 @@ $(document).ready(function () {
             refreshTypes();    
             $("#spinner").hide();    
             $("#actions").show();
-            $('#selectiontabs').show();        
+            $('#selectiontabs').show();    
+            $("#refresh-lbl").show(); 
+            $("#refreshlabel").text('Last Refresh Date: '+event.data.timestamp);   
             refreshComponents();
             refreshSnapshots(event.data.snapshots);
         } else if(event.data.command === 'deployStatus') {
@@ -97,7 +105,7 @@ $(document).ready(function () {
         $("#errors").text('');
         $('#selectiontabs').hide();
         if($('#source-org-field').val() !== '') {
-            vscode.postMessage({ command: 'loadTypesComponents', sourceOrgId: $(this).val()});
+            vscode.postMessage({ command: 'loadTypesComponents', sourceOrgId: $(this).val(), refresh:false});
             $("#spinner").show();   
             $(".spinnerlabel").text("Refreshing Components");
     
@@ -110,6 +118,12 @@ $(document).ready(function () {
             });
             $("#deploystatus").hide();
         }       
+    });
+
+    $("#hard-refresh").on('click', function (e) {
+        vscode.postMessage({ command: 'loadTypesComponents', sourceOrgId: $("#source-org-field").val(), refresh:true});
+        $("#spinner").show();   
+        $(".spinnerlabel").text("Refreshing Components");
     });
 
     $('#compsdatatable').DataTable({
@@ -524,6 +538,7 @@ $(document).ready(function () {
         $("#deploy-buttons").hide();
         $("#dest-org-field").prop('disabled', true);
         $("#previous").prop('disabled', true);
+        $("#previewerrors").text('');
 
         $('.path-list').empty();
         $('.path-list').append('<li class="path path-notstarted retrieve"><p>Retrieve</p><p style="width:0px;"><span/></p></li>');
@@ -751,6 +766,7 @@ $(document).ready(function () {
     });
 
     $("#compare").on('click', function (e) {
+        $("#previewerrors").text('');
         $(".spinnerlabel").text("Comparing");
         $("#spinner").show();
         let packagexml = getPackageXml();

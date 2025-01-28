@@ -56,16 +56,20 @@ export function activate(context: vscode.ExtensionContext) {
 								}
 
 								var metdataPath = path.join(context.globalStorageUri.fsPath+"/"+sourceOrg.orgId, 'metadata.json');
-								if (fs.existsSync(metdataPath)) {
+								if (fs.existsSync(metdataPath) && !message.refresh) {
 									const metadata = new Map(JSON.parse(fs.readFileSync(metdataPath, 'utf-8')));
+									const timestamp = metadata.get('Timestamp');
+									metadata.delete('Timestamp');
 									for (const [key, value] of metadata) {
 										panel.webview.postMessage({ command: 'components', components:value, type:key });								
 									}
-									panel.webview.postMessage({ command: 'typesComponents', components: '', snapshots:snapshots });
+									panel.webview.postMessage({ command: 'typesComponents', components: '', snapshots:snapshots, timestamp });
 								} else {
+									const now = new Date();
 									getTypesComponents(sourceOrg.accessToken, sourceOrg.instanceUrl, context.globalStorageUri.fsPath, panel)
 									.then((data:any) => {
-										panel.webview.postMessage({ command: 'typesComponents', components: data, snapshots:snapshots });
+										panel.webview.postMessage({ command: 'typesComponents', components: data, snapshots:snapshots, 
+											timestamp: `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`});
 										saveMetadata(data.components, data.sobjects, context.globalStorageUri.fsPath, sourceOrg.orgId);								
 									});
 								}	
@@ -283,7 +287,8 @@ function saveMetadata(metadata:any, sobjects:any, fsPath:string, orgId:string) {
 	Array.from(sobjects.values()).flat().forEach((name:any) => {
 		metadata.get('CustomField').push({ name, type:'CustomField', lastModifiedByName:'', lastModifiedDate:'' });
 	});
-
+	const now = new Date();
+	metadata.set('Timestamp', `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`);
 	const dir = path.dirname(fsPath+"/"+orgId+"/metadata.json");
 	if (!fs.existsSync(dir)) {
 		fs.mkdirSync(dir, { recursive: true });
@@ -743,6 +748,10 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 						</div>
 					</div>
 					<p style="color:#f14c4c;margin-bottom:0;margin-top:5px;" id="errors"></p>
+					<p id="refresh-lbl" style="display:none;">
+						<span id="refreshlabel">Last Refresh Date:</span>. &nbsp; 
+						Please click <a href="#" id="hard-refresh">here</a> to refresh.
+					</p>
 					<div id="selectiontabs" style="margin-top:10px;">
 						<ul>
 							<li class="tab" name="compsdatatable"><a href="#available" class="available">Available (0)</a></li>
