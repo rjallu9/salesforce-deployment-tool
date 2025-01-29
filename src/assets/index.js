@@ -817,11 +817,15 @@ $(document).ready(function () {
     }
 
     $("#snapshot-list").on('change', function (e) {
-        $("#delete-snapshot").show();
         $("#add-snapshot").show();
 
         if($("#snapshot-list").val() === '') {
+            $("#update-snapshot").hide();
+            $("#delete-snapshot").hide();        
             return;
+        } else {
+            $("#update-snapshot").show();
+            $("#delete-snapshot").show();  
         }
 
         var snapshot = snapshots.get($("#snapshot-list").val());
@@ -851,10 +855,10 @@ $(document).ready(function () {
 
     $("#delete-snapshot").on('click', function (e) {
         snapshots.delete($("#snapshot-list").val());
-        var allsnapshots = snapshots.values();
-        refreshSnapshots(allsnapshots);
-        $("#delete-snapshot").hide();
-        vscode.postMessage({ command: 'updateSnapshot', data: allsnapshots}); 
+        vscode.postMessage({ command: 'updateSnapshot', data: Array.from(snapshots.values()), orgId: $('#source-org-field').val()}); 
+        refreshSnapshots(snapshots.values());
+        $("#update-snapshot").hide();
+        $("#delete-snapshot").hide();        
         $("#snapshot-form").hide();
         $("#snapshot-view").show();
     });
@@ -864,20 +868,32 @@ $(document).ready(function () {
         $("#snapshot-view").show();
     });
 
+    $("#update-snapshot").on('click', function (e) {
+        snapshots.delete($("#snapshot-list").val());
+        var allsnapshots = snapshots.values();
+        var sel = { name: $("#snapshot-list").val(),  components:Array.from(selectedComps.keys())};
+        allsnapshots = [...allsnapshots, sel];
+        snapshots.set(sel.name, sel);
+        refreshSnapshots(snapshots);            
+        vscode.postMessage({ command: 'updateSnapshot', data: allsnapshots, orgId: $('#source-org-field').val()}); 
+        $("#snapshot-list").val(sel.name);
+    });
+
     $("#save-snapshot").on('click', function (e) {
         if($("#snapshot-name").val().trim() === '' || snapshots.has($("#snapshot-name").val().trim())) {
             $('#snapshot-name').css('border' ,'1px solid #f00');
         } else {
             var allsnapshots = snapshots.values();
-            var sel = { name: $("#snapshot-name").val().trim(),  components:selectedComps.keys()};
+            var sel = { name: $("#snapshot-name").val().trim(),  components:Array.from(selectedComps.keys())};
             allsnapshots = [...allsnapshots, sel];
             snapshots.set(sel.name, sel);
             refreshSnapshots(snapshots);            
-            vscode.postMessage({ command: 'updateSnapshot', data: allsnapshots}); 
+            vscode.postMessage({ command: 'updateSnapshot', data: allsnapshots, orgId: $('#source-org-field').val()}); 
             $("#snapshot-form").hide();
             $("#snapshot-view").show();
             $("#snapshot-list").val(sel.name);
             $("#delete-snapshot").show();
+            $("#update-snapshot").show();
         }
     });
 });

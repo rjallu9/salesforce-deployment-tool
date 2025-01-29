@@ -101,11 +101,11 @@ function activate(context) {
                     break;
                 case 'updateSnapshot':
                     if (message.data) {
-                        const dir = path.dirname(context.globalStorageUri.fsPath + "/snapshots.json");
+                        const dir = path.dirname(context.globalStorageUri.fsPath + "/" + message.orgId + "/snapshots.json");
                         if (!fs.existsSync(dir)) {
                             fs.mkdirSync(dir, { recursive: true });
                         }
-                        fs.writeFile(context.globalStorageUri.fsPath + "/snapshots.json", JSON.stringify(message.data, null, 2), 'utf8', (err) => {
+                        fs.writeFile(context.globalStorageUri.fsPath + "/" + message.orgId + "/snapshots.json", JSON.stringify(message.data, null, 2), 'utf8', (err) => {
                             if (err) {
                                 vscode.window.showErrorMessage(`Unable to update snapshots..!!`);
                             }
@@ -695,14 +695,20 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 											<select type="text" id="snapshot-list" style="height:33px;min-width:150px;">
 											</select>		
 										</div>
-										<p style="float: left;margin-bottom:0;margin-top: 4px;margin-right: 5px;display:none;cursor:pointer;" id="delete-snapshot">
+										<p title="Update Snapshot" style="float: left;margin-bottom:0;margin-top: 4px;margin-right: 5px;display:none;cursor:pointer;" id="update-snapshot">
+											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+												<circle cx="25" cy="25" r="24" fill="#2a6927" stroke="#2a6927" stroke-width="2"></circle>
+												<polyline points="15,25 22,32 35,18" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></polyline>
+											</svg>
+										</p>
+										<p title="Delete Snapshot" style="float: left;margin-bottom:0;margin-top: 4px;margin-right: 5px;display:none;cursor:pointer;" id="delete-snapshot">
 											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
 												<circle cx="25" cy="25" r="24" fill="#f14c4c" stroke="#f14c4c" stroke-width="2"></circle>
 												<line x1="17" y1="17" x2="33" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
 												<line x1="33" y1="17" x2="17" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
 											</svg>
 										</p>
-										<p style="float: left;margin-bottom:0;margin-top: 4px;cursor:pointer;display:none;" id="add-snapshot">
+										<p title="Add Snapshot" style="float: left;margin-bottom:0;margin-top: 4px;cursor:pointer;display:none;" id="add-snapshot">
 											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
 												<circle cx="25" cy="25" r="24" fill="#4daafc" stroke="#4daafc" stroke-width="2"></circle>
 												<line x1="25" y1="15" x2="25" y2="35" stroke="white" stroke-width="4" stroke-linecap="round"></line>
@@ -715,13 +721,13 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 											<label for="text" for="snapshot-name" class="top-label">Snapshot Name: </label>
 											<input type="text" id="snapshot-name" style="height:27px;"></input>			
 										</div>	
-										<p style="float: left;margin-bottom:0;margin-top: 4px;margin-right: 5px;cursor:pointer;" id="save-snapshot">
+										<p title="Save Snapshot" style="float: left;margin-bottom:0;margin-top: 4px;margin-right: 5px;cursor:pointer;" id="save-snapshot">
 											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
 												<circle cx="25" cy="25" r="24" fill="#2a6927" stroke="#2a6927" stroke-width="2"></circle>
 												<polyline points="15,25 22,32 35,18" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></polyline>
 											</svg>
 										</p>
-										<p style="float: left;margin-bottom:0;margin-top: 4px;margin-right: 5px;cursor:pointer;" id="close-snapshot">
+										<p title="Close Snapshot" style="float: left;margin-bottom:0;margin-top: 4px;margin-right: 5px;cursor:pointer;" id="close-snapshot">
 											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
 												<circle cx="25" cy="25" r="24" fill="#f14c4c" stroke="#f14c4c" stroke-width="2"></circle>
 												<line x1="17" y1="17" x2="33" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
@@ -735,8 +741,7 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 					</div>
 					<p style="color:#f14c4c;margin-bottom:0;margin-top:5px;" id="errors"></p>
 					<p id="refresh-lbl" style="display:none;">
-						<span id="refreshlabel">Last Refresh Date:</span>. &nbsp; 
-						Please click <a href="#" id="hard-refresh">here</a> to refresh.
+						<span id="refreshlabel">Last Refresh Date:</span>. Please click <a href="#" id="hard-refresh">here</a> to refresh.
 					</p>
 					<div id="selectiontabs" style="margin-top:10px;">
 						<ul>
