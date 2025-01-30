@@ -99,6 +99,7 @@ $(document).ready(function () {
 
         $('.selected').text('Selected (0)');
         $('#selecteddatatable').DataTable().clear().draw(); 
+        $('#deleteall-row-chk').prop('checked', false);
         $('#exportselected').prop('disabled', true);
 
         $("#actions").hide();
@@ -347,13 +348,20 @@ $(document).ready(function () {
         refreshSelection();
     });
 
+    $(document).on('change', '.deleteall-row-chk', function() {
+        if (!$(this).is(':checked')) {
+            selectedComps.clear();
+        }
+        refreshSelection();
+    });
+
     $('.all-row-chk').on('change', function() {
         if ($(this).is(':checked')) {
-            $('#compsdatatable').DataTable().data().each(e => {
+            $('#compsdatatable').DataTable().rows({ search: "applied" }).data().each(e => {
                 selectedComps.set(e.type+"."+e.name, e);  
             });
         } else {
-            selectedComps = new Map();
+            selectedComps.clear();
         }   
         refreshSelection();
     });
@@ -380,7 +388,8 @@ $(document).ready(function () {
         $('#exportselected').prop('disabled', selectedComps.size === 0); 
 
         $('.selected').text('Selected ('+selectedComps.size+')');   
-        $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw();  
+        $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
+        $('#deleteall-row-chk').prop('checked', selectedComps.size > 0);
         $("#deploystatus").hide();
         $('.deployerrors').text('Deployment Errors (0)');
         $('.testcoverages').text('Test Coverage (0)');

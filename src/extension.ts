@@ -795,7 +795,7 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 							<table id="selecteddatatable" class="display" style="width:100%">
 								<thead>
 									<tr>	
-										<th></th>	
+										<th><input type="checkbox" id="deleteall-row-chk" class="deleteall-row-chk"/></th>	
 										<th>Type</th>
 										<th>Name</th>
 										<th>Last Modified By</th>
