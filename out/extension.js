@@ -634,7 +634,7 @@ function getAuthOrgs() {
         resolve([{ "alias": "SiriApp", "name": "SiriApp(ramu.jallu@yahoo.in)", "orgId": "00D6g00000360OaEAI", "instanceUrl": "https://siriapp-dev-ed.my.salesforce.com",
                 "accessToken": "00D6g00000360Oa!AQcAQF7uyZFdvQOMRFAetbpFchusNaFwiW93T0hUpSGJvGigA9jLMvY9_eyFJvfCcVhK7G3rR1vU3cvVHXvpI9Fg4qLr8hMz" },
             { "alias": "ICE", "name": "ICE(ramu.jallu@gmail.com)", "orgId": "00D3t000004pIgVEAU", "instanceUrl": "https://ice7-dev-ed.my.salesforce.com",
-                "accessToken": "00D3t000004pIgV!AQgAQEUEwIuQJGU6tTF6bvaEyCHYDG9LksUNDdCLoncFBEB9L0oo1ljz3vAQZTlLjbydlu7IgihpxIsiNbDRVPaH.w0VDbAE" },
+                "accessToken": "00D3t000004pIgV!AQgAQGfjYtMZk19tJywnxQxO7Hg4.hHXK4cURQ8.hAfAt8RbyAtY21KoVeQxWqcA_gHrQ9xBi.T6CZnBaKQYEPhP3tgCXvCK" },
             { "name": "AgentForce(epic.321e1730601128842@orgfarm.th)", "orgId": "00D6P000000kU2zUAE", "instanceUrl": "https://d6p000000ku2zuae-dev-ed.develop.my.salesforce.com",
                 "accessToken": "00D6P000000kU2z!AQ4AQDkTYbK6nbyv1Yn2HOMipXHkNxI.7RozVfEDATrZSHRARBYMZDEhuxKJsU84JNgBl0CudDmcSws4x7_JXHIkpYmjstLp" },
             { "name": "Functions(https://ice3.my.salesforce.com)", "orgId": "00D8c000002gRogEAE", "instanceUrl": "https://ice3.my.salesforce.com",
@@ -761,7 +761,20 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 								</thead>
 							</table>
 							<div>
-								<button type="button" style="padding: 7px; width: 75px;" id="export" disabled>Export</button>
+								<button type="button" style="padding: 7px; width: 75px;" id="export" disabled>Export All</button>
+								<button type="button" style="padding: 7px; width: 110px;" id="exportselected" disabled>Export Selected</button>
+								<button type="button" style="padding: 7px; width: 110px;" id="bulkselection" disabled>Bulk Selection</button>
+								<div id="bulkselection-dialog" title="Bulk Selection">
+									<p>Provide the names of the components in the format type.name(ex. CustomField.Account.Phone) in a new line.</p>
+									<textarea id="bulk-comps" name="bulk-comps" rows="18" cols="64"></textarea>
+									<div id="bulkerrors" style="display:none;">
+										<p style="color: red;font-weight: bold;margin-bottom:0;">Errors:</p>
+										<div class="errors" style="margin-bottom:5px;height:100px;overflow-y:auto;scrollbar-width:thin;border: 1px solid #ccc;padding: 5px;">
+										</div>
+									</div>									
+									<button type="button" style="padding:2px; width:50px;float:right;" id="bulkselect">Select</button>
+									<button type="button" style="padding:2px; width:70px;float:right;margin-right:5px;display:none;" id="bulkcontinue">Continue</button>
+								</div>
 							</div>
 						</div>
 						<div id="selected">
@@ -776,9 +789,6 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 									</tr>
 								</thead>
 							</table>
-							<div>
-								<button type="button" style="padding: 7px; width: 75px;" id="exportselected" disabled>Export</button>
-							</div>
 						</div>
 					</div>
 					<div id="preview" style="display:none">

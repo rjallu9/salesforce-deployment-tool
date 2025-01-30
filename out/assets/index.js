@@ -326,7 +326,8 @@ $(document).ready(function () {
         $('#compsdatatable').DataTable().clear().rows.add(components).draw();
         $('.available').text('Available ('+components.length+')');
         $('.all-row-chk').prop('checked', false);
-        $('#export').prop('disabled', components.length === 0);     
+        $('#export').prop('disabled', components.length === 0);   
+        $('#bulkselection').prop('disabled', components.length === 0);  
     }
 
     $(document).on('change', '.row-chk', function() {
@@ -361,6 +362,9 @@ $(document).ready(function () {
         if(selectedComps.size === 0) {            
             $('#add-snapshot').hide();
             $('#save-snapshot').hide();
+            $('#update-snapshot').hide();
+            $('#delete-snapshot').hide();
+            $('#snapshot-list').val("");
         } else {
             $('#add-snapshot').show();
             $('#save-snapshot').show();
@@ -433,6 +437,50 @@ $(document).ready(function () {
         vscode.postMessage({ command: 'toastMessage', message: 'CSV content copied to clipboard'});
     });
 
+    $('#exportselected').on('click', function (e) {
+        let components = [['Type','Name','Last Modified By','Last Modified Date']];
+        Array.from(selectedComps.values()).forEach(comp => {
+            components.push([comp.type, comp.name, comp.lastModifiedByName, comp.lastModifiedDate]);
+        });
+        navigator.clipboard.writeText(components.map(e => e.join(",")).join("\n"));
+        vscode.postMessage({ command: 'toastMessage', message: 'CSV content copied to clipboard'});
+    });
+
+    $('#bulkselection-dialog').dialog({autoOpen: false, modal: true, closeOnEscape: true, width: 500, height:'auto'});
+    
+    $("#bulkselection").on("click", function(e){
+        $('#bulkselection-dialog').dialog("open");
+    });
+
+    $('#bulkselect').on('click', function (e) {
+        $("#bulkerrors").hide();
+        $("#bulkcontinue").hide();
+        if($('#bulk-comps').val().trim() !== '') {
+            let comps = $('#bulk-comps').val().trim();
+            let errors = autoSelection(comps.split('\n'));
+            if(errors.length === 0){
+                $('#bulkselection-dialog').dialog("close");
+            } else {
+                let content = '';
+                errors.forEach(e => {
+                    content += '<b>'+e+'</b><br>';
+                });
+                $("#bulkerrors").show();
+                $("#bulkcontinue").show();
+                $("#bulkerrors").find(".errors").html(content);
+                let dialog = $("#bulkselection-dialog");
+                dialog.dialog("option", "height", "auto");
+                dialog.dialog("option", "position", { my: "center", at: "center", of: window });
+            }            
+        } else {
+            $('#bulkselection-dialog').dialog("close");
+        }      
+    });
+
+    $('#bulkcontinue').on('click', function (e) {
+        $('#bulkselection-dialog').dialog("close");
+    });
+
 
     $('#next').on('click', function (e) {        
         if(orgs.length === 1) {
@@ -457,16 +505,7 @@ $(document).ready(function () {
         $('#selectiontabs').show();
         $("#source-org").show();
         $("#preview").hide();
-    });
-
-    $('#exportselected').on('click', function (e) {
-        let components = [['Type','Name','Last Modified By','Last Modified Date']];
-        Array.from(selectedComps.values()).forEach(comp => {
-            components.push([comp.type, comp.name, comp.lastModifiedByName, comp.lastModifiedDate]);
-        });
-        navigator.clipboard.writeText(components.map(e => e.join(",")).join("\n"));
-        vscode.postMessage({ command: 'toastMessage', message: 'CSV content copied to clipboard'});
-    });
+    });    
 
     $('#dest-org-field').on("change", function(e){
         $("#deploystatus").hide(); 
@@ -817,33 +856,44 @@ $(document).ready(function () {
     }
 
     $("#snapshot-list").on('change', function (e) {
-        $("#update-snapshot").show();
-        $("#delete-snapshot").show();
         $("#add-snapshot").show();
 
         if($("#snapshot-list").val() === '') {
+            $("#update-snapshot").hide();
+            $("#delete-snapshot").hide();        
             return;
+        } else {
+            $("#update-snapshot").show();
+            $("#delete-snapshot").show();  
         }
 
         var snapshot = snapshots.get($("#snapshot-list").val());
-        selectedComps = new Map(); 
-        selectedTypes.clear();
-        let tmp = new Set();
-        snapshot.components.forEach(comp => {
-            selectedTypes.add(comp.split('.')[0]);       
-            tmp.add(comp);
+        //selectedComps = new Map(); 
+        //selectedTypes.clear();
+        autoSelection(snapshot.components);
+    });
+
+    function autoSelection(components) {
+        let types = new Set();
+        components.forEach(comp => {
+            if(componentsMap.has(comp.split('.')[0])) {
+                selectedTypes.add(comp.split('.')[0]);       
+                types.add(comp.split('.')[0]);
+            }        
         });
-        selectedTypes.forEach(type => {
+        types.forEach(type => {
             componentsMap.get(type).forEach(cmp => {
-                if(tmp.has(cmp.type+"."+cmp.name)) {
+                if(components.indexOf(cmp.type+"."+cmp.name) >= 0) {
                     selectedComps.set(cmp.type+"."+cmp.name, cmp);
+                    components.splice(components.indexOf(cmp.type+"."+cmp.name), 1);
                 }
             });
         });
         refreshTypes();
         refreshComponents();
         refreshSelection();
-    });
+        return components;
+    }
 
     $("#add-snapshot").on('click', function (e) {
         $("#snapshot-form").show();
