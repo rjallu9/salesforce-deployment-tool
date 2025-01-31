@@ -453,7 +453,8 @@ function getTypesComponents(accessToken, endPoint, globalStorageUri, panel) {
                                 .then((result) => {
                                 const comps = result['listMetadataResponse'];
                                 let fldresults = buildComponents(comps);
-                                folderresults = [...folderresults, ...fldresults];
+                                element.type = e.name;
+                                folderresults = [...folderresults, ...fldresults, element];
                             });
                         }))
                             .then(() => {
@@ -766,11 +767,10 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 								<button type="button" style="padding: 7px; width: 110px;" id="bulkselection" disabled>Bulk Selection</button>
 								<div id="bulkselection-dialog" title="Bulk Selection">
 									<p>Provide the names of the components in the format type.name(ex. CustomField.Account.Phone) in a new line.</p>
-									<textarea id="bulk-comps" name="bulk-comps" rows="18" cols="64" style="scrollbar-width:none"></textarea>
+									<textarea id="bulk-comps" name="bulk-comps" rows="18" cols="66" style="scrollbar-width:thin;resize: none"></textarea>
 									<div id="bulkerrors" style="display:none;">
 										<p style="color: red;font-weight: bold;margin-bottom:0;">Errors:</p>
-										<div class="errors" style="overflow-wrap: anywhere;margin-bottom:5px;height:100px;overflow-y:auto;scrollbar-width:none;border: 1px solid #ccc;padding: 5px;">
-										</div>
+										<textarea class="errors" rows="9" cols="66" style="scrollbar-width:thin;resize: none;"></textarea>
 									</div>									
 									<button type="button" style="padding:2px; width:50px;float:right;" id="bulkselect">Select</button>
 									<button type="button" style="padding:2px; width:70px;float:right;margin-right:5px;display:none;" id="bulkcontinue">Continue</button>

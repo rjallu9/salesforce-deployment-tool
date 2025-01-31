@@ -477,11 +477,11 @@ $(document).ready(function () {
             } else {
                 let content = '';
                 errors.forEach(e => {
-                    content += +e+'<br>';
+                    content += e+'\n';
                 });
                 $("#bulkerrors").show();
                 $("#bulkcontinue").show();
-                $("#bulkerrors").find(".errors").html(content);
+                $("#bulkerrors").find(".errors").val(content);
                 let dialog = $("#bulkselection-dialog");
                 dialog.dialog("option", "height", "auto");
                 dialog.dialog("option", "position", { my: "center", at: "center", of: window });
