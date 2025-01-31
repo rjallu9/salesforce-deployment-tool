@@ -46,9 +46,9 @@ let tmpDirectory = '';
 function activate(context) {
     const disposable = vscode.commands.registerCommand('salesforce-deployment-tool.build', () => {
         const panel = vscode.window.createWebviewPanel('packageBuilder', 'Salesforce Deployment Tool', vscode.ViewColumn.One, { enableScripts: true, retainContextWhenHidden: true });
-        const scriptPath = vscode.Uri.file(path.join(context.extensionPath, 'src', 'assets/index.js'));
+        const scriptPath = vscode.Uri.file(path.join(context.extensionPath, 'out', 'assets/index.js'));
         const scriptUri = panel.webview.asWebviewUri(scriptPath);
-        const cssPath = vscode.Uri.file(path.join(context.extensionPath, 'src', 'assets/index.css'));
+        const cssPath = vscode.Uri.file(path.join(context.extensionPath, 'out', 'assets/index.css'));
         const cssUri = panel.webview.asWebviewUri(cssPath);
         panel.webview.html = getWebviewContent(context.extensionPath, scriptUri, cssUri);
         let orgsList = [];
@@ -439,7 +439,8 @@ function getTypesComponents(accessToken, endPoint, globalStorageUri, panel) {
             });
             panel.webview.postMessage({ command: 'loading', message: 'Refreshing Components(0/' + typesList.length + ')' });
             Promise.all(typesList.map((e) => {
-                return sendSoapMDRequest(accessToken, endPoint, '<met:listMetadata><met:queries><met:type>' + e.name + (e.inFolder === 'true' ? 'Folder' : '')
+                return sendSoapMDRequest(accessToken, endPoint, '<met:listMetadata><met:queries><met:type>'
+                    + (e.inFolder === 'true' ? (e.name === 'EmailTemplate' ? 'EmailFolder' : e.name + 'Folder') : e.name)
                     + '</met:type></met:queries></met:listMetadata>')
                     .then((result) => {
                     const comps = result['listMetadataResponse'];
@@ -465,6 +466,7 @@ function getTypesComponents(accessToken, endPoint, globalStorageUri, panel) {
                     }
                     else if (e.name === 'CustomObject') {
                         components.set(e.name, results);
+                        panel.webview.postMessage({ command: 'components', components: results, type: e.name });
                         const mdobjects = new Set(results.map(obj => obj.name));
                         return sendSoapAPIRequest(accessToken, endPoint, '<urn:describeGlobal/>')
                             .then((result) => {
@@ -568,8 +570,6 @@ function sendSoapMDRequest(accessToken, endPoint, body) {
         })
             .catch((error) => {
             parser.parseString(error.response.data, (err, result) => {
-                /*vscode.window.showWarningMessage('Unable to connect to the Org. Message: '+
-                    result['soapenv:Envelope']['soapenv:Body']['soapenv:Fault']['faultstring']);*/
                 reject(result['soapenv:Envelope']['soapenv:Body']['soapenv:Fault']['faultstring']);
             });
         });
@@ -766,10 +766,10 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 								<button type="button" style="padding: 7px; width: 110px;" id="bulkselection" disabled>Bulk Selection</button>
 								<div id="bulkselection-dialog" title="Bulk Selection">
 									<p>Provide the names of the components in the format type.name(ex. CustomField.Account.Phone) in a new line.</p>
-									<textarea id="bulk-comps" name="bulk-comps" rows="18" cols="64"></textarea>
+									<textarea id="bulk-comps" name="bulk-comps" rows="18" cols="64" style="scrollbar-width:none"></textarea>
 									<div id="bulkerrors" style="display:none;">
 										<p style="color: red;font-weight: bold;margin-bottom:0;">Errors:</p>
-										<div class="errors" style="margin-bottom:5px;height:100px;overflow-y:auto;scrollbar-width:thin;border: 1px solid #ccc;padding: 5px;">
+										<div class="errors" style="overflow-wrap: anywhere;margin-bottom:5px;height:100px;overflow-y:auto;scrollbar-width:none;border: 1px solid #ccc;padding: 5px;">
 										</div>
 									</div>									
 									<button type="button" style="padding:2px; width:50px;float:right;" id="bulkselect">Select</button>

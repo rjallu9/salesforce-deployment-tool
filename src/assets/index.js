@@ -86,26 +86,12 @@ $(document).ready(function () {
         });
     } 
 
-    $('#source-org-field').on("change", function(e){
-        types = [];
-        selectedTypes.clear();
-        componentsMap.clear();
-        selectedComps.clear();
-        snapshots.clear();
-        stdFieldsMap.clear();
-
-        refreshTypes();  
-        refreshComponents();
-
-        $('.selected').text('Selected (0)');
-        $('#selecteddatatable').DataTable().clear().draw(); 
-        $('#deleteall-row-chk').prop('checked', false);
-        $('#exportselected').prop('disabled', true);
-
+    $('#source-org-field').on("change", function(e){    
+        resetComponents();  
         $("#actions").hide();
         $("#errors").text('');
         $('#selectiontabs').hide();
-        $("#refresh-lbl").hide(); 
+        $("#refresh-lbl").hide();   
         if($('#source-org-field').val() !== '') {
             vscode.postMessage({ command: 'loadTypesComponents', sourceOrgId: $(this).val(), refresh:false});
             $("#spinner").show();   
@@ -123,10 +109,29 @@ $(document).ready(function () {
     });
 
     $("#hard-refresh").on('click', function (e) {
+        resetComponents();
         vscode.postMessage({ command: 'loadTypesComponents', sourceOrgId: $("#source-org-field").val(), refresh:true});
         $("#spinner").show();   
         $(".spinnerlabel").text("Refreshing Components");
     });
+
+    function resetComponents() {
+        types = [];
+        selectedTypes.clear();
+        componentsMap.clear();
+        selectedComps.clear();
+        snapshots.clear();
+        stdFieldsMap.clear();
+
+        refreshTypes();  
+        refreshComponents();
+
+        $('.selected').text('Selected (0)');
+        $('#selecteddatatable').DataTable().clear().draw(); 
+        $('#deleteall-row-chk').prop('checked', false);
+        $('#exportselected').prop('disabled', true);
+        
+    }
 
     $('#compsdatatable').DataTable({
         paging: true,
@@ -472,7 +477,7 @@ $(document).ready(function () {
             } else {
                 let content = '';
                 errors.forEach(e => {
-                    content += '<b>'+e+'</b><br>';
+                    content += +e+'<br>';
                 });
                 $("#bulkerrors").show();
                 $("#bulkcontinue").show();

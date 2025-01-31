@@ -17,11 +17,11 @@ export function activate(context: vscode.ExtensionContext) {
 				{ enableScripts: true, retainContextWhenHidden: true }
 			);
 			const scriptPath = vscode.Uri.file(
-				path.join(context.extensionPath, 'src', 'assets/index.js')
+				path.join(context.extensionPath, 'out', 'assets/index.js')
 			);
 			const scriptUri = panel.webview.asWebviewUri(scriptPath);
 			const cssPath = vscode.Uri.file(
-				path.join(context.extensionPath, 'src', 'assets/index.css')
+				path.join(context.extensionPath, 'out', 'assets/index.css')
 			);
 			const cssUri = panel.webview.asWebviewUri(cssPath);
 
@@ -440,7 +440,8 @@ function getTypesComponents(accessToken:string, endPoint:string, globalStorageUr
 			panel.webview.postMessage({ command: 'loading', message: 'Refreshing Components(0/'+typesList.length+')'});	
 
 			Promise.all(typesList.map((e:{name:string; inFolder:string;}) => {
-				return sendSoapMDRequest(accessToken, endPoint, '<met:listMetadata><met:queries><met:type>'+e.name+(e.inFolder === 'true' ? 'Folder' : '')
+				return sendSoapMDRequest(accessToken, endPoint, '<met:listMetadata><met:queries><met:type>'
+											+(e.inFolder === 'true' ? (e.name === 'EmailTemplate' ? 'EmailFolder' : e.name+'Folder') : e.name)
 											+'</met:type></met:queries></met:listMetadata>')
 					.then((result:any) => {
 						const comps = result['listMetadataResponse'];
@@ -465,6 +466,7 @@ function getTypesComponents(accessToken:string, endPoint:string, globalStorageUr
 							});	
 						} else if(e.name === 'CustomObject') {
 							components.set(e.name, results);
+							panel.webview.postMessage({ command: 'components', components:results, type:e.name });
 							const mdobjects = new Set(results.map(obj => obj.name));
 							return sendSoapAPIRequest(accessToken, endPoint, '<urn:describeGlobal/>')
 								.then((result:any) => {
@@ -575,8 +577,6 @@ function sendSoapMDRequest(accessToken:string,  endPoint:string, body:string) {
 		})
 		.catch((error:any) => {
 			parser.parseString(error.response.data, (err:any, result:any) => {	
-				/*vscode.window.showWarningMessage('Unable to connect to the Org. Message: '+
-					result['soapenv:Envelope']['soapenv:Body']['soapenv:Fault']['faultstring']);*/
 				reject(result['soapenv:Envelope']['soapenv:Body']['soapenv:Fault']['faultstring']);
 			});		
 		});
@@ -614,7 +614,7 @@ function sendSoapAPIRequest(accessToken:string,  endPoint:string, body:string) {
 
 function getAuthOrgs() {
     return new Promise((resolve, reject) => {
-        /*exec('sf org list --json', (error:any, stdout:any, stderr:any) => {
+        exec('sf org list --json', (error:any, stdout:any, stderr:any) => {
             if (error) {
                 reject(`Error: ${error}`);
             } else {
@@ -641,16 +641,7 @@ function getAuthOrgs() {
                     reject(`Parse Error: ${parseError.message}`);
                 }
             }
-        });*/
-
-		resolve([{"alias": "SiriApp", "name": "SiriApp(ramu.jallu@yahoo.in)", "orgId": "00D6g00000360OaEAI","instanceUrl": "https://siriapp-dev-ed.my.salesforce.com",
-		"accessToken": "00D6g00000360Oa!AQcAQF7uyZFdvQOMRFAetbpFchusNaFwiW93T0hUpSGJvGigA9jLMvY9_eyFJvfCcVhK7G3rR1vU3cvVHXvpI9Fg4qLr8hMz"},
-		{"alias": "ICE", "name": "ICE(ramu.jallu@gmail.com)", "orgId": "00D3t000004pIgVEAU","instanceUrl": "https://ice7-dev-ed.my.salesforce.com",
-			"accessToken": "00D3t000004pIgV!AQgAQGfjYtMZk19tJywnxQxO7Hg4.hHXK4cURQ8.hAfAt8RbyAtY21KoVeQxWqcA_gHrQ9xBi.T6CZnBaKQYEPhP3tgCXvCK"},
-		{"name": "AgentForce(epic.321e1730601128842@orgfarm.th)", "orgId": "00D6P000000kU2zUAE","instanceUrl": "https://d6p000000ku2zuae-dev-ed.develop.my.salesforce.com",
-			"accessToken": "00D6P000000kU2z!AQ4AQDkTYbK6nbyv1Yn2HOMipXHkNxI.7RozVfEDATrZSHRARBYMZDEhuxKJsU84JNgBl0CudDmcSws4x7_JXHIkpYmjstLp"},
-		{"name": "Functions(https://ice3.my.salesforce.com)", "orgId": "00D8c000002gRogEAE","instanceUrl": "https://ice3.my.salesforce.com",
-			"accessToken": "00D8c000002gRog!ARAAQP3nZCbpdPA5SN91zvrKqQ9AAujV3nfUg10nS3rFFFuGiPhzrfbARk0LDPbxcuXnhLmk4Ihpss0EYnlfkvK8p4OSDbu5"}]);
+        });
     });
 }
 
@@ -780,10 +771,10 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 								<button type="button" style="padding: 7px; width: 110px;" id="bulkselection" disabled>Bulk Selection</button>
 								<div id="bulkselection-dialog" title="Bulk Selection">
 									<p>Provide the names of the components in the format type.name(ex. CustomField.Account.Phone) in a new line.</p>
-									<textarea id="bulk-comps" name="bulk-comps" rows="18" cols="64"></textarea>
+									<textarea id="bulk-comps" name="bulk-comps" rows="18" cols="64" style="scrollbar-width:none"></textarea>
 									<div id="bulkerrors" style="display:none;">
 										<p style="color: red;font-weight: bold;margin-bottom:0;">Errors:</p>
-										<div class="errors" style="margin-bottom:5px;height:100px;overflow-y:auto;scrollbar-width:thin;border: 1px solid #ccc;padding: 5px;">
+										<div class="errors" style="overflow-wrap: anywhere;margin-bottom:5px;height:100px;overflow-y:auto;scrollbar-width:none;border: 1px solid #ccc;padding: 5px;">
 										</div>
 									</div>									
 									<button type="button" style="padding:2px; width:50px;float:right;" id="bulkselect">Select</button>

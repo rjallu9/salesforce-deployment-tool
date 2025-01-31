@@ -5,11 +5,13 @@ Developers/Admins can search and select the metadata components easily and deplo
 
 ## Features
 
-- User can search and select metadata components from the default autorized org.
-- Frequently modified types can be set as favorites, which will be loaded automatically.
-- Components can be filtered by last modified date and developer name.
+- User can search and select metadata components from the autorized org.
+- Components can be filtered by Type, Name, Last modified date and Developer name.
+- Available or Selected Components can be exported to CSV File.
+- Bulk Selection is possible by providing the component names in the format TYPE.NAME.
+- Selected components can be saved as snapshots and that can be used in later deployments. 
 - Package.xml can be generated and used in other deployment tools such as ANT migration tool.
-- Components can be deployed or validated to different salesforce orgs rather than default org.
+- Components can be deployed or validated to different autorized orgs.
 - Various test options can be selected for deploy or validate.
 - Cancel deployment and Quick deployment features are also available.
 
