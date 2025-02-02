@@ -17,11 +17,11 @@ export function activate(context: vscode.ExtensionContext) {
 				{ enableScripts: true, retainContextWhenHidden: true }
 			);
 			const scriptPath = vscode.Uri.file(
-				path.join(context.extensionPath, 'out', 'assets/index.js')
+				path.join(context.extensionPath, 'src', 'assets/index.js')
 			);
 			const scriptUri = panel.webview.asWebviewUri(scriptPath);
 			const cssPath = vscode.Uri.file(
-				path.join(context.extensionPath, 'out', 'assets/index.css')
+				path.join(context.extensionPath, 'src', 'assets/index.css')
 			);
 			const cssUri = panel.webview.asWebviewUri(cssPath);
 
@@ -615,7 +615,7 @@ function sendSoapAPIRequest(accessToken:string,  endPoint:string, body:string) {
 
 function getAuthOrgs() {
     return new Promise((resolve, reject) => {
-        /*exec('sf org list --json', (error:any, stdout:any, stderr:any) => {
+        exec('sf org list --json', (error:any, stdout:any, stderr:any) => {
             if (error) {
                 reject(`Error: ${error}`);
             } else {
@@ -642,16 +642,7 @@ function getAuthOrgs() {
                     reject(`Parse Error: ${parseError.message}`);
                 }
             }
-        });*/
-
-		resolve([{"alias": "SiriApp", "name": "SiriApp(ramu.jallu@yahoo.in)", "orgId": "00D6g00000360OaEAI","instanceUrl": "https://siriapp-dev-ed.my.salesforce.com",
-		"accessToken": "00D6g00000360Oa!AQcAQF7uyZFdvQOMRFAetbpFchusNaFwiW93T0hUpSGJvGigA9jLMvY9_eyFJvfCcVhK7G3rR1vU3cvVHXvpI9Fg4qLr8hMz"},
-		{"alias": "ICE", "name": "ICE(ramu.jallu@gmail.com)", "orgId": "00D3t000004pIgVEAU","instanceUrl": "https://ice7-dev-ed.my.salesforce.com",
-			"accessToken": "00D3t000004pIgV!AQgAQGfjYtMZk19tJywnxQxO7Hg4.hHXK4cURQ8.hAfAt8RbyAtY21KoVeQxWqcA_gHrQ9xBi.T6CZnBaKQYEPhP3tgCXvCK"},
-		{"name": "AgentForce(epic.321e1730601128842@orgfarm.th)", "orgId": "00D6P000000kU2zUAE","instanceUrl": "https://d6p000000ku2zuae-dev-ed.develop.my.salesforce.com",
-			"accessToken": "00D6P000000kU2z!AQ4AQDkTYbK6nbyv1Yn2HOMipXHkNxI.7RozVfEDATrZSHRARBYMZDEhuxKJsU84JNgBl0CudDmcSws4x7_JXHIkpYmjstLp"},
-		{"name": "Functions(https://ice3.my.salesforce.com)", "orgId": "00D8c000002gRogEAE","instanceUrl": "https://ice3.my.salesforce.com",
-			"accessToken": "00D8c000002gRog!ARAAQP3nZCbpdPA5SN91zvrKqQ9AAujV3nfUg10nS3rFFFuGiPhzrfbARk0LDPbxcuXnhLmk4Ihpss0EYnlfkvK8p4OSDbu5"}]);
+        });
     });
 }
 
@@ -702,8 +693,8 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 									</div>
 								</div>
 								<div style="margin-top:22px;margin-left: auto;">
-									<button type="button" style="padding: 7px; width: 75px;float:right;" id="next" disabled>Next</button>
-									<button type="button" style="padding: 7px; width:100px;float:right;margin-right:5px" id="packagexml" disabled>Package.xml</button>	
+									<button type="button" style="width: 75px;float:right;" id="next" disabled>Next</button>
+									<button type="button" style="width:100px;float:right;margin-right:5px" id="packagexml" disabled>Package.xml</button>	
 									<div style="float: left;padding-left: 5px;margin-right: 5px;" id="snapshot-view">
 										<div style="float:left;margin-top:-20px;margin-right: 5px;">	
 											<label for="text" for="snapshot-list" class="top-label">Snapshots: </label>
@@ -776,18 +767,18 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 								</thead>
 							</table>
 							<div>
-								<button type="button" style="padding: 7px; width: 75px;" id="export" disabled>Export All</button>
-								<button type="button" style="padding: 7px; width: 110px;" id="exportselected" disabled>Export Selected</button>
-								<button type="button" style="padding: 7px; width: 110px;" id="bulkselection" disabled>Bulk Selection</button>
+								<button type="button" style="width: 75px;" id="export" disabled>Export All</button>
+								<button type="button" style="width: 110px;" id="exportselected" disabled>Export Selected</button>
+								<button type="button" style="width: 110px;" id="bulkselection" disabled>Bulk Selection</button>
 								<div id="bulkselection-dialog" title="Bulk Selection">
 									<p>Provide the names of the components in the format type.name(ex. CustomField.Account.Phone) in a new line.</p>
-									<textarea id="bulk-comps" name="bulk-comps" rows="18" cols="66" style="scrollbar-width:thin;resize: none"></textarea>
+									<textarea id="bulk-comps" name="bulk-comps" rows="18" cols="66" style="line-height: 20px;scrollbar-width:thin;resize: none"></textarea>
 									<div id="bulkerrors" style="display:none;">
 										<p style="color: red;font-weight: bold;margin-bottom:0;">Errors:</p>
-										<textarea class="errors" rows="9" cols="66" style="scrollbar-width:thin;resize: none;"></textarea>
+										<textarea class="errors" rows="9" cols="66" style="line-height: 20px;scrollbar-width:thin;resize: none;"></textarea>
 									</div>									
-									<button type="button" style="padding:2px; width:50px;float:right;" id="bulkselect">Select</button>
-									<button type="button" style="padding:2px; width:70px;float:right;margin-right:5px;display:none;" id="bulkcontinue">Continue</button>
+									<button type="button" style="width:50px;float:right;padding: 5px;margin-right:-4px;" id="bulkselect">Select</button>
+									<button type="button" style="width:70px;float:right;margin-right:5px;display:none;" id="bulkcontinue">Continue</button>
 								</div>
 							</div>
 						</div>
@@ -813,9 +804,9 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 								</select>		
 							</div>
 							<div id="deploy-buttons">	
-								<button type="button" style="padding: 7px; width: 75px;float:right;margin-top:22px;margin-left: 5px;" id="compare">Compare</button>											
-								<button type="button" style="padding: 7px; width: 75px;float:right;margin-top:22px;margin-left: 5px;" id="deploy">Deploy</button>
-								<button type="button" style="padding: 7px; width: 75px;float:right;margin-top:22px;margin-left: 5px;" id="validate">Validate</button>	
+								<button type="button" style="width: 75px;float:right;margin-top:22px;margin-left: 5px;" id="compare">Compare</button>											
+								<button type="button" style="width: 75px;float:right;margin-top:22px;margin-left: 5px;" id="deploy">Deploy</button>
+								<button type="button" style="width: 75px;float:right;margin-top:22px;margin-left: 5px;" id="validate">Validate</button>	
 								<div style="float:right;margin-top:2px;">
 									<label for="text" for="testoption-field" class="top-label">Test Options:&nbsp;&nbsp;
 										<a href="#" id="view-classes" style="display:none">Classes</a>
@@ -829,7 +820,7 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 								</div>
 							</div>							
 							<div style="margin-left: 5px;">
-								<button type="button" style="padding: 7px; width: 75px;margin-top:22px;" id="previous">Back</button>							
+								<button type="button" style="width: 75px;margin-top:22px;" id="previous">Back</button>							
 							</div>	
 						</div>
 						<p style="color:#f14c4c;margin-bottom:0;margin-top:5px;" id="previewerrors"></p>
@@ -846,7 +837,7 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 								<p>Provide the names of the test classes in a comma-seprated list.</p>
 								<textarea id="test-classes" name="test-classes" rows="15" cols="35">
 								</textarea>
-								<button type="button" style="padding:2px; width:50px;float:right;" id="save-classes">Save</button>
+								<button type="button" style="width:50px;float:right;padding: 5px;margin-right:-4px;" id="save-classes">Save</button>
 							</div>
 						</div>
 						<div id="previewtabs" style="margin-top:10px;">
@@ -906,9 +897,9 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 						</div>							
 					</div>
 				</div>
-				<div id="spinner">
+				<div id="spinner" class="spinner">
 					<div class="cv-spinner">
-						<span class="spinner"></span>
+						<span class="spinner-circle"></span>
 						<p style="margin-left: 5px;" class="spinnerlabel">Initializing</p>
 					</div>
 				</div>

@@ -237,6 +237,7 @@ $(document).ready(function () {
             $('.dd-option-chk').each(function(indx, chxbox) {
                 if(!$(chxbox).prop('checked')) {
                     $(chxbox).prop('checked', true);
+                    $(chxbox).parent().css("background",'#0078D7');
                     $(chxbox).parent().parent().css("background",'#0078D7');
                     const selectedValue = $(chxbox).val();
                     selectedTypes.add(selectedValue);
@@ -246,6 +247,7 @@ $(document).ready(function () {
             $('.dd-option-chk').each(function(indx, chxbox) {
                 if($(chxbox).prop('checked')) {
                     $(chxbox).prop('checked', false);
+                    $(chxbox).parent().css("background",'');
                     $(chxbox).parent().parent().css("background",'');
                 }                
             });  
@@ -259,9 +261,11 @@ $(document).ready(function () {
     //Type checkbox
     $(document).on('change', '.dd-option-chk', function() {
         if ($(this).is(':checked')) {
+            $(this).parent().css("background",'#0078D7');
             $(this).parent().parent().css("background",'#0078D7');
             selectedTypes.add($(this).val());           
         } else {
+            $(this).parent().css("background",'');
             $(this).parent().parent().css("background",'');
             selectedTypes.delete($(this).val());
         }        
@@ -295,7 +299,7 @@ $(document).ready(function () {
                 visibleTypesCount++;
                 $('.dd-options ui').append(`
                     <li class="dd-option" ${(selectedTypes.has(type.name)) ? "style='background:#0078D7'" : ""}>
-                        <div>
+                        <div ${(selectedTypes.has(type.name)) ? "style='background:#0078D7'" : ""}>
                             <input type="checkbox" value=${type.name} id=${type.name} class="dd-option-chk" 
                                     ${selectedTypes.has(type.name)? "checked" : ""}>
                             <label class="dd-option-lbl" for=${type.name}>${type.name} (${type.count})</label>

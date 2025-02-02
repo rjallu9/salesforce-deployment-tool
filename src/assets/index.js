@@ -167,13 +167,13 @@ $(document).ready(function () {
                 if(!$(checkbox).prop('checked')) {
                     $(checkbox).prop('checked', true);
                 }
-                $(row).css('background', '#64b7ff');     
+                $(row).addClass('select-row');   
             } else {
                 var checkbox = $(row).find('.row-chk');
                 if($(checkbox).prop('checked')) {
                     $(checkbox).prop('checked', false);
                 }
-                $(row).css('background', '');     
+                $(row).removeClass('select-row');    
             }
         },
         language: {
@@ -237,7 +237,8 @@ $(document).ready(function () {
             $('.dd-option-chk').each(function(indx, chxbox) {
                 if(!$(chxbox).prop('checked')) {
                     $(chxbox).prop('checked', true);
-                    $(chxbox).parent().parent().css("background",'#0078D7');
+                    $(chxbox).parent().addClass('select-row');
+                    $(chxbox).parent().parent().addClass('select-row');
                     const selectedValue = $(chxbox).val();
                     selectedTypes.add(selectedValue);
                 }                
@@ -246,7 +247,8 @@ $(document).ready(function () {
             $('.dd-option-chk').each(function(indx, chxbox) {
                 if($(chxbox).prop('checked')) {
                     $(chxbox).prop('checked', false);
-                    $(chxbox).parent().parent().css("background",'');
+                    $(chxbox).parent().removeClass('select-row');
+                    $(chxbox).parent().removeClass('select-row');
                 }                
             });  
             selectedTypes.clear();
@@ -259,10 +261,12 @@ $(document).ready(function () {
     //Type checkbox
     $(document).on('change', '.dd-option-chk', function() {
         if ($(this).is(':checked')) {
-            $(this).parent().parent().css("background",'#0078D7');
+            $(this).parent().addClass('select-row');
+            $(this).parent().parent().addClass('select-row');
             selectedTypes.add($(this).val());           
         } else {
-            $(this).parent().parent().css("background",'');
+            $(this).parent().removeClass('select-row');
+            $(this).parent().parent().removeClass('select-row');
             selectedTypes.delete($(this).val());
         }        
         refreshComponents();
@@ -294,8 +298,8 @@ $(document).ready(function () {
             if(!type.hidden) {
                 visibleTypesCount++;
                 $('.dd-options ui').append(`
-                    <li class="dd-option" ${(selectedTypes.has(type.name)) ? "style='background:#0078D7'" : ""}>
-                        <div>
+                    <li class="dd-option ${(selectedTypes.has(type.name)) ? 'select-row' : ''}">
+                        <div class=${(selectedTypes.has(type.name)) ? 'select-row' : ''}>
                             <input type="checkbox" value=${type.name} id=${type.name} class="dd-option-chk" 
                                     ${selectedTypes.has(type.name)? "checked" : ""}>
                             <label class="dd-option-lbl" for=${type.name}>${type.name} (${type.count})</label>
@@ -384,7 +388,11 @@ $(document).ready(function () {
         }
         $('.row-chk').each(function(indx, chxbox) {
             $(chxbox).prop('checked', selectedComps.has($(chxbox).val()));
-            $(chxbox).parent().parent().css('background', selectedComps.has($(chxbox).val()) ? '#64b7ff' : '');                
+            if(selectedComps.has($(chxbox).val())) {
+                $(chxbox).parent().parent().addClass('select-row');
+            } else {
+                $(chxbox).parent().parent().removeClass('select-row');
+            }               
         });
 
         $('.all-row-chk').prop('checked', $('#compsdatatable').DataTable().data().length === selectedComps.size);
@@ -503,6 +511,7 @@ $(document).ready(function () {
             $("#actions").hide();
             $('#selectiontabs').hide();
             $("#source-org").hide();
+            $("#refresh-lbl").hide(); 
             $("#preview").show();
             $('.preview').text('Selected ('+selectedComps.size+')');            
             $('#previewtable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
@@ -518,6 +527,7 @@ $(document).ready(function () {
         $("#actions").show();        
         $('#selectiontabs').show();
         $("#source-org").show();
+        $("#refresh-lbl").show(); 
         $("#preview").hide();
     });    
 

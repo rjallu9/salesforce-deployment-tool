@@ -9,8 +9,9 @@
 }
 .dd-text-field {
     width:300px;
-    height:30px;
+    height:31px;
     padding-left: 10px;
+    border:1px solid rgb(118, 118, 118);
 }
 .dd-option-box {
     background: white;
@@ -19,6 +20,7 @@
     position: absolute;
     z-index: 1;
     display: none;
+    border:1px solid rgb(118, 118, 118);
 }
 .dd-options {
     max-height: 400px;
@@ -30,7 +32,7 @@
     display:flex;
 }
 .dd-option:hover {
-    background-color: #f7f5f4;
+    /*background-color: #f7f5f4;*/
 }
 .progress-label {
     position: absolute;
@@ -53,10 +55,10 @@
     justify-content: center;
 }
 ::-ms-input-placeholder {
-    color: black;
+    color: var(--vscode-editor-foreground);
 }
 ::placeholder {
-    color: black;
+    color: var(--vscode-editor-foreground);
     opacity: 1;
 }
 label {
@@ -70,7 +72,8 @@ label {
     display:flex;
 }
 .path {
-    background-color: #4daafc;
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground) !important;
     height: 2rem;
     position: relative;
     flex:1;
@@ -90,7 +93,7 @@ label {
     position:absolute;
     left:-.25rem;
     right:-.3125rem;
-    background-color: #4daafc;
+    background-color: var(--vscode-button-background);
 }
 .path:after {
     bottom:0;
@@ -150,13 +153,12 @@ label {
     margin-left: 1rem;
     margin-right: 1rem;
 }
-#spinner{	
+.spinner{	
     position: fixed;
     top: 0;
     z-index: 100;
     width: 100%;
     height:100%;
-    background: rgba(0,0,0,0.6);
 }
 .cv-spinner {
     height: 100%;
@@ -164,7 +166,7 @@ label {
     justify-content: center;
     align-items: center;  
 }
-.spinner {
+.spinner-circle {
     width: 30px;
     height: 30px;
     border: 4px #2e93e6 solid;
@@ -179,4 +181,62 @@ label {
 }
 .dt-scroll-body {
     scrollbar-width:thin;
+}
+
+body, select, ul, li, div:not(.spinner, .cv-spinner, .ui-widget-overlay) , input, .ui-tabs, .ui-tabs-nav, .ui-state-default, .tab, .ui-tabs-tab {
+    background-color: var(--vscode-editor-background);
+    color: var(--vscode-editor-foreground);
+}
+button {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border:none;
+    padding:9px;
+}
+button:disabled {
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+}
+button:not(:disabled):hover {
+    background-color: var(--vscode-button-hoverBackground);
+}
+.ui-tabs-anchor {
+    color: var(--vscode-button-foreground) !important;
+}
+.ui-tabs-nav{
+    border: none;
+    border-bottom: none;
+    padding: 0px !important;  
+}
+.ui-dialog-titlebar{
+    border: none;
+    border-bottom: 1px solid rgb(118, 118, 118);
+    border-bottom-right-radius:0;
+    border-bottom-left-radius:0;    
+}
+.ui-tabs-tab {
+    background-color: var(--vscode-editor-background) !important; 
+    border-radius: 0px;
+}
+.ui-tabs-active {
+    background: var(--vscode-button-background) !important;
+    border-radius: 0px;
+}
+table.dataTable.row-border>tbody>tr>*, table.dataTable.display>tbody>tr>* {
+    border-top: 1px solid rgb(118, 118, 118);
+}
+table.dataTable>thead>tr>th, table.dataTable>thead>tr>td {
+    border-bottom: 1px solid rgb(118, 118, 118);
+}
+
+.ui-widget.ui-widget-content {
+    border: none;
+}
+div.dt-container .dt-search input, .ui-tabs-panel {
+    border: 1px solid rgb(118, 118, 118) !important;
+    border-radius: 0px;
+}
+.select-row {
+    background-color: var(--vscode-button-background) !important;
+    color: var(--vscode-button-foreground) !important;
 }
