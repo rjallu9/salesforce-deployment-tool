@@ -12,6 +12,7 @@
     height:31px;
     padding-left: 10px;
     border:1px solid rgb(118, 118, 118);
+    cursor: default;
 }
 .dd-option-box {
     background: white;
@@ -201,6 +202,9 @@ button:not(:disabled):hover {
     background-color: var(--vscode-button-hoverBackground);
 }
 .ui-tabs-anchor {
+    color: var(--vscode-editor-foreground) !important;
+}
+.ui-tabs-active a {
     color: var(--vscode-button-foreground) !important;
 }
 .ui-tabs-nav{

@@ -667,7 +667,11 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 										<div>	
 											<label for="text" for="dd-text-field" class="top-label">Type: </label>
 											<input type="text" class="dd-text-field" id="dd-text-field"></input>								
-											<span style="margin-left:-20px;pointer-events: none;color: #888;">▼</span>
+											<span style="margin-left: -19px;color: #888;">
+												<svg width="15" height="15" viewBox="0 0 24 12" fill="#cccccc;" xmlns="http://www.w3.org/2000/svg" style="color: #cccccc;">
+													<path d="M6 9l6 6 6-6" stroke="#cccccc" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+												</svg>
+											</span>
 										</div>
 										<div class="dd-option-box">
 											<div style="padding:5px 10px 5px 10px;" id="select-all-div">
@@ -705,7 +709,7 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 										</p>
 										<p title="Add Snapshot" style="float: left;margin-bottom:0;margin-top: 4px;cursor:pointer;display:none;" id="add-snapshot">
 											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-												<circle cx="25" cy="25" r="24" fill="#4daafc" stroke="#4daafc" stroke-width="2"></circle>
+												<circle cx="25" cy="25" r="24" fill="#0078d4" stroke="#0078d4" stroke-width="2"></circle>
 												<line x1="25" y1="15" x2="25" y2="35" stroke="white" stroke-width="4" stroke-linecap="round"></line>
 												<line x1="15" y1="25" x2="35" y2="25" stroke="white" stroke-width="4" stroke-linecap="round"></line>
 											</svg>
@@ -714,7 +718,7 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 									<div style="float: left;padding-left: 5px;margin-right: 5px;display:none;" id="snapshot-form">
 										<div style="float:left;margin-top:-20px;margin-right: 5px;">	
 											<label for="text" for="snapshot-name" class="top-label">Snapshot Name: </label>
-											<input type="text" id="snapshot-name" style="height:27px;"></input>			
+											<input type="text" id="snapshot-name" style="height:27px;border:1px solid rgb(118, 118, 118);"></input>			
 										</div>	
 										<p title="Save Snapshot" style="float: left;margin-bottom:0;margin-top: 4px;margin-right: 5px;cursor:pointer;" id="save-snapshot">
 											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
@@ -738,7 +742,7 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 					<p id="refresh-lbl" style="display:none;">
 						<span id="refreshlabel">Last Refresh Date:</span>. Please click <a href="#" id="hard-refresh">here</a> to refresh.
 					</p>
-					<div id="selectiontabs" style="margin-top:10px;">
+					<div id="selectiontabs" style="margin-top:10px;display:none;">
 						<ul>
 							<li class="tab" name="compsdatatable"><a href="#available" class="available">Available (0)</a></li>
 							<li class="tab" name="selecteddatatable"><a href="#selected" class="selected">Selected (0)</a></li>
