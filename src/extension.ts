@@ -35,11 +35,25 @@ export function activate(context: vscode.ExtensionContext) {
 
 			panel.webview.onDidReceiveMessage((message) => {
 				switch (message.command) {
-					case 'getAuthOrgs':
-						getAuthOrgs().then((result:any) => {
-							orgsList = result;		
-							panel.webview.postMessage({command: 'orgsList', orgs: result});				
-						});						
+					case 'getAuthOrgs':			
+						var orgsListPath = path.join(context.globalStorageUri.fsPath, 'orgsList.json');
+						if (fs.existsSync(orgsListPath) && !message.refresh) {
+							orgsList = JSON.parse(fs.readFileSync(orgsListPath, 'utf-8'));
+							panel.webview.postMessage({ command: 'orgsList', orgs: orgsList});
+						} else {
+							getAuthOrgs().then((result:any) => {
+								orgsList = result;	
+								panel.webview.postMessage({command: 'orgsList', orgs: result});	
+								const dir = path.dirname(context.globalStorageUri.fsPath);
+								if (!fs.existsSync(dir)) {
+									fs.mkdirSync(dir, { recursive: true });
+								}	
+								fs.writeFile(context.globalStorageUri.fsPath+"/orgsList.json", JSON.stringify(orgsList, null, 2), 'utf8', (err:any) => {
+									if (err) {
+									}
+								}); 			
+							});	
+						}				
 						break;
 					case 'loadTypesComponents':
 						var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);	
@@ -646,6 +660,23 @@ function getAuthOrgs() {
     });
 }
 
+function refreshOrgs() {
+    return new Promise((resolve, reject) => {
+        const orgsDir = path.join(process.env.HOME || process.env.USERPROFILE || '', '.sfdx');    
+		const alias = JSON.parse(fs.readFileSync(orgsDir+'/alias.json', 'utf-8'));
+		console.log(alias.orgs);
+		/*fs.readFil(orgsDir+'/alias.json', (err, files) => {
+			if (err) {
+				console.error("Error reading orgs directory:", err);
+				return;
+			}
+
+			const orgs = files.map(file => path.basename(file, '.json'));
+			console.log("Authorized Orgs:", orgs);
+		});*/
+    });
+}
+
 function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode.Uri) {
 
 	return `<!doctype html>
@@ -667,9 +698,17 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 					<h1>Salesforce Deployment Tool</h1>		
 					<div style="display:flex;">			
 						<div id="source-org" style="margin-right:5px;display:none;">	
-							<label for="text" for="source-org-field" class="top-label">Source Org: </label>
+							<label for="text" for="source-org-field" class="top-label">Source Org:</label>
 							<select type="text" class="source-org-field" id="source-org-field" style="height:36px;">
 							</select>		
+						</div>
+						<div>
+							<p id="source-org-refresh" style="margin-bottom:0;margin-top:25px;margin-right:5px;cursor:pointer;display:none;" title="Refresh Orgs">
+								<svg width="25" height="25" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+									<circle cx="512" cy="512" r="512" fill="#0078d4"></circle>
+									<path d="M512 281.6c71.221 0 136.396 32.619 179.2 85.526V256h51.2v204.8H537.6v-51.2h121.511c-32.857-47.165-87.235-76.8-147.111-76.8-98.97 0-179.2 80.23-179.2 179.2 0 98.97 80.23 179.2 179.2 179.2v-.02c73.665 0 138.994-44.857 166.176-111.988l47.458 19.216C690.689 684.711 606.7 742.38 512 742.38v.02c-127.246 0-230.4-103.154-230.4-230.4 0-127.246 103.154-230.4 230.4-230.4z" fill="white" fill-rule="nonzero"></path>
+								</svg>
+							</p>
 						</div>
 						<div id="actions" style="display:none;flex:1;">
 							<div class="form-panel">

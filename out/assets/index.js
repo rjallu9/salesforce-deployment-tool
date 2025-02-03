@@ -25,6 +25,7 @@ $(document).ready(function () {
         if(event.data.command === 'orgsList') {
             orgs = event.data.orgs;
             $("#source-org").show();
+            $("#source-org-refresh").show();
             $("#spinner").hide();
             loadSourceOrgs();
         } else if(event.data.command === 'loading') {
@@ -106,6 +107,17 @@ $(document).ready(function () {
             });
             $("#deploystatus").hide();
         }       
+    });
+
+    $("#source-org-refresh").on('click', function (e) {
+        resetComponents();
+        $("#actions").hide();
+        $("#errors").text('');
+        $('#selectiontabs').hide();
+        $("#refresh-lbl").hide(); 
+        vscode.postMessage({ command: 'getAuthOrgs', refresh:true});
+        $("#spinner").show();   
+        $(".spinnerlabel").text("Refreshing Orgs");
     });
 
     $("#hard-refresh").on('click', function (e) {
@@ -511,6 +523,7 @@ $(document).ready(function () {
             $("#actions").hide();
             $('#selectiontabs').hide();
             $("#source-org").hide();
+            $("#source-org-refresh").hide();
             $("#refresh-lbl").hide(); 
             $("#preview").show();
             $('.preview').text('Selected ('+selectedComps.size+')');            
@@ -527,6 +540,7 @@ $(document).ready(function () {
         $("#actions").show();        
         $('#selectiontabs').show();
         $("#source-org").show();
+        $("#source-org-refresh").show();
         $("#refresh-lbl").show(); 
         $("#preview").hide();
     });    
