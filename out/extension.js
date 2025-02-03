@@ -46,9 +46,9 @@ let tmpDirectory = '';
 function activate(context) {
     const disposable = vscode.commands.registerCommand('salesforce-deployment-tool.build', () => {
         const panel = vscode.window.createWebviewPanel('packageBuilder', 'Salesforce Deployment Tool', vscode.ViewColumn.One, { enableScripts: true, retainContextWhenHidden: true });
-        const scriptPath = vscode.Uri.file(path.join(context.extensionPath, 'src', 'assets/index.js'));
+        const scriptPath = vscode.Uri.file(path.join(context.extensionPath, 'out', 'assets/index.js'));
         const scriptUri = panel.webview.asWebviewUri(scriptPath);
-        const cssPath = vscode.Uri.file(path.join(context.extensionPath, 'src', 'assets/index.css'));
+        const cssPath = vscode.Uri.file(path.join(context.extensionPath, 'out', 'assets/index.css'));
         const cssUri = panel.webview.asWebviewUri(cssPath);
         panel.webview.html = getWebviewContent(context.extensionPath, scriptUri, cssUri);
         let orgsList = [];
@@ -687,8 +687,7 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 					<h1>Salesforce Deployment Tool</h1>		
 					<div style="display:flex;">			
 						<div id="source-org" style="margin-right:5px;display:none;">	
-							<label for="text" for="source-org-field" class="top-label">Source Org: &nbsp;&nbsp;
-										<a href="#" id="refresh-classes">Refresh</a></label>
+							<label for="text" for="source-org-field" class="top-label">Source Org:</label>
 							<select type="text" class="source-org-field" id="source-org-field" style="height:36px;">
 							</select>		
 						</div>
@@ -805,7 +804,7 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 								<button type="button" style="width: 110px;" id="bulkselection" disabled>Bulk Selection</button>
 								<div id="bulkselection-dialog" title="Bulk Selection">
 									<p>Provide the names of the components in the format type.name(ex. CustomField.Account.Phone) in a new line.</p>
-									<textarea id="bulk-comps" name="bulk-comps" rows="18" cols="66" style="line-height: 20px;scrollbar-width:thin;resize: none"></textarea>
+									<textarea id="bulk-comps" name="bulk-comps" rows="18" style="line-height:20px;scrollbar-width:thin;resize:none;width:100%;"></textarea>
 									<div id="bulkerrors" style="display:none;">
 										<p style="color: red;font-weight: bold;margin-bottom:0;">Errors:</p>
 										<textarea class="errors" rows="9" cols="66" style="line-height: 20px;scrollbar-width:thin;resize: none;"></textarea>
@@ -868,8 +867,7 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 							<div class="coverage-error" style="display:none;"><p class="coverage-error-label"></p></div>
 							<div id="test-classes-dialog" title="Test Classes">
 								<p>Provide the names of the test classes in a comma-seprated list.</p>
-								<textarea id="test-classes" name="test-classes" rows="15" cols="35">
-								</textarea>
+								<textarea id="test-classes" name="test-classes" rows="15" style="line-height:20px;scrollbar-width:thin;resize:none;width:100%;"></textarea>
 								<button type="button" style="width:50px;float:right;padding: 5px;margin-right:-4px;" id="save-classes">Save</button>
 							</div>
 						</div>

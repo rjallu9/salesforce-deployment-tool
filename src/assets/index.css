@@ -184,13 +184,19 @@ label {
     scrollbar-width:thin;
 }
 
-body, select, ul, li, div:not(.spinner, .cv-spinner, .ui-widget-overlay) , input, .ui-tabs, .ui-tabs-nav, .ui-state-default, .tab, .ui-tabs-tab {
+body, select, ul, li, textarea, div:not(.spinner, .cv-spinner, .ui-widget-overlay) , input, .ui-tabs, .ui-tabs-nav, .ui-state-default, .tab, .ui-tabs-tab {
     background-color: var(--vscode-editor-background);
     color: var(--vscode-editor-foreground);
+    font-family: var(--vscode-font-family) !important;
+    font-weight: var(--vscode-font-weight) !important;
+    font-size: var(--vscode-font-size) !important;
 }
 button {
     background-color: var(--vscode-button-background);
     color: var(--vscode-button-foreground);
+    font-family: var(--vscode-font-family) !important;
+    font-weight: var(--vscode-font-weight) !important;
+    font-size: var(--vscode-font-size) !important;
     border:none;
     padding:9px;
 }

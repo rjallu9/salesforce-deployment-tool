@@ -17,11 +17,11 @@ export function activate(context: vscode.ExtensionContext) {
 				{ enableScripts: true, retainContextWhenHidden: true }
 			);
 			const scriptPath = vscode.Uri.file(
-				path.join(context.extensionPath, 'src', 'assets/index.js')
+				path.join(context.extensionPath, 'out', 'assets/index.js')
 			);
 			const scriptUri = panel.webview.asWebviewUri(scriptPath);
 			const cssPath = vscode.Uri.file(
-				path.join(context.extensionPath, 'src', 'assets/index.css')
+				path.join(context.extensionPath, 'out', 'assets/index.css')
 			);
 			const cssUri = panel.webview.asWebviewUri(cssPath);
 
@@ -815,7 +815,7 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 								<button type="button" style="width: 110px;" id="bulkselection" disabled>Bulk Selection</button>
 								<div id="bulkselection-dialog" title="Bulk Selection">
 									<p>Provide the names of the components in the format type.name(ex. CustomField.Account.Phone) in a new line.</p>
-									<textarea id="bulk-comps" name="bulk-comps" rows="18" cols="66" style="line-height: 20px;scrollbar-width:thin;resize: none"></textarea>
+									<textarea id="bulk-comps" name="bulk-comps" rows="18" style="line-height:20px;scrollbar-width:thin;resize:none;width:100%;"></textarea>
 									<div id="bulkerrors" style="display:none;">
 										<p style="color: red;font-weight: bold;margin-bottom:0;">Errors:</p>
 										<textarea class="errors" rows="9" cols="66" style="line-height: 20px;scrollbar-width:thin;resize: none;"></textarea>
@@ -878,8 +878,7 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 							<div class="coverage-error" style="display:none;"><p class="coverage-error-label"></p></div>
 							<div id="test-classes-dialog" title="Test Classes">
 								<p>Provide the names of the test classes in a comma-seprated list.</p>
-								<textarea id="test-classes" name="test-classes" rows="15" cols="35">
-								</textarea>
+								<textarea id="test-classes" name="test-classes" rows="15" style="line-height:20px;scrollbar-width:thin;resize:none;width:100%;"></textarea>
 								<button type="button" style="width:50px;float:right;padding: 5px;margin-right:-4px;" id="save-classes">Save</button>
 							</div>
 						</div>
