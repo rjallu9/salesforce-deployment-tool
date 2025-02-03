@@ -48,7 +48,6 @@
     color: #333333;
     margin-top: 10px;
     border-radius: 3px;
-    font-family: Arial, Helvetica, sans-serif;
 }
 .coverage-error-label {
     margin: 8px;
@@ -61,10 +60,6 @@
 ::placeholder {
     color: var(--vscode-editor-foreground);
     opacity: 1;
-}
-label {
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 1em;
 }
 .path-list {				
     color:white;

@@ -559,7 +559,7 @@ $(document).ready(function () {
         }
     });
 
-    $('#test-classes-dialog').dialog({autoOpen: false, modal: true, closeOnEscape: false});
+    $('#test-classes-dialog').dialog({autoOpen: false, modal: true, closeOnEscape: false, width: 500});
     
     $(".testoption-field").on("change", function(e){
         if($(this).val() === 'RunSpecifiedTests') {
