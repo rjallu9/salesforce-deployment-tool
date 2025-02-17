@@ -155,6 +155,7 @@
     z-index: 100;
     width: 100%;
     height:100%;
+    background: rgba(55, 55, 55, 0.5);
 }
 .cv-spinner {
     height: 100%;
@@ -227,12 +228,12 @@ button:not(:disabled):hover {
     background: var(--vscode-button-background) !important;
     border-radius: 0px;
 }
-table.dataTable.row-border>tbody>tr>*, table.dataTable.display>tbody>tr>* {
-    border-top: 1px solid rgb(118, 118, 118);
+table.dataTable>tbody>tr>* {
+    border-top: 1px solid rgb(118, 118, 118) !important;
 }
-table.dataTable>thead>tr>th, table.dataTable>thead>tr>td {
-    border-bottom: 1px solid rgb(118, 118, 118);
-}
+/*table.dataTable>thead>tr>th, table.dataTable>thead>tr>td {
+    border-bottom: 1px solid rgb(118, 118, 118) !important;
+}*/
 
 .ui-widget.ui-widget-content {
     border: none;
@@ -244,4 +245,8 @@ div.dt-container .dt-search input, .ui-tabs-panel {
 .select-row {
     background-color: var(--vscode-button-background) !important;
     color: var(--vscode-button-foreground) !important;
+}
+.ui-widget-overlay {
+    opacity: 1 !important;
+    background: rgba(55, 55, 55, 0.5) !important;
 }

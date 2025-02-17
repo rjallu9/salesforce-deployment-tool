@@ -3,8 +3,20 @@
   "displayName": "Salesforce Deployment Tool",
   "description": "This extension is to streamline the deployment process between salesforce orgs (scratch orgs, sandboxes, and DE orgs).",
   "publisher": "RamuJallu",
+  "repository": "https://github.com/rjallu9/sf-deployment-tool",
+  "bugs": {
+    "url": "https://github.com/rjallu9/sf-deployment-tool/issues"
+  },
+  "license": "BSD-3-Clause",
   "version": "0.0.1",
   "icon": "logo.png",
+  "keywords": [
+    "sfdx",
+    "salesforce",
+    "salesforce deploy",
+    "sf",
+    "sf deploy"
+  ],
   "engines": {
     "vscode": "^1.95.0"
   },
@@ -17,7 +29,8 @@
     "commands": [
       {
         "command": "salesforce-deployment-tool.build",
-        "title": "Salesforce Deployment Tool"
+        "title": "Select and Deploy Metadata",
+        "category": "SFDX Deployment"
       }
     ]
   },

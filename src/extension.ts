@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import stdValueSet from './assets/stdValueSet.json';
 const path = require('path');
 const axios = require('axios');
 const xml2js = require('xml2js');
@@ -7,6 +8,7 @@ const fs = require('fs');
 const AdmZip = require('adm-zip');
 
 let tmpDirectory = '';
+let STD_VALUE_SET = stdValueSet;
 
 export function activate(context: vscode.ExtensionContext) {
 	const disposable = vscode.commands.registerCommand('salesforce-deployment-tool.build', () => {
@@ -17,11 +19,11 @@ export function activate(context: vscode.ExtensionContext) {
 				{ enableScripts: true, retainContextWhenHidden: true }
 			);
 			const scriptPath = vscode.Uri.file(
-				path.join(context.extensionPath, 'out', 'assets/index.js')
+				path.join(context.extensionPath, 'src', 'assets/index.js')
 			);
 			const scriptUri = panel.webview.asWebviewUri(scriptPath);
 			const cssPath = vscode.Uri.file(
-				path.join(context.extensionPath, 'out', 'assets/index.css')
+				path.join(context.extensionPath, 'src', 'assets/index.css')
 			);
 			const cssUri = panel.webview.asWebviewUri(cssPath);
 
@@ -49,8 +51,6 @@ export function activate(context: vscode.ExtensionContext) {
 									fs.mkdirSync(dir, { recursive: true });
 								}	
 								fs.writeFile(context.globalStorageUri.fsPath+"/orgsList.json", JSON.stringify(orgsList, null, 2), 'utf8', (err:any) => {
-									if (err) {
-									}
 								}); 			
 							});	
 						}				
@@ -62,6 +62,8 @@ export function activate(context: vscode.ExtensionContext) {
 							if(result.valid) {
 								if(result.orgsList) {
 									orgsList = result.orgsList;
+									sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);	
+									fs.writeFile(context.globalStorageUri.fsPath+"/orgsList.json", JSON.stringify(orgsList, null, 2), 'utf8', (err:any) => {}); 
 								}
 								var snapshots:string[] = [];
 								var snapshotPath = path.join(context.globalStorageUri.fsPath+"/"+sourceOrg.orgId, 'snapshots.json');
@@ -245,6 +247,9 @@ export function activate(context: vscode.ExtensionContext) {
 						let title = message.file+': Source ↔ Target';
 						vscode.commands.executeCommand('vscode.diff',  vscode.Uri.file(message.source),  
 								vscode.Uri.file(message.dest), title, { preview: false });
+						if(message.scrollTo !== '') {
+							setTimeout(() => scrollTo(message.scrollTo), 1000);
+						}						
 						break;
 					default:
 					console.log('Unknown command:', message.command);
@@ -263,6 +268,25 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	context.subscriptions.push(disposable);
+}
+
+async function scrollTo(text: string) {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        return;
+    }
+
+    const doc = editor.document;
+    const textPosition = doc.getText().indexOf(text);
+
+    if (textPosition === -1) {
+        return;
+    }
+
+    const pos = doc.positionAt(textPosition);
+    const range = new vscode.Range(pos, pos);
+    editor.selection = new vscode.Selection(pos, pos);
+    editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
 }
 
 function validateSession(accessToken:string, endPoint:string, orgId:string) {
@@ -453,7 +477,7 @@ function getTypesComponents(accessToken:string, endPoint:string, globalStorageUr
 			});		
 			panel.webview.postMessage({ command: 'loading', message: 'Refreshing Components(0/'+typesList.length+')'});	
 
-			Promise.all(typesList.map((e:{name:string; inFolder:string;}) => {
+			Promise.all(typesList.map((e:{name:string; inFolder:string;}) => {				
 				return sendSoapMDRequest(accessToken, endPoint, '<met:listMetadata><met:queries><met:type>'
 											+(e.inFolder === 'true' ? (e.name === 'EmailTemplate' ? 'EmailFolder' : e.name+'Folder') : e.name)
 											+'</met:type></met:queries></met:listMetadata>')
@@ -488,7 +512,7 @@ function getTypesComponents(accessToken:string, endPoint:string, globalStorageUr
 									const comps = result['describeGlobalResponse']['result']['sobjects'];
 									let objects:string[] = [];	
 									comps.forEach((e:any) => {
-										if(e['custom'] === 'false' && mdobjects.has(e['name'])) {
+										if(e['custom'] === 'false' && e['layoutable'] === 'true' && mdobjects.has(e['name'])) {
 											objects.push(e['name']);
 										}
 									});
@@ -505,11 +529,11 @@ function getTypesComponents(accessToken:string, endPoint:string, globalStorageUr
 										.then((result:any) => {
 											const objs = result['describeSObjectsResponse']['result'];
 											const exclFields = new Set(['Id', 'IsDeleted', 'CreatedById', 'CreatedDate', 'LastModifiedById', 'LastModifiedDate', 
-												'LastReferencedDate', 'LastViewedDate', 'SystemModstamp']);
+												'LastReferencedDate', 'LastViewedDate', 'SystemModstamp', 'MasterRecordId', 'LastActivityDate']);
 											objs.forEach((obj:any) => {
 												let tmp:string[] = [];
 												obj['fields'].forEach((e:any) => {
-													if(e['custom'] === 'false' && !exclFields.has(e['name']) ) {
+													if(e['custom'] === 'false' && !exclFields.has(e['name']) && (e['compoundFieldName'] === undefined || e['compoundFieldName'] === 'Name')) {
 														tmp.push(obj['name']+'.'+e['name']);
 													}
 												});
@@ -529,6 +553,12 @@ function getTypesComponents(accessToken:string, endPoint:string, globalStorageUr
 								vscode.window.showErrorMessage(`Error ${error}`);
 							});
 						} else {
+							if(e.name === 'StandardValueSet') {
+								results = [];						
+								STD_VALUE_SET.forEach((e) => {
+									results.push({name: e, type: 'StandardValueSet', lastModifiedByName:'', lastModifiedDate: ''});
+								});
+							}
 							components.set(e.name, results);
 							panel.webview.postMessage({ command: 'loading', message: 'Refreshing Components('+components.size+'/'+typesList.length+')'});
 							panel.webview.postMessage({ command: 'components', components:results, type:e.name });
@@ -536,7 +566,7 @@ function getTypesComponents(accessToken:string, endPoint:string, globalStorageUr
 					}
 				).catch(error => {
 					vscode.window.showErrorMessage(`Error ${error}`);
-				});			
+				});		
 			}))
 			.then(() => {
 				resolve({'components': components, 'sobjects':sobjects});
@@ -818,10 +848,10 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 									<textarea id="bulk-comps" name="bulk-comps" rows="18" style="line-height:20px;scrollbar-width:thin;resize:none;width:100%;"></textarea>
 									<div id="bulkerrors" style="display:none;">
 										<p style="color: red;font-weight: bold;margin-bottom:0;">Errors:</p>
-										<textarea class="errors" rows="9" cols="66" style="line-height: 20px;scrollbar-width:thin;resize: none;"></textarea>
+										<textarea class="errors" rows="9" style="line-height: 20px;scrollbar-width:thin;resize: none;width:100%;"></textarea>
 									</div>									
 									<button type="button" style="width:50px;float:right;padding: 5px;margin-right:-4px;" id="bulkselect">Select</button>
-									<button type="button" style="width:70px;float:right;margin-right:5px;display:none;" id="bulkcontinue">Continue</button>
+									<button type="button" style="width:70px;float:right;padding: 5px;margin-right:5px;display:none;" id="bulkcontinue">Continue</button>
 								</div>
 							</div>
 						</div>

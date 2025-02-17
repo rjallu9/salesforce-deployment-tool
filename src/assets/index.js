@@ -260,7 +260,7 @@ $(document).ready(function () {
                 if($(chxbox).prop('checked')) {
                     $(chxbox).prop('checked', false);
                     $(chxbox).parent().removeClass('select-row');
-                    $(chxbox).parent().removeClass('select-row');
+                    $(chxbox).parent().parent().removeClass('select-row');
                 }                
             });  
             selectedTypes.clear();
@@ -764,8 +764,10 @@ $(document).ready(function () {
     }   
 
     $('#errortable').DataTable({
-        paging: false,
-        scrollY: '200px',
+        paging: true,
+        pageLength: 100,
+        lengthChange: false,
+        scrollY: '400px',
         scrollCollapse: true, 
         fixedColumns: true,
         order: [[0, 'asc']],
@@ -782,8 +784,10 @@ $(document).ready(function () {
     }); 
     
     $('#testcoveragestable').DataTable({
-        paging: false,
-        scrollY: '200px',
+        paging: true,
+        pageLength: 100,
+        lengthChange: false,
+        scrollY: '400px',
         scrollCollapse: true, 
         fixedColumns: true,
         order: [[0, 'asc']],
@@ -797,11 +801,12 @@ $(document).ready(function () {
     });  
     
     $('#testerrortable').DataTable({
-        paging: false,
-        scrollY: '200px',
+        paging: true,
+        pageLength: 100,
+        lengthChange: false,
+        scrollY: '400px',
         scrollCollapse: true, 
         fixedColumns: true,
-        order: [[0, 'asc']],
         columns: [
             { data: 'name', width:'300px' },
             { data: 'methodName' },            
@@ -857,37 +862,53 @@ $(document).ready(function () {
         let source = selectedComps.get(filename).source;
         let dest = selectedComps.get(filename).dest;
         let files = selectedComps.get(filename).files;
+        let scrollTo = '';
+        if(filename.startsWith('CustomField') || filename.startsWith('ValidationRule')) {
+            scrollTo = selectedComps.get(filename).name.split('.')[1];
+        }
         source.forEach((element, index) => {
-            vscode.postMessage({ command: 'filePreview', source: element,  dest: dest[index], file: files[index]}); 
+            vscode.postMessage({ command: 'filePreview', source: element,  dest: dest[index], file: files[index], 
+                scrollTo: scrollTo
+            }); 
         }); 
     });
 
     function loadCompareResults(files) {
+        const filesLst = new Map();
         files.forEach(file => {
             let filename = file.name;
             if(filename.indexOf("/") >= 0){
-                    filename = filename.substring(0, filename.indexOf('/'));
-            }
-            if(selectedComps.has(filename)) {
-                    if(selectedComps.get(filename).hasOwnProperty('source')) {
-                        selectedComps.get(filename).source.push(file.source);
+                filename = filename.substring(0, filename.indexOf('/'));
+            }  
+            filesLst.set(filename, file);       
+        });    
+
+
+        Array.from(selectedComps.keys()).forEach(c => {
+            var cmp = c.startsWith('CustomField') || c.startsWith('ValidationRule') ? 'CustomObject.'+c.split('.')[1] : c;
+            if(filesLst.has(cmp)) {
+                var file = filesLst.get(cmp);
+                var comp = selectedComps.get(c);
+                if(comp.hasOwnProperty('source')) {
+                    comp.source.push(file.source);
+                } else {
+                    comp['source'] = [file.source];
+                }
+                if(comp.hasOwnProperty('files')) {
+                    comp.files.push(file.name);
+                } else {
+                    comp['files'] = [file.name];
+                }
+                if(file.dest !== '') {
+                    if(comp.hasOwnProperty('dest')) {
+                        comp.dest.push(file.dest);
                     } else {
-                        selectedComps.get(filename)['source'] = [file.source];
+                        comp['dest'] = [file.dest];
                     }
-                    if(selectedComps.get(filename).hasOwnProperty('files')) {
-                        selectedComps.get(filename).files.push(file.name);
-                    } else {
-                        selectedComps.get(filename)['files'] = [file.name];
-                    }
-                    if(file.dest !== '') {
-                        if(selectedComps.get(filename).hasOwnProperty('dest')) {
-                            selectedComps.get(filename).dest.push(file.dest);
-                        } else {
-                            selectedComps.get(filename)['dest'] = [file.dest];
-                        }
-                    }
+                }
             }
-        });        
+        });
+
         let column = $('#previewtable').DataTable().column(4); //Compare Results Column
         column.visible(true);
         $('#previewtable').DataTable().clear().rows.add(Array.from(selectedComps.values())).order([[4, 'desc'],[0, 'asc'],[1, 'asc']]).draw();
