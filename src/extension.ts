@@ -11,10 +11,10 @@ let tmpDirectory = '';
 let STD_VALUE_SET = stdValueSet;
 
 export function activate(context: vscode.ExtensionContext) {
-	const disposable = vscode.commands.registerCommand('salesforce-deployment-tool.build', () => {
+	const disposable = vscode.commands.registerCommand('salesforce-deployment-suite.build', () => {
 			const panel = vscode.window.createWebviewPanel(
 				'packageBuilder',
-				'Salesforce Deployment Tool',
+				'Salesforce Deployment Suite',
 				vscode.ViewColumn.One,
 				{ enableScripts: true, retainContextWhenHidden: true }
 			);
@@ -715,7 +715,7 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 			<head>
 				<meta charset="UTF-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-				<title>Salesforce Deployment Tool</title>
+				<title>Salesforce Deployment Suite</title>
 				<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 				<script src="https://code.jquery.com/ui/1.14.1/jquery-ui.min.js"></script>
 				<script src="https://cdn.datatables.net/2.1.8/js/dataTables.min.js"></script>				
@@ -727,7 +727,7 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 			<body>	
 				<div style="margin: 20px;">
 					<div style="display:flex;justify-content: space-between;align-items: center;">	
-						<h1>Salesforce Deployment Tool</h1>		
+						<h1>Salesforce Deployment Suite</h1>		
 						<a href="https://github.com/rjallu9/sf-deployment-tool/issues" title="Report issue" style="height"25px;">
 							<svg width="25px" height="25px" viewBox="0 0 36 36" version="1.1"  preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 								<circle cx="18" cy="18" r="14" fill="#0078d4"/>

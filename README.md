@@ -34,36 +34,38 @@ Developers and Admins can easily search, select, and deploy metadata components.
 
 * **Setup SFDX Project in VS Code:** Install Salesforce CLI and VS Code, add the Salesforce Extension Pack, create a project using SFDX: Create Project With Manifest, and authorize at least two orgs using SFDX: Authorize an Org.
 * Launch the Extension using SFDX Deployment: Select and Deploy metadata
-  ![image](https://github.com/user-attachments/assets/38090a74-8068-4c34-90b8-3695e7a60b3b)
+  ![image](https://github.com/user-attachments/assets/d989f505-6352-4163-a50c-ce0f1be2f007)
 * **Select Source Org:** Choose the source org from available authorized orgs.
-  ![image](https://github.com/user-attachments/assets/e04e08f8-4d89-4ba2-91c5-8dc64235a661)
+  ![image](https://github.com/user-attachments/assets/c10caeef-08ff-4ac8-a3b0-855ac17e9cb7)
 * **Load Components:** On org selection, the tool loads all available components. Components are loaded from cache if previously fetched to optimize performance.
-  ![image](https://github.com/user-attachments/assets/b077f613-8c31-46fa-a3bf-3c2e6e380ada)
+  ![image](https://github.com/user-attachments/assets/6906bf94-21cb-49d3-aaff-ed2191387df5)
 * **Filter Components:** Use the 'Type' dropdown to filter components by type (e.g., ApexClass, CustomField, LightningComponentBundle, etc.).
-  ![image](https://github.com/user-attachments/assets/afee032f-d101-4cc7-a764-d2a7e9e141f3)
+  ![image](https://github.com/user-attachments/assets/af08210a-94a3-4340-8a01-6bd61f2debf3)
 * **Select Components:** Search and select components to be deployed.
-  ![image](https://github.com/user-attachments/assets/dfb8fa43-7e4e-4e24-9111-eb711ac5e1a2)
+  ![image](https://github.com/user-attachments/assets/87ab1b55-16d5-4c59-b440-cc1d77427c9d)
 * **Bulk Selection:** Use the Bulk Selection button to select multiple components at once using the TYPE.NAME format.
-  ![image](https://github.com/user-attachments/assets/dcd9763b-131a-4ce0-8aaa-87a38b343ce8)
+  ![image](https://github.com/user-attachments/assets/4f48c5f4-bdde-4539-8f7a-9a3b2ab4d952)
 * **Manage Selections:** Switch to the 'Selected' tab to review selected components.Uncheck any component to remove it from the selection.
-  ![image](https://github.com/user-attachments/assets/2e8094f6-244b-4f40-8bca-d8026a33e852)
+  ![image](https://github.com/user-attachments/assets/81f89e62-b92e-46a6-b614-f9677339e557)
 * **Generate Package.xml:** Click the 'Package.xml' button to generate the package.xml for deployment.
-  ![image](https://github.com/user-attachments/assets/f5660396-23eb-497e-a5cc-6141ad3d96c2)
+ ![image](https://github.com/user-attachments/assets/51da47bd-1e5f-4c45-83e0-2e0eff3913a6)
 * **Export Components:** Use Export All or Export Selection buttons to save the list of components as a CSV file.
-  ![image](https://github.com/user-attachments/assets/7c586b72-a3a2-46c9-a4e8-172c7852df0e)
+  ![image](https://github.com/user-attachments/assets/968e17ee-f57e-4d37-827b-566b9d92ee90)
 * **Snapshots:** Save component selections as Snapshots for future deployments.
-  ![image](https://github.com/user-attachments/assets/b485a9b2-6a2c-47cb-a1d6-f2650c6334a2)
+  ![image](https://github.com/user-attachments/assets/afea16f5-2d1a-40f3-aec2-3c02c1fd5239)
 * **Select Destination Org:** Click 'Next' to move to the next screen and select the destination org for deployment.
-  ![image](https://github.com/user-attachments/assets/90c89c92-1ac3-49b0-8606-992d10607862)
+  ![image](https://github.com/user-attachments/assets/8ab16855-13d9-4907-a3cd-751bfb02d2dc)
 * **Test Options:** Use the 'Test Options' dropdown to select test levels (e.g., Run Local Tests, Run All Tests).
-  ![image](https://github.com/user-attachments/assets/03f421ce-c7e9-49ff-b909-d9cff4b58ef2)
-* **Compare Components:** Click the Compare button to view differences between source and target org components.
-  ![image](https://github.com/user-attachments/assets/b9eb52f4-26ec-4b89-b25c-d66dcc6bd8ff)
+  ![image](https://github.com/user-attachments/assets/dc37a133-1df3-4f0c-a65b-3f8e58bd0f8e)
+* **Compare Components:** Click the Compare button and Click "View" link of the each component to view differences between source and target org components.
+  ![image](https://github.com/user-attachments/assets/432a9f0e-d6ff-4bcd-a53f-9e591adbd379)
 * **Validate & Quick Deploy:** Use the Validate button to validate components against the target org. If validation passes, use Quick Deployment for immediate deployment.
-  ![image](https://github.com/user-attachments/assets/5a25d455-a79e-42ae-8948-642ebf0bb2ce)
-  ![image](https://github.com/user-attachments/assets/d35e758a-c666-46e9-a3df-5a8b74b0dcc2)
+  ![image](https://github.com/user-attachments/assets/93030545-20aa-48ad-bd4b-50d121e3a563)
+  ![image](https://github.com/user-attachments/assets/f59fe18b-b246-4675-8f46-b2215de3ec8f)  
 * **Deploy & Cancel:** Click the Deploy button to start the deployment. Use the Cancel link to abort an ongoing deployment.
-  ![image](https://github.com/user-attachments/assets/67344317-e4f7-4766-85d1-e2442996c9f1)
-  ![image](https://github.com/user-attachments/assets/e536a978-f7ea-48db-98f6-cf869093c1e7)
+  ![image](https://github.com/user-attachments/assets/55b0697d-23a3-40ed-8090-b61634a4d628)
+  ![image](https://github.com/user-attachments/assets/63524fe3-d1d8-4b04-b058-a6d183e4f14f)
 * **Review Failures & Coverage:** Use dedicated tabs to review Test Class Failures, Component Deployment Failures and Code Coverages.
-  ![image](https://github.com/user-attachments/assets/d692c00b-fe12-49f1-a3ae-c3ea3313308d)
+  ![image](https://github.com/user-attachments/assets/7a850589-e807-4524-a72f-781cec62867d)
+* **Report Issue:** Use "Help" link next to the title to report the issue.
+  ![image](https://github.com/user-attachments/assets/a7661909-f7d9-4324-825f-0ec70adf0b8e)
