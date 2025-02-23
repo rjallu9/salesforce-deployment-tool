@@ -1,11 +1,11 @@
 {
-  "name": "salesforce-deployment-tool",
-  "displayName": "Salesforce Deployment Tool",
+  "name": "salesforce-deployment-suite",
+  "displayName": "Salesforce Deployment Suite",
   "description": "This extension is to streamline the deployment process between salesforce orgs (scratch orgs, sandboxes, and DE orgs).",
   "publisher": "RamuJallu",
-  "repository": "https://github.com/rjallu9/sf-deployment-tool",
+  "repository": "https://github.com/rjallu9/salesforce-deployment-suite",
   "bugs": {
-    "url": "https://github.com/rjallu9/sf-deployment-tool/issues"
+    "url": "https://github.com/rjallu9/salesforce-deployment-suite/issues"
   },
   "license": "BSD-3-Clause",
   "version": "0.0.1",
@@ -28,7 +28,7 @@
   "contributes": {
     "commands": [
       {
-        "command": "salesforce-deployment-tool.build",
+        "command": "salesforce-deployment-suite.build",
         "title": "Select and Deploy Metadata",
         "category": "SFDX Deployment"
       }
@@ -40,7 +40,7 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
-    "package": "npm run compile && esbuild src/assets/index.js --minify --outfile=out/assets/index.js && esbuild src/assets/index.css --minify --outfile=out/assets/index.css && esbuild out/extension.js --minify --outfile=out/extension-min.js && del out\\extension.js && ren out\\extension-min.js extension.js   && vsce package",
+    "package": "npm run compile && terser src/assets/index.js -o out/assets/index.js -c -m && esbuild src/assets/index.css --minify --outfile=out/assets/index.css&& terser out/extension.js -o out/extension-min.js -c -m && del out\\extension.js && ren out\\extension-min.js extension.js   && vsce package",
     "build": "npm run compile && xcopy .\\src\\assets .\\out\\assets /s /y"
   },
   "devDependencies": {

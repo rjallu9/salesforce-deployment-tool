@@ -1,4 +1,4 @@
-# Salesforce Deployment Tool for Visual Studio Code
+# Salesforce Deployment Suite for Visual Studio Code
 
 This extension is designed to streamline the deployment process between Salesforce orgs (Scratch Orgs, Sandboxes, and Developer Edition (DE) Orgs). 
 Developers and Admins can easily search, select, and deploy metadata components.
