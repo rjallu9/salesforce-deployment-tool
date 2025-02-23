@@ -467,11 +467,11 @@ function getTypesComponents(accessToken, endPoint, globalStorageUri, panel) {
             const types = result['describeMetadataResponse']['result']['metadataObjects'];
             const typesList = [];
             types.forEach((element) => {
-                typesList.push({ name: element['xmlName'], inFolder: element['inFolder'] });
+                typesList.push({ name: element['xmlName'], inFolder: element['inFolder'], parent: '' });
                 if (element['childXmlNames']) {
                     let tmp = element['childXmlNames'] instanceof Array ? element['childXmlNames'] : [element['childXmlNames']];
                     tmp.forEach((childname) => {
-                        typesList.push({ name: childname, inFolder: 'false' });
+                        typesList.push({ name: childname, inFolder: 'false', parent: element['xmlName'] });
                     });
                 }
             });
@@ -482,7 +482,7 @@ function getTypesComponents(accessToken, endPoint, globalStorageUri, panel) {
                     + '</met:type></met:queries></met:listMetadata>')
                     .then((result) => {
                     const comps = result['listMetadataResponse'];
-                    let results = buildComponents(comps);
+                    let results = buildComponents(comps, e.parent);
                     if (e.inFolder === 'true') {
                         let folderresults = [];
                         return Promise.all(results.map((element) => {
@@ -490,7 +490,7 @@ function getTypesComponents(accessToken, endPoint, globalStorageUri, panel) {
                                 '</met:type><met:folder>' + element.name + '</met:folder></met:queries></met:listMetadata>')
                                 .then((result) => {
                                 const comps = result['listMetadataResponse'];
-                                let fldresults = buildComponents(comps);
+                                let fldresults = buildComponents(comps, e.parent);
                                 element.type = e.name;
                                 folderresults = [...folderresults, ...fldresults, element];
                             });
@@ -533,6 +533,9 @@ function getTypesComponents(accessToken, endPoint, globalStorageUri, panel) {
                                     objs.forEach((obj) => {
                                         let tmp = [];
                                         obj['fields'].forEach((e) => {
+                                            if (e['name'] === 'BillingCountry') {
+                                                console.log(e['name']);
+                                            }
                                             if (e['custom'] === 'false' && !exclFields.has(e['name']) && (e['compoundFieldName'] === undefined || e['compoundFieldName'] === 'Name')) {
                                                 tmp.push(obj['name'] + '.' + e['name']);
                                             }
@@ -556,7 +559,7 @@ function getTypesComponents(accessToken, endPoint, globalStorageUri, panel) {
                         if (e.name === 'StandardValueSet') {
                             results = [];
                             STD_VALUE_SET.forEach((e) => {
-                                results.push({ name: e, type: 'StandardValueSet', lastModifiedByName: '', lastModifiedDate: '' });
+                                results.push({ name: e, type: 'StandardValueSet', lastModifiedByName: '', lastModifiedDate: '', parent: '' });
                             });
                         }
                         components.set(e.name, results);
@@ -578,7 +581,7 @@ function getTypesComponents(accessToken, endPoint, globalStorageUri, panel) {
         });
     });
 }
-function buildComponents(comps) {
+function buildComponents(comps, parent) {
     let results = [];
     let auditDate = '1970-01-01T00:00:00.000Z';
     if (comps !== "") {
@@ -586,6 +589,7 @@ function buildComponents(comps) {
         results = tmp.map((comp) => ({
             name: comp['fullName'],
             type: comp['type'],
+            parent: parent,
             lastModifiedByName: comp['lastModifiedByName'],
             lastModifiedDate: comp['lastModifiedDate'] !== auditDate ? new Date(comp['lastModifiedDate']).toLocaleDateString() :
                 comp['createdDate'] !== auditDate ? new Date(comp['createdDate']).toLocaleDateString() : ''

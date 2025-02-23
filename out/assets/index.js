@@ -52,7 +52,7 @@ $(document).ready(function () {
                     if(type === 'CustomField') {
                         const stdFields = Array.from(stdFieldsMap.values()).flat();
                         stdFields.forEach((name) => {
-                            componentsMap.get(type).push({ name, type:'CustomField', lastModifiedByName:'', lastModifiedDate:'' });
+                            componentsMap.get(type).push({ name, type:'CustomField', lastModifiedByName:'', lastModifiedDate:'', parent: 'CustomObject' });
                         });
                     }             
                 });
@@ -446,7 +446,7 @@ $(document).ready(function () {
                 orderable: false,
                 render: function (data, type, row) {
                     if (row.dest) {
-                        return '<a href="#" class="fileview" data-name="'+row.type+"."+row.name+'" style="color:#4daafc">View</a>';
+                        return '<a href="#" class="fileview" data-parent="'+row.parent+'" data-name="'+row.type+"."+row.name+'" style="color:#4daafc">View</a>';
                     } else {
                         return 'N/A';
                     }
@@ -712,7 +712,7 @@ $(document).ready(function () {
                         $('.testcoverages').text('Test Coverage (1)');
                         $('#testcoveragestable').DataTable().clear().rows.add([{
                             name: rec.name,
-                            coverage: e.numLocations > 0 ? Math.trunc((rec.numLocations-rec.numLocationsNotCovered) / rec.numLocations*100)+'%' : 'N/A',
+                            coverage: rec.numLocations > 0 ? Math.trunc((rec.numLocations-rec.numLocationsNotCovered) / rec.numLocations*100)+'%' : 'N/A',
                         }]).draw(); 
                     }                   
                 }         
@@ -859,11 +859,12 @@ $(document).ready(function () {
 
     $("#previewtable").on('click', 'a.fileview', function (e) {
         let filename = e.currentTarget.dataset.name;
+        let parent = e.currentTarget.dataset.parent;
         let source = selectedComps.get(filename).source;
         let dest = selectedComps.get(filename).dest;
         let files = selectedComps.get(filename).files;
         let scrollTo = '';
-        if(filename.startsWith('CustomField') || filename.startsWith('ValidationRule')) {
+        if(parent !== '') {
             scrollTo = selectedComps.get(filename).name.split('.')[1];
         }
         source.forEach((element, index) => {
@@ -881,11 +882,10 @@ $(document).ready(function () {
                 filename = filename.substring(0, filename.indexOf('/'));
             }  
             filesLst.set(filename, file);       
-        });    
-
+        });
 
         Array.from(selectedComps.keys()).forEach(c => {
-            var cmp = c.startsWith('CustomField') || c.startsWith('ValidationRule') ? 'CustomObject.'+c.split('.')[1] : c;
+            var cmp = c.parent !== '' ? c.parent+'.'+c.split('.')[1] : c;
             if(filesLst.has(cmp)) {
                 var file = filesLst.get(cmp);
                 var comp = selectedComps.get(c);

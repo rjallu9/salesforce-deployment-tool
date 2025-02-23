@@ -323,7 +323,7 @@ function validateSession(accessToken:string, endPoint:string, orgId:string) {
 
 function saveMetadata(metadata:any, sobjects:any, fsPath:string, orgId:string) {
 	Array.from(sobjects.values()).flat().forEach((name:any) => {
-		metadata.get('CustomField').push({ name, type:'CustomField', lastModifiedByName:'', lastModifiedDate:'' });
+		metadata.get('CustomField').push({ name, type:'CustomField', lastModifiedByName:'', lastModifiedDate:'', parent:'CustomObject' });
 	});
 	const now = new Date();
 	metadata.set('Timestamp', `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`);
@@ -465,25 +465,25 @@ function getTypesComponents(accessToken:string, endPoint:string, globalStorageUr
 		sendSoapMDRequest(accessToken, endPoint, '<met:describeMetadata><met:asOfVersion>62.0</met:asOfVersion></met:describeMetadata>')
 		.then((result:any) => {
 			const types = result['describeMetadataResponse']['result']['metadataObjects'];			
-			const typesList:{name:string; inFolder:string;}[] = [];
+			const typesList:{name:string; inFolder:string; parent:string;}[] = [];
 			types.forEach((element:any) => {
-				typesList.push({ name: element['xmlName'], inFolder: element['inFolder']});
+				typesList.push({ name: element['xmlName'], inFolder: element['inFolder'], parent:''});
 				if(element['childXmlNames']) {
 					let tmp = element['childXmlNames'] instanceof Array ? element['childXmlNames'] : [element['childXmlNames']];
 					tmp.forEach((childname:any) => {
-						typesList.push({ name: childname, inFolder: 'false'});
+						typesList.push({ name: childname, inFolder: 'false', parent: element['xmlName']});
 					});	
 				}
 			});		
 			panel.webview.postMessage({ command: 'loading', message: 'Refreshing Components(0/'+typesList.length+')'});	
 
-			Promise.all(typesList.map((e:{name:string; inFolder:string;}) => {				
+			Promise.all(typesList.map((e:{name:string; inFolder:string; parent:string;}) => {				
 				return sendSoapMDRequest(accessToken, endPoint, '<met:listMetadata><met:queries><met:type>'
 											+(e.inFolder === 'true' ? (e.name === 'EmailTemplate' ? 'EmailFolder' : e.name+'Folder') : e.name)
 											+'</met:type></met:queries></met:listMetadata>')
 					.then((result:any) => {
 						const comps = result['listMetadataResponse'];
-						let results = buildComponents(comps);	
+						let results = buildComponents(comps, e.parent);	
 						if(e.inFolder === 'true') {
 							let folderresults:Object[] = [];	
 							return Promise.all(results.map((element:any) => {
@@ -491,7 +491,7 @@ function getTypesComponents(accessToken:string, endPoint:string, globalStorageUr
 									'</met:type><met:folder>'+element.name+'</met:folder></met:queries></met:listMetadata>')
 								.then((result:any) => {
 									const comps = result['listMetadataResponse'];
-									let fldresults = buildComponents(comps);	
+									let fldresults = buildComponents(comps, e.parent);	
 									element.type = e.name;
 									folderresults = [...folderresults, ...fldresults, element];
 								});
@@ -556,7 +556,7 @@ function getTypesComponents(accessToken:string, endPoint:string, globalStorageUr
 							if(e.name === 'StandardValueSet') {
 								results = [];						
 								STD_VALUE_SET.forEach((e) => {
-									results.push({name: e, type: 'StandardValueSet', lastModifiedByName:'', lastModifiedDate: ''});
+									results.push({name: e, type: 'StandardValueSet', lastModifiedByName:'', lastModifiedDate: '', parent: ''});
 								});
 							}
 							components.set(e.name, results);
@@ -580,14 +580,15 @@ function getTypesComponents(accessToken:string, endPoint:string, globalStorageUr
     });
 }
 
-function buildComponents(comps:any) {
-	let results: { name: string; type: string, lastModifiedByName: string; lastModifiedDate: string;}[] = [];
+function buildComponents(comps:any, parent:string) {
+	let results: { name: string; type: string, lastModifiedByName: string; lastModifiedDate: string; parent:string;}[] = [];
 	let auditDate = '1970-01-01T00:00:00.000Z';
 	if(comps !== "") {
 		let tmp = comps['result'] instanceof Array ? comps['result'] : [comps['result']];
 		results = tmp.map((comp: any) => ({
 			name: comp['fullName'],
 			type: comp['type'],
+			parent: parent,
 			lastModifiedByName: comp['lastModifiedByName'],
 			lastModifiedDate: comp['lastModifiedDate'] !== auditDate ? new Date(comp['lastModifiedDate']).toLocaleDateString() : 
 						comp['createdDate'] !== auditDate ? new Date(comp['createdDate']).toLocaleDateString() : ''
