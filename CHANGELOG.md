@@ -1,9 +1,8 @@
 # Change Log
 
-All notable changes to the "salesforce-deployment-suite" extension will be documented in this file.
-
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
-
-## [Unreleased]
-
-- Initial release
+### [1.0.0] - 2025-02-23
+#### Initial Release
+- Metadata Management
+- Component Handling
+- Deployment Options
+- Additional Features
