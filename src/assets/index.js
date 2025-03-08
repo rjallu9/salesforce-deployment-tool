@@ -2,7 +2,7 @@ $(document).ready(function () {
     const vscode = acquireVsCodeApi();
         
     const loadOrgs = () => {
-        vscode.postMessage({ command: 'getAuthOrgs' });
+        vscode.postMessage({ command: 'getAuthOrgs', refresh:false });
     };
 
     loadOrgs();

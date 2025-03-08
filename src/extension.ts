@@ -46,11 +46,11 @@ export function activate(context: vscode.ExtensionContext) {
 							getAuthOrgs().then((result:any) => {
 								orgsList = result;	
 								panel.webview.postMessage({command: 'orgsList', orgs: result});	
-								const dir = path.dirname(context.globalStorageUri.fsPath);
+								const dir = path.dirname(orgsListPath);
 								if (!fs.existsSync(dir)) {
 									fs.mkdirSync(dir, { recursive: true });
 								}	
-								fs.writeFile(context.globalStorageUri.fsPath+"/orgsList.json", JSON.stringify(orgsList, null, 2), 'utf8', (err:any) => {
+								fs.writeFile(orgsListPath, JSON.stringify(orgsList, null, 2), 'utf8', (err:any) => {
 								}); 			
 							});	
 						}				
