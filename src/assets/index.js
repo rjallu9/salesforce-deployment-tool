@@ -17,8 +17,7 @@ $(document).ready(function () {
     let testClasses = '';
     
     let componentsMap = new Map();  
-    let selectedComps = new Map(); 
-    let snapshots = new Map();
+    let selectedComps = new Map();    
     let stdFieldsMap = new Map(); 
 
     window.addEventListener('message', (event) => {
@@ -69,7 +68,6 @@ $(document).ready(function () {
             $("#refresh-lbl").show(); 
             $("#refreshlabel").text('Last Refresh Date: '+event.data.timestamp);   
             refreshComponents();
-            refreshSnapshots(event.data.snapshots);
         } else if(event.data.command === 'deployStatus') {
             updateDeploymentStatus(event.data.result);
         } else if(event.data.command === 'compareResults') {
@@ -131,8 +129,7 @@ $(document).ready(function () {
         types = [];
         selectedTypes.clear();
         componentsMap.clear();
-        selectedComps.clear();
-        snapshots.clear();
+        selectedComps.clear();        
         stdFieldsMap.clear();
 
         refreshTypes();  
@@ -334,15 +331,6 @@ $(document).ready(function () {
         }        
     }
 
-    function refreshSnapshots(sel) {
-        $('#snapshot-list').empty();
-        $('#snapshot-list').append($("<option>").val('').text(''));
-        sel.forEach((s) => {
-            $('#snapshot-list').append($("<option>").val(s.name).text(s.name));
-            snapshots.set(s.name, s);
-        });
-    }
-
     function refreshComponents() {
         let components = [];
         selectedTypes.forEach(function(type) {
@@ -393,16 +381,6 @@ $(document).ready(function () {
     });
 
     function refreshSelection() {
-        if(selectedComps.size === 0) {            
-            $('#add-snapshot').hide();
-            $('#save-snapshot').hide();
-            $('#update-snapshot').hide();
-            $('#delete-snapshot').hide();
-            $('#snapshot-list').val("");
-        } else {
-            $('#add-snapshot').show();
-            $('#save-snapshot').show();
-        }
         $('.row-chk').each(function(indx, chxbox) {
             $(chxbox).prop('checked', selectedComps.has($(chxbox).val()));
             if(selectedComps.has($(chxbox).val())) {
@@ -489,6 +467,10 @@ $(document).ready(function () {
     
     $("#bulkselection").on("click", function(e){
         $('#bulkselection-dialog').dialog("open");
+    });
+
+    $("#commit").on("click", function(e){
+        vscode.postMessage({ command: 'commit'});
     });
 
     $('#bulkselect').on('click', function (e) {
@@ -919,24 +901,7 @@ $(document).ready(function () {
         $('#previewtable').DataTable().clear().rows.add(Array.from(selectedComps.values())).order([[4, 'desc'],[0, 'asc'],[1, 'asc']]).draw();
     }
 
-    $("#snapshot-list").on('change', function (e) {
-        $("#add-snapshot").show();
-
-        if($("#snapshot-list").val() === '') {
-            $("#update-snapshot").hide();
-            $("#delete-snapshot").hide();        
-            return;
-        } else {
-            $("#update-snapshot").show();
-            $("#delete-snapshot").show();  
-        }
-
-        var snapshot = snapshots.get($("#snapshot-list").val());
-        //selectedComps = new Map(); 
-        //selectedTypes.clear();
-        autoSelection(snapshot.components);
-    });
-
+    
     function autoSelection(components) {
         let types = new Set();
         components.forEach(comp => {
@@ -958,54 +923,5 @@ $(document).ready(function () {
         refreshSelection();
         return components;
     }
-
-    $("#add-snapshot").on('click', function (e) {
-        $("#snapshot-form").show();
-        $("#snapshot-view").hide();
-    });
-
-    $("#delete-snapshot").on('click', function (e) {
-        snapshots.delete($("#snapshot-list").val());
-        vscode.postMessage({ command: 'updateSnapshot', data: Array.from(snapshots.values()), orgId: $('#source-org-field').val()}); 
-        refreshSnapshots(snapshots.values());
-        $("#update-snapshot").hide();
-        $("#delete-snapshot").hide();        
-        $("#snapshot-form").hide();
-        $("#snapshot-view").show();
-    });
-
-    $("#close-snapshot").on('click', function (e) {
-        $("#snapshot-form").hide();
-        $("#snapshot-view").show();
-    });
-
-    $("#update-snapshot").on('click', function (e) {
-        snapshots.delete($("#snapshot-list").val());
-        var allsnapshots = snapshots.values();
-        var sel = { name: $("#snapshot-list").val(),  components:Array.from(selectedComps.keys())};
-        allsnapshots = [...allsnapshots, sel];
-        snapshots.set(sel.name, sel);
-        refreshSnapshots(snapshots);            
-        vscode.postMessage({ command: 'updateSnapshot', data: allsnapshots, orgId: $('#source-org-field').val()}); 
-        $("#snapshot-list").val(sel.name);
-    });
-
-    $("#save-snapshot").on('click', function (e) {
-        if($("#snapshot-name").val().trim() === '' || snapshots.has($("#snapshot-name").val().trim())) {
-            $('#snapshot-name').css('border' ,'1px solid #f00');
-        } else {
-            var allsnapshots = snapshots.values();
-            var sel = { name: $("#snapshot-name").val().trim(),  components:Array.from(selectedComps.keys())};
-            allsnapshots = [...allsnapshots, sel];
-            snapshots.set(sel.name, sel);
-            refreshSnapshots(snapshots);            
-            vscode.postMessage({ command: 'updateSnapshot', data: allsnapshots, orgId: $('#source-org-field').val()}); 
-            $("#snapshot-form").hide();
-            $("#snapshot-view").show();
-            $("#snapshot-list").val(sel.name);
-            $("#delete-snapshot").show();
-            $("#update-snapshot").show();
-        }
-    });
 });
 

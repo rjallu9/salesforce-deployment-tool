@@ -65,11 +65,6 @@ export function activate(context: vscode.ExtensionContext) {
 									sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);	
 									fs.writeFile(context.globalStorageUri.fsPath+"/orgsList.json", JSON.stringify(orgsList, null, 2), 'utf8', (err:any) => {}); 
 								}
-								var snapshots:string[] = [];
-								var snapshotPath = path.join(context.globalStorageUri.fsPath+"/"+sourceOrg.orgId, 'snapshots.json');
-								if (fs.existsSync(snapshotPath)) {
-									snapshots = JSON.parse(fs.readFileSync(snapshotPath, 'utf-8'));
-								}
 
 								var metdataPath = path.join(context.globalStorageUri.fsPath+"/"+sourceOrg.orgId, 'metadata.json');
 								if (fs.existsSync(metdataPath) && !message.refresh) {
@@ -79,12 +74,12 @@ export function activate(context: vscode.ExtensionContext) {
 									for (const [key, value] of metadata) {
 										panel.webview.postMessage({ command: 'components', components:value, type:key });								
 									}
-									panel.webview.postMessage({ command: 'typesComponents', components: '', snapshots:snapshots, timestamp });
+									panel.webview.postMessage({ command: 'typesComponents', components: '', timestamp });
 								} else {
 									const now = new Date();
 									getTypesComponents(sourceOrg.accessToken, sourceOrg.instanceUrl, context.globalStorageUri.fsPath, panel)
 									.then((data:any) => {
-										panel.webview.postMessage({ command: 'typesComponents', components: data, snapshots:snapshots, 
+										panel.webview.postMessage({ command: 'typesComponents', components: data,
 											timestamp: `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`});
 										saveMetadata(data.components, data.sobjects, context.globalStorageUri.fsPath, sourceOrg.orgId);								
 									});
@@ -93,21 +88,7 @@ export function activate(context: vscode.ExtensionContext) {
 						}).catch((error) => {
 							panel.webview.postMessage({ command: 'error', message:'Unable to connect to the Org.' });
 						});				
-						break;
-					case 'updateSnapshot':
-						if(message.data) {
-							const dir = path.dirname(context.globalStorageUri.fsPath+"/"+message.orgId+"/snapshots.json");
-							if (!fs.existsSync(dir)) {
-								fs.mkdirSync(dir, { recursive: true });
-							}
-
-							fs.writeFile(context.globalStorageUri.fsPath+"/"+message.orgId+"/snapshots.json", JSON.stringify(message.data, null, 2), 'utf8', (err:any) => {
-								if (err) {
-									vscode.window.showErrorMessage(`Unable to update snapshots..!!`);
-								}
-							});
-						}
-						break;					
+						break;				
 					case 'deploy':
 						panel.webview.postMessage({ command: 'deployStatus', result: {stage:"retrieve", message: 'Retrieve components Initiated'}});
 						var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);		
@@ -250,7 +231,7 @@ export function activate(context: vscode.ExtensionContext) {
 						if(message.scrollTo !== '') {
 							setTimeout(() => scrollTo(message.scrollTo), 1000);
 						}						
-						break;
+						break;	
 					default:
 					console.log('Unknown command:', message.command);
 				}
@@ -776,53 +757,7 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 								</div>
 								<div style="margin-top:22px;margin-left: auto;">
 									<button type="button" style="width: 75px;float:right;" id="next" disabled>Next</button>
-									<button type="button" style="width:100px;float:right;margin-right:5px" id="packagexml" disabled>Package.xml</button>	
-									<div style="float: left;padding-left: 5px;margin-right: 5px;" id="snapshot-view">
-										<div style="float:left;margin-top:-20px;margin-right: 5px;">	
-											<label for="text" for="snapshot-list" class="top-label">Snapshots: </label>
-											<select type="text" id="snapshot-list" style="height:33px;min-width:150px;">
-											</select>		
-										</div>
-										<p title="Update Snapshot" style="float: left;margin-bottom:0;margin-top: 4px;margin-right: 5px;display:none;cursor:pointer;" id="update-snapshot">
-											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-												<circle cx="25" cy="25" r="24" fill="#2a6927" stroke="#2a6927" stroke-width="2"></circle>
-												<polyline points="15,25 22,32 35,18" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></polyline>
-											</svg>
-										</p>
-										<p title="Delete Snapshot" style="float: left;margin-bottom:0;margin-top: 4px;margin-right: 5px;display:none;cursor:pointer;" id="delete-snapshot">
-											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-												<circle cx="25" cy="25" r="24" fill="#f14c4c" stroke="#f14c4c" stroke-width="2"></circle>
-												<line x1="17" y1="17" x2="33" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-												<line x1="33" y1="17" x2="17" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-											</svg>
-										</p>
-										<p title="Add Snapshot" style="float: left;margin-bottom:0;margin-top: 4px;cursor:pointer;display:none;" id="add-snapshot">
-											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-												<circle cx="25" cy="25" r="24" fill="#0078d4" stroke="#0078d4" stroke-width="2"></circle>
-												<line x1="25" y1="15" x2="25" y2="35" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-												<line x1="15" y1="25" x2="35" y2="25" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-											</svg>
-										</p>									
-									</div>
-									<div style="float: left;padding-left: 5px;margin-right: 5px;display:none;" id="snapshot-form">
-										<div style="float:left;margin-top:-20px;margin-right: 5px;">	
-											<label for="text" for="snapshot-name" class="top-label">Snapshot Name: </label>
-											<input type="text" id="snapshot-name" style="height:27px;border:1px solid rgb(118, 118, 118);"></input>			
-										</div>	
-										<p title="Save Snapshot" style="float: left;margin-bottom:0;margin-top: 4px;margin-right: 5px;cursor:pointer;" id="save-snapshot">
-											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-												<circle cx="25" cy="25" r="24" fill="#2a6927" stroke="#2a6927" stroke-width="2"></circle>
-												<polyline points="15,25 22,32 35,18" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></polyline>
-											</svg>
-										</p>
-										<p title="Close Snapshot" style="float: left;margin-bottom:0;margin-top: 4px;margin-right: 5px;cursor:pointer;" id="close-snapshot">
-											<svg width="25" height="25" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-												<circle cx="25" cy="25" r="24" fill="#f14c4c" stroke="#f14c4c" stroke-width="2"></circle>
-												<line x1="17" y1="17" x2="33" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-												<line x1="33" y1="17" x2="17" y2="33" stroke="white" stroke-width="4" stroke-linecap="round"></line>
-											</svg>
-										</p>									
-									</div>
+									<button type="button" style="width:100px;float:right;margin-right:5px" id="packagexml" disabled>Package.xml</button>
 								</div>
 							</div>					
 						</div>
