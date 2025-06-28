@@ -13,7 +13,6 @@ Developers and Admins can easily search, select, and deploy metadata components.
 * Caching Support — Cache component lists to reduce load times and avoid fetching data from the org on every request.
 #### Component Handling:
 
-* Snapshots — Save selected components as snapshots for future deployments.
 * CSV Export — Export available or selected components to a CSV file.
 * Bulk Selection — Quickly select components using the TYPE.NAME format.
 #### Deployment Options:
@@ -51,8 +50,6 @@ Developers and Admins can easily search, select, and deploy metadata components.
  ![image](https://github.com/user-attachments/assets/51da47bd-1e5f-4c45-83e0-2e0eff3913a6)
 * **Export Components:** Use Export All or Export Selection buttons to save the list of components as a CSV file.
   ![image](https://github.com/user-attachments/assets/968e17ee-f57e-4d37-827b-566b9d92ee90)
-* **Snapshots:** Save component selections as Snapshots for future deployments.
-  ![image](https://github.com/user-attachments/assets/afea16f5-2d1a-40f3-aec2-3c02c1fd5239)
 * **Select Destination Org:** Click 'Next' to move to the next screen and select the destination org for deployment.
   ![image](https://github.com/user-attachments/assets/8ab16855-13d9-4907-a3cd-751bfb02d2dc)
 * **Test Options:** Use the 'Test Options' dropdown to select test levels (e.g., Run Local Tests, Run All Tests).

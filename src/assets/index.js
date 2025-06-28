@@ -289,11 +289,13 @@ $(document).ready(function () {
     });
 
 	$("body").on("click",function(e){
+        $(".dd-text-field").val('');
         $(".dd-option-box").hide();
 	});
 
     $(document).keydown(function(e) {
         if (e.key === "Escape") {
+           $(".dd-text-field").val('');
            $(".dd-option-box").hide();
         }
     });
@@ -301,6 +303,7 @@ $(document).ready(function () {
        if($(e.target)[0]?.classList[0]?.startsWith('dd-')) {
             return;
        } else {
+            $(".dd-text-field").val('');
             $(".dd-option-box").hide();
        }
     });
@@ -868,31 +871,35 @@ $(document).ready(function () {
             if(filename.indexOf("/") >= 0){
                 filename = filename.substring(0, filename.indexOf('/'));
             }  
-            filesLst.set(filename, file);       
+            if(!filesLst.has(filename)) {
+                filesLst.set(filename, []);   
+            }
+            filesLst.get(filename).push(file);       
         });
 
         Array.from(selectedComps.keys()).forEach(c => {
             var cmp = selectedComps.get(c).parent !== '' ? selectedComps.get(c).parent+'.'+c.split('.')[1] : c;
             if(filesLst.has(cmp)) {
-                var file = filesLst.get(cmp);
-                var comp = selectedComps.get(c);
-                if(comp.hasOwnProperty('source')) {
-                    comp.source.push(file.source);
-                } else {
-                    comp['source'] = [file.source];
-                }
-                if(comp.hasOwnProperty('files')) {
-                    comp.files.push(file.name);
-                } else {
-                    comp['files'] = [file.name];
-                }
-                if(file.dest !== '') {
-                    if(comp.hasOwnProperty('dest')) {
-                        comp.dest.push(file.dest);
+                filesLst.get(cmp).forEach(file => {
+                    var comp = selectedComps.get(c);
+                    if(comp.hasOwnProperty('source')) {
+                        comp.source.push(file.source);
                     } else {
-                        comp['dest'] = [file.dest];
+                        comp['source'] = [file.source];
                     }
-                }
+                    if(comp.hasOwnProperty('files')) {
+                        comp.files.push(file.name);
+                    } else {
+                        comp['files'] = [file.name];
+                    }
+                    if(file.dest !== '') {
+                        if(comp.hasOwnProperty('dest')) {
+                            comp.dest.push(file.dest);
+                        } else {
+                            comp['dest'] = [file.dest];
+                        }
+                    }      
+                });
             }
         });
 
