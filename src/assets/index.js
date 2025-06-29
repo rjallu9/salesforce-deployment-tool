@@ -74,6 +74,8 @@ $(document).ready(function () {
             $("#spinner").hide();
             console.log(event.data.files);
             loadCompareResults(event.data.files);
+        } else if(event.data.command === 'hidespinner') {
+            $("#spinner").hide();
         } 
     });
 
@@ -139,7 +141,7 @@ $(document).ready(function () {
         $('#selecteddatatable').DataTable().clear().draw(); 
         $('#deleteall-row-chk').prop('checked', false);
         $('#exportselected').prop('disabled', true);
-        
+        $('#download').prop('disabled', true);
     }
 
     $('#compsdatatable').DataTable({
@@ -227,8 +229,14 @@ $(document).ready(function () {
 
     $(".dd-text-field").on("click", function(e){
         e.stopPropagation();
-		$(".dd-option-box").show();
-        $(".dd-option-box").css({width: $(this).outerWidth()});
+        if ($(".dd-option-box").is(":hidden")) {            
+            $(".dd-option-box").show();
+            $(".dd-option-box").css({width: $(this).outerWidth()});
+            types.forEach(function(type) {
+                type.hidden = false;           
+            });
+            refreshTypes();
+        }        
 	});
 
     $(".dd-text-field").on("input", function(e){
@@ -397,6 +405,7 @@ $(document).ready(function () {
         $('#next').prop('disabled', selectedComps.size === 0);
         $('#packagexml').prop('disabled', selectedComps.size === 0);
         $('#exportselected').prop('disabled', selectedComps.size === 0); 
+        $('#download').prop('disabled', selectedComps.size === 0); 
 
         $('.selected').text('Selected ('+selectedComps.size+')');   
         $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
@@ -464,6 +473,13 @@ $(document).ready(function () {
         });
         navigator.clipboard.writeText(components.map(e => e.join(",")).join("\n"));
         vscode.postMessage({ command: 'toastMessage', message: 'CSV content copied to clipboard'});
+    });
+
+    $('#download').on('click', function (e) {
+        $(".spinnerlabel").text("Downloading");
+        $("#spinner").show();
+        let packagexml = getPackageXml();
+        vscode.postMessage({ command: 'download', sourceOrgId: $('#source-org-field').val(), packagexml:packagexml});  
     });
 
     $('#bulkselection-dialog').dialog({autoOpen: false, modal: true, closeOnEscape: true, width: 500, height:'auto'});

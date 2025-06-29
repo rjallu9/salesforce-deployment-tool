@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import stdValueSet from './assets/stdValueSet.json';
 const path = require('path');
+const os = require('os');
 const axios = require('axios');
 const xml2js = require('xml2js');
 const { exec } = require('child_process');
@@ -232,6 +233,45 @@ export function activate(context: vscode.ExtensionContext) {
 							setTimeout(() => scrollTo(message.scrollTo), 1000);
 						}						
 						break;	
+					case 'download':
+						var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);	
+						retrieve(sourceOrg.accessToken, sourceOrg.instanceUrl, message.packagexml).then((result:any) => {	
+							let retrieveJobId = result;
+							let intervalId = setInterval(() => {
+								retrieveStatus(sourceOrg.accessToken, sourceOrg.instanceUrl, retrieveJobId).then((result:any) => {	
+									if(result.done	=== 'true') {
+										const buffer = Buffer.from(result.zipFile, 'base64');
+										const downloadsPath = path.join(os.homedir(), 'Downloads');
+
+										let zipFilePath = path.join(downloadsPath, 'download.zip');
+										let counter = 1;
+										while (fs.existsSync(zipFilePath)) {
+											zipFilePath = path.join(downloadsPath, 'download('+counter+').zip');
+											counter++;
+										}										
+										
+										fs.writeFileSync(zipFilePath, buffer);	
+										
+										clearInterval(intervalId);	
+										panel.webview.postMessage({ command: 'hidespinner'});  
+										vscode.window.showInformationMessage(`Download completed.`);
+
+										const platform = process.platform;
+										if (platform === 'win32') {
+											exec(`start "" "${downloadsPath}"`);
+										} else if (platform === 'darwin') {
+											exec(`open "${downloadsPath}"`);
+										} else {
+											exec(`xdg-open "${downloadsPath}"`);
+										}
+																			}		
+								}).catch((error) => {
+									vscode.window.showErrorMessage(`Error: ${JSON.stringify(error)}`);
+									clearInterval(intervalId);	
+								});
+							}, 1000);			
+						});
+						break;
 					default:
 					console.log('Unknown command:', message.command);
 				}
@@ -797,6 +837,7 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 									<button type="button" style="width:50px;float:right;padding: 5px;margin-right:-4px;" id="bulkselect">Select</button>
 									<button type="button" style="width:70px;float:right;padding: 5px;margin-right:5px;display:none;" id="bulkcontinue">Continue</button>
 								</div>
+								<button type="button" style="width: 110px;" id="download" disabled>Download</button>
 							</div>
 						</div>
 						<div id="selected">
