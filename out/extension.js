@@ -52,9 +52,9 @@ let STD_VALUE_SET = stdValueSet_json_1.default;
 function activate(context) {
     const disposable = vscode.commands.registerCommand('salesforce-deployment-suite.build', () => {
         const panel = vscode.window.createWebviewPanel('packageBuilder', 'Salesforce Deployment Suite', vscode.ViewColumn.One, { enableScripts: true, retainContextWhenHidden: true });
-        const scriptPath = vscode.Uri.file(path.join(context.extensionPath, 'src', 'assets/index.js'));
+        const scriptPath = vscode.Uri.file(path.join(context.extensionPath, 'out', 'assets/index.js'));
         const scriptUri = panel.webview.asWebviewUri(scriptPath);
-        const cssPath = vscode.Uri.file(path.join(context.extensionPath, 'src', 'assets/index.css'));
+        const cssPath = vscode.Uri.file(path.join(context.extensionPath, 'out', 'assets/index.css'));
         const cssUri = panel.webview.asWebviewUri(cssPath);
         panel.webview.html = getWebviewContent(context.extensionPath, scriptUri, cssUri);
         let orgsList = [];
@@ -116,19 +116,19 @@ function activate(context) {
                     });
                     break;
                 case 'deploy':
-                    panel.webview.postMessage({ command: 'deployStatus', result: { stage: "retrieve", message: 'Retrieve components Initiated' } });
+                    panel.webview.postMessage({ command: 'deployStatus', result: { stage: "retrieve", message: 'Retrieve Initiated' } });
                     var sourceOrg = orgsList.find((org) => org.orgId === message.sourceOrgId);
                     var destOrg = orgsList.find((org) => org.orgId === message.destOrgId);
                     validateSession(destOrg.accessToken, destOrg.instanceUrl, message.destOrgId)
                         .then((result) => {
                         if (result.valid) {
                             retrieve(sourceOrg.accessToken, sourceOrg.instanceUrl, message.packagexml).then((result) => {
-                                panel.webview.postMessage({ command: 'deployStatus', result: { stage: "retrieve", message: 'Retrieve components Inprogress' } });
+                                panel.webview.postMessage({ command: 'deployStatus', result: { stage: "retrieve", message: 'Retrieve Inprogress' } });
                                 let retrieveJobId = result;
                                 let intervalId = setInterval(() => {
                                     retrieveStatus(sourceOrg.accessToken, sourceOrg.instanceUrl, retrieveJobId).then((result) => {
                                         if (result.done === 'true') {
-                                            panel.webview.postMessage({ command: 'deployStatus', result: { stage: "retrieveCompleted", message: 'Retrieve components Completed' } });
+                                            panel.webview.postMessage({ command: 'deployStatus', result: { stage: "retrieveCompleted", message: 'Retrieve Completed' } });
                                             clearInterval(intervalId);
                                             if (!isCancelDeploy) {
                                                 panel.webview.postMessage({ command: 'deployStatus', result: { stage: "deployment",
@@ -288,6 +288,30 @@ function activate(context) {
                         }, 1000);
                     });
                     break;
+                case 'delete':
+                    var sourceOrg = orgsList.find((org) => org.orgId === message.sourceOrgId);
+                    panel.webview.postMessage({ command: 'deployStatus', result: { stage: "retrieve", message: 'Preperation Started' } });
+                    panel.webview.postMessage({ command: 'deployStatus', result: { stage: "retrieveCompleted", message: 'Preperation Completed' } });
+                    deleteMD(sourceOrg.accessToken, sourceOrg.instanceUrl, message.packagexml).then((result) => {
+                        panel.webview.postMessage({ command: 'deployStatus', result: { stage: "deployment", message: 'Deployment Initiated' } });
+                        let deployJobId = result;
+                        let deployIntervalId = setInterval(() => {
+                            if (isCancelDeploy) {
+                                cancelDeploy(sourceOrg.accessToken, sourceOrg.instanceUrl, deployJobId);
+                                isCancelDeploy = false;
+                            }
+                            deployStatus(sourceOrg.accessToken, sourceOrg.instanceUrl, deployJobId).then((result) => {
+                                if (result.done === 'true') {
+                                    clearInterval(deployIntervalId);
+                                }
+                                result['stage'] = "deploymentStatus";
+                                panel.webview.postMessage({ command: 'deployStatus', result: result });
+                            }).catch((error) => {
+                                clearInterval(deployIntervalId);
+                            });
+                        }, 2000);
+                    });
+                    break;
                 default:
                     console.log('Unknown command:', message.command);
             }
@@ -431,6 +455,34 @@ function deploy(accessToken, endPoint, zipfile, checkOnly, testLevel, testClasse
     return new Promise((resolve, reject) => {
         sendSoapMDRequest(accessToken, endPoint, '<met:deploy><met:ZipFile>' + zipfile + '</met:ZipFile><met:DeployOptions>' +
             '<met:checkOnly>' + checkOnly + '</met:checkOnly><met:testLevel>' + testLevel + '</met:testLevel>' + testClasses +
+            '<met:singlePackage>true</met:singlePackage></met:DeployOptions></met:deploy>')
+            .then((result) => {
+            const retrieveId = result['deployResponse']['result']['id'];
+            resolve(retrieveId);
+        })
+            .catch((error) => {
+            reject(error);
+        });
+    });
+}
+function deleteMD(accessToken, endPoint, packagexml) {
+    const zip = new AdmZip();
+    const emptypackage = `<?xml version="1.0" encoding="UTF-8"?>
+							<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+								<version>62.0</version>
+							</Package>`;
+    const packagefull = `<?xml version="1.0" encoding="UTF-8"?>
+							<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+								${packagexml}
+								<version>62.0</version>
+							</Package>`;
+    zip.addFile("destructiveChanges.xml", Buffer.from(packagefull, "utf8"));
+    zip.addFile("package.xml", Buffer.from(emptypackage, "utf8"));
+    const zipBuffer = zip.toBuffer();
+    const base64Zip = zipBuffer.toString("base64");
+    return new Promise((resolve, reject) => {
+        sendSoapMDRequest(accessToken, endPoint, '<met:deploy><met:ZipFile>' + base64Zip + '</met:ZipFile><met:DeployOptions>' +
+            '<met:purgeOnDelete>true</met:purgeOnDelete>' +
             '<met:singlePackage>true</met:singlePackage></met:DeployOptions></met:deploy>')
             .then((result) => {
             const retrieveId = result['deployResponse']['result']['id'];
@@ -758,7 +810,7 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 									</svg>
 								</p>
 							</div>
-							<div id="actions" style="display:none;flex:1;">
+							<div id="compTypes" style="display:none;flex:1;">
 								<div class="form-panel">
 									<div>
 										<div style="float:left;" >
@@ -796,51 +848,33 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 									<button type="button" style="margin-top:22px;margin-left:5px;width:75px;height:35px;" id="compare" disabled>Compare</button>							
 									<button type="button" style="margin-top:22px;margin-left:5px;width:75px;height:35px;" id="validate" disabled>Validate</button>												
 									<button type="button" style="margin-top:22px;margin-left:5px;width:75px;height:35px;" id="deploy" disabled>Deploy</button>
-									<div style="margin-top:2px;margin-left: 5px;">
-										<label for="text" for="testoption-field" class="top-label">Test Options:&nbsp;&nbsp;
-											<a href="#" id="view-classes" style="display:none">Classes</a>
-										</label>							
-										<select type="text" class="testoption-field" id="testoption-field" style="height:33px;width:150px;">
-											<option value="NoTestRun">Default</option>
-											<option value="RunLocalTests">Run local tests</option>
-											<option value="RunAllTestsInOrg">Run all tests</option>
-											<option value="RunSpecifiedTests">Run specified tests</option>
-										</select>	
-									</div>
 								</div>
 							</div>
 						</div>	
 					</div>
 					<p style="color:#f14c4c;margin-bottom:0;margin-top:5px;" id="errors"></p>
-					<p style="color:#f14c4c;margin-bottom:0;margin-top:5px;" id="previewerrors"></p>
 					<div id="deploystatus" style="display:none">
 						<p><span id="deploylabel">Deployment Status:</span> &nbsp;&nbsp; 
 							<a href="#" id="quick-deploy" style="display:none">Quick Deploy</a>
 							<a href="#" id="cancel-deploy" style="display:none">Cancel Deployment</a>
 						</p>
-						<ul class="path-list">
-						</ul>							
+						<ul class="path-list"></ul>							
 						<div id="progressbar" class="progressbar"></div>
 						<div class="coverage-error" style="display:none;"><p class="coverage-error-label"></p></div>
-						<div id="test-classes-dialog" title="Test Classes">
-							<p>Provide the names of the test classes in a comma-seprated list.</p>
-							<textarea id="test-classes" name="test-classes" rows="15" style="line-height:20px;scrollbar-width:thin;resize:none;width:100%;"></textarea>
-							<button type="button" style="width:50px;float:right;padding: 5px;margin-right:-4px;" id="save-classes">Save</button>
-						</div>
 					</div>
 					<p id="refresh-lbl" style="display:none;">
 						<span id="refreshlabel">Last Refresh Date:</span>. Please click <a href="#" id="hard-refresh">here</a> to refresh.
 					</p>
 					<div id="tabs" style="margin-top:10px;display:none;">
 						<ul>
-							<li class="tab" name="compsdatatable"><a href="#available" class="available">Available (0)</a></li>
-							<li class="tab" name="selecteddatatable"><a href="#selected" class="selected">Selected (0)</a></li>
+							<li class="tab" name="availabletable"><a href="#available" class="available">Available (0)</a></li>
+							<li class="tab" name="selectedtable"><a href="#selected" class="selected">Selected (0)</a></li>
 							<li class="tab" name="errortable"><a href="#deployerrors" class='deployerrors'>Deployment Errors</a></li>
 							<li class="tab" name="testcoveragestable"><a href="#testcoverages" class='testcoverages'>Test Coverage</a></li>
 							<li class="tab" name="testerrortable"><a href="#testfailures" class='testfailures'>Test Class Failures</a></li>
 						</ul>
 						<div id="available">
-							<table id="compsdatatable" class="display" style="width:100%">
+							<table id="availabletable" class="display" style="width:100%">
 								<thead>
 									<tr>
 										<th><input type="checkbox" id="all-row-chk" class='all-row-chk'/></th>	
@@ -865,12 +899,13 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 									<button type="button" style="width:50px;float:right;padding: 5px;margin-right:-4px;" id="bulkselect">Select</button>
 									<button type="button" style="width:70px;float:right;padding: 5px;margin-right:5px;display:none;" id="bulkcontinue">Continue</button>
 								</div>
-								<button type="button" style="width:75px;" id="download" disabled>Download</button>
-								<button type="button" style="width:100px;"  id="packagexml" disabled>Package.xml</button>
+								<button type="button" style="width:100px;"  id="packagexml" disabled>Package.xml</button>								
+								<button type="button" style="width:130px;" id="download" disabled>Download (Source)</button>								
+								<button type="button" style="width:110px;" id="deleteCmps" disabled>Delete (Source)</button>
 							</div>	
 						</div>
 						<div id="selected">
-							<table id="selecteddatatable" class="display" style="width:100%">
+							<table id="selectedtable" class="display" style="width:100%">
 								<thead>
 									<tr>	
 										<th><input type="checkbox" id="deleteall-row-chk" class="deleteall-row-chk"/></th>	
@@ -924,6 +959,21 @@ function getWebviewContent(basedpath, scriptUri, cssUri) {
 						<span class="spinner-circle"></span>
 						<p style="margin-left: 5px;" class="spinnerlabel">Initializing</p>
 					</div>
+				</div>				
+				<div id="test-classes-dialog" title="Test Classes">
+					<div style="display:flex">
+						<label for="text" for="testoption-field" style="margin-top:7px;">Test Options:&nbsp;&nbsp;</label>
+						<select type="text" class="testoption-field" id="testoption-field" style="height:33px;width:150px;">
+							<option value="NoTestRun">Default</option>
+							<option value="RunLocalTests">Run local tests</option>
+							<option value="RunAllTestsInOrg">Run all tests</option>
+							<option value="RunSpecifiedTests">Run specified tests</option>
+						</select>
+						<input type="hidden" id="deployoption" value="">	
+					</div>
+					<p>Provide the names of the test classes in a comma-seprated list.</p>
+					<textarea id="test-classes" name="test-classes" rows="15" style="line-height:20px;scrollbar-width:thin;resize:none;width:100%;"></textarea>
+					<button type="button" style="width:70px;float:right;padding: 5px;margin-right:-6px;" id="deploy-continue">Continue</button>
 				</div>
 			</body>
 			<script src=${scriptUri}></script>

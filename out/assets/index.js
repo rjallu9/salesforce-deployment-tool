@@ -13,7 +13,6 @@ $(document).ready(function () {
     let orgs = [];    
     let types = [];    
     let selectedTypes = new Set();
-    let testClasses = '';
     
     let componentsMap = new Map();  
     let selectedComps = new Map();    
@@ -32,7 +31,7 @@ $(document).ready(function () {
             $("#errors").text(event.data.message);   
             $("#spinner").hide();
         } else if(event.data.command === 'previewerror') {
-            $("#previewerrors").text(event.data.message);  
+            $("#errors").text(event.data.message);  
             $("#deploystatus").hide(); 
             $("#progressbar").hide();
             $("#deploy-buttons").show();
@@ -61,7 +60,7 @@ $(document).ready(function () {
             types.sort((a, b) => a.name.localeCompare(b.name));
             refreshTypes();    
             $("#spinner").hide();    
-            $("#actions").show();
+            $("#compTypes").show();
             $('#tabs').show();    
             $("#refresh-lbl").show(); 
             $("#refreshlabel").text('Last Refresh Date: '+event.data.timestamp);   
@@ -87,7 +86,7 @@ $(document).ready(function () {
 
     $('#source-org-field').on("change", function(e){    
         resetComponents();  
-        $("#actions").hide();
+        $("#compTypes").hide();
         $("#errors").text('');
         $('#tabs').hide();
         $("#refresh-lbl").hide();  
@@ -112,10 +111,13 @@ $(document).ready(function () {
 
     $("#source-org-refresh").on('click', function (e) {
         resetComponents();
-        $("#actions").hide();
+        $("#compTypes").hide();
         $("#errors").text('');
         $('#tabs').hide();
         $("#refresh-lbl").hide(); 
+        $("#deploystatus").hide();
+        $('#dest-org').hide(); 
+        $('#deploy-buttons').hide(); 
         vscode.postMessage({ command: 'getAuthOrgs', refresh:true});
         $("#spinner").show();   
         $(".spinnerlabel").text("Refreshing Orgs");
@@ -123,6 +125,7 @@ $(document).ready(function () {
 
     $("#hard-refresh").on('click', function (e) {
         resetComponents();
+        refreshTargetView(); 
         vscode.postMessage({ command: 'loadTypesComponents', sourceOrgId: $("#source-org-field").val(), refresh:true});
         $("#spinner").show();   
         $(".spinnerlabel").text("Refreshing Components");
@@ -139,13 +142,14 @@ $(document).ready(function () {
         refreshComponents();
 
         $('.selected').text('Selected (0)');
-        $('#selecteddatatable').DataTable().clear().draw(); 
+        $('#selectedtable').DataTable().clear().draw(); 
         $('#deleteall-row-chk').prop('checked', false);
         $('#exportselected').prop('disabled', true);
         $('#download').prop('disabled', true);
+        $('#deleteCmps').prop('disabled', true);
     }
 
-    $('#compsdatatable').DataTable({
+    $('#availabletable').DataTable({
         paging: true,
         pageLength: 100,
         lengthChange: false,
@@ -199,7 +203,7 @@ $(document).ready(function () {
         }
     });
 
-    $('#selecteddatatable').DataTable({
+    $('#selectedtable').DataTable({
         paging: true,
         pageLength: 100,
         lengthChange: false,
@@ -362,7 +366,7 @@ $(document).ready(function () {
                 components = [...components, ...componentsMap.get(type)];
             }
         }); 
-        $('#compsdatatable').DataTable().clear().rows.add(components).draw();
+        $('#availabletable').DataTable().clear().rows.add(components).draw();
         $('.available').text('Available ('+components.length+')');
         $('.all-row-chk').prop('checked', false);
         $('#export').prop('disabled', components.length === 0);   
@@ -372,7 +376,7 @@ $(document).ready(function () {
     $(document).on('change', '.row-chk', function() {
         let val = $(this).val();
         if ($(this).is(':checked')) {
-            selectedComps.set(val, $('#compsdatatable').DataTable().row($(this).closest('tr')).data());       
+            selectedComps.set(val, $('#availabletable').DataTable().row($(this).closest('tr')).data());       
         } else {
             selectedComps.delete(val);
         } 
@@ -395,7 +399,7 @@ $(document).ready(function () {
 
     $('.all-row-chk').on('change', function() {
         if ($(this).is(':checked')) {
-            $('#compsdatatable').DataTable().rows({ search: "applied" }).data().each(e => {
+            $('#availabletable').DataTable().rows({ search: "applied" }).data().each(e => {
                 selectedComps.set(e.type+"."+e.name, e);  
             });
         } else {
@@ -414,16 +418,17 @@ $(document).ready(function () {
             }               
         });
 
-        $('.all-row-chk').prop('checked', $('#compsdatatable').DataTable().data().length === selectedComps.size);
+        $('.all-row-chk').prop('checked', $('#availabletable').DataTable().data().length === selectedComps.size);
         $('#packagexml').prop('disabled', selectedComps.size === 0);
         $('#exportselected').prop('disabled', selectedComps.size === 0); 
         $('#download').prop('disabled', selectedComps.size === 0); 
+        $('#deleteCmps').prop('disabled', selectedComps.size === 0);
 
         $('.selected').text('Selected ('+selectedComps.size+')');   
-        $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
-        $('#selecteddatatable').DataTable().column(5).visible(false);
+        $('#selectedtable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
+        $('#selectedtable').DataTable().column(5).visible(false);
         $('#deleteall-row-chk').prop('checked', selectedComps.size > 0);
-        refreshTargetSelection();
+        refreshTargetView();
     }
 
     $('#packagexml').on('click', function (e) {
@@ -455,7 +460,7 @@ $(document).ready(function () {
         $("#spinner").show();
         let packagexml = getPackageXml();
         vscode.postMessage({ command: 'download', sourceOrgId: $('#source-org-field').val(), packagexml:packagexml});  
-    });
+    });  
 
     $('#bulkselection-dialog').dialog({autoOpen: false, modal: true, closeOnEscape: true, width: 500, height:'auto'});
     
@@ -497,7 +502,7 @@ $(document).ready(function () {
     });  
 
     $('#dest-org-field').on("change", function(e){
-        refreshTargetSelection();
+        refreshTargetView();
         if($('#dest-org-field').val() === '') {
             $('#deploy-buttons').hide();        
         } else {
@@ -506,7 +511,7 @@ $(document).ready(function () {
         }
     });
 
-    function refreshTargetSelection() {
+    function refreshTargetView() {
         $("#deploystatus").hide(); 
         $('.deployerrors').text('Deployment Errors (0)');
         $('.testfailures').text('Test Class Failures (0)');
@@ -520,68 +525,67 @@ $(document).ready(function () {
     }
 
     $('#test-classes-dialog').dialog({autoOpen: false, modal: true, closeOnEscape: false, width: 500});
-    
-    $(".testoption-field").on("change", function(e){
-        if($(this).val() === 'RunSpecifiedTests') {
-            $('#test-classes-dialog').dialog("open"); 
-            $('#view-classes').show(); 
-            if(testClasses === '') {
-                $('#deploy').prop('disabled', true);
-                $('#validate').prop('disabled', true);
-            }
-        } else {
-            $('#view-classes').hide();  
-            $('#deploy').prop('disabled', false);
-            $('#validate').prop('disabled', false);
-        }
-    });
-
-    $('#view-classes').on('click', function (e) {
-        $("#test-classes-dialog").dialog("open");
-    });
-
-    $('#save-classes').on('click', function (e) {
-        if($('#test-classes').val().trim() !== '') {
-            testClasses = $('#test-classes').val().trim();
-            $('#deploy').prop('disabled', false);
-            $('#validate').prop('disabled', false);
-            $('#test-classes').css('border' ,'');
-            $('#test-classes-dialog').dialog("close");
-        } else {
-            $('#test-classes').css('border' ,'1px solid #f00');
-        }        
-    });
 
     $('#deploy').on('click', function (e) {
-        validateOrDeploy(false);
+        $("#test-classes-dialog").dialog("option", "title", `Deploy Metadata`);
+        $('#test-classes-dialog').dialog("open"); 
+        $("#deployoption").val('Deploy');
     });
 
     $('#validate').on('click', function (e) {
-        validateOrDeploy(true);
+        $("#test-classes-dialog").dialog("option", "title", `Validate Metadata`);
+        $('#test-classes-dialog').dialog("open");
+        $("#deployoption").val('Validate'); 
     });
 
-    function validateOrDeploy(checkOnly) {
-        let packagexml = getPackageXml();
+    $('#deleteCmps').on('click', function (e) {
+        $("#test-classes-dialog").dialog("option", "title", `Delete Metadata`);
+        $('#test-classes-dialog').dialog("open"); 
+        $("#deployoption").val('Delete');
+    });  
 
+    $('#deploy-continue').on('click', function (e) {
+        if($('#testoption-field').val().trim() === 'RunSpecifiedTests') {
+            $('#test-classes').css('border' ,'');
+            if($('#test-classes').val().trim() !== '') {
+                $('#test-classes-dialog').dialog("close");
+                validateOrDeploy($("#deployoption").val() === 'Validate', $("#deployoption").val() === 'Delete');
+            } else {
+                $('#test-classes').css('border' ,'1px solid #f00');
+            }             
+        } else {
+            $('#test-classes-dialog').dialog("close");
+            validateOrDeploy($("#deployoption").val() === 'Validate', $("#deployoption").val() === 'Delete');
+        } 
+    });  
+
+    function validateOrDeploy(checkOnly, deleteMD) {
+        let packagexml = getPackageXml();
         let runTests = '';
         if($(".testoption-field").val() === 'RunSpecifiedTests') {
-            testClasses.split(',').forEach(cls => {
+            $('#test-classes').val().trim().split(',').forEach(cls => {
                 runTests += '<met:runTests>'+cls+'</met:runTests>';
             });
         }
 
-        vscode.postMessage({ command: 'deploy', packagexml:packagexml, sourceOrgId: $('#source-org-field').val(), destOrgId: $("#dest-org-field").val(), 
-            checkOnly: checkOnly, testLevel: $(".testoption-field").val(), testClasses: runTests});
+        if(deleteMD) {
+            vscode.postMessage({ command: 'delete', sourceOrgId: $('#source-org-field').val(), packagexml:packagexml});
+        } else {
+            vscode.postMessage({ command: 'deploy', packagexml:packagexml, sourceOrgId: $('#source-org-field').val(), destOrgId: $("#dest-org-field").val(), 
+                checkOnly: checkOnly, testLevel: $(".testoption-field").val(), testClasses: runTests});
+        }
+
         $("#deploystatus").show();
         $("#deploy-buttons").hide();
         $("#source-org-field").prop('disabled', true);   
         $("#source-org-refresh").hide();   
         $("#dest-org-field").prop('disabled', true);  
         $("#refresh-lbl").hide();   
-        $("source-actions").hide(); 
-        $('#compsdatatable').DataTable().column(0).visible(false);
-        $('#selecteddatatable').DataTable().column(0).visible(false);   
-        $("#previewerrors").text('');
+        $("#source-actions").hide(); 
+        $('#availabletable').DataTable().column(0).visible(false);
+        $('#selectedtable').DataTable().column(0).visible(false); 
+        $("#dd-text-field").prop('disabled', true);   
+        $("#errors").text('');
 
         $('.path-list').empty();
         $('.path-list').append('<li class="path path-notstarted retrieve"><p>Retrieve</p><p style="width:0px;"><span/></p></li>');
@@ -645,19 +649,25 @@ $(document).ready(function () {
                 $("#source-org-field").prop('disabled', false);   
                 $("#source-org-refresh").show();   
                 $("#refresh-lbl").show();  
-                $("source-actions").show();    
-                $('#compsdatatable').DataTable().column(0).visible(true);
-                $('#selecteddatatable').DataTable().column(0).visible(true);           
+                $("#source-actions").show();    
+                $('#availabletable').DataTable().column(0).visible(true);
+                $('#selectedtable').DataTable().column(0).visible(true);  
+                $("#dd-text-field").prop('disabled', false);            
                 $("#cancel-deploy").hide();
                 if(result.checkOnly === 'true' && result.status === 'Succeeded' && result.runTestsEnabled === 'true') {
                     quickdeployId = result.id;
                     $("#quick-deploy").show();
                 }  
                 $(".deployment").removeClass("path-running");
-                if(result.details?.componentFailures?.length > 0) {
-                    $('.deployerrors').text('Deployment Errors ('+result.details.componentFailures.length+')');
-                    $('#errortable').DataTable().clear().rows.add(result.details.componentFailures).draw(); 
-                } 
+                if(result.details?.componentFailures) {
+                    if(result.details?.componentFailures?.length > 0) {
+                        $('.deployerrors').text('Deployment Errors ('+result.details.componentFailures.length+')');
+                        $('#errortable').DataTable().clear().rows.add(result.details.componentFailures).draw(); 
+                    } else {
+                        $('.deployerrors').text('Deployment Errors (1)');
+                        $('#errortable').DataTable().clear().rows.add([result.details.componentFailures]).draw(); 
+                    }
+                }
                 if(result.details?.runTestResult?.numFailures > 0) {
                     $('.testfailures').text('Test Class Failures ('+result.details.runTestResult.numFailures+')');
                     $('#testerrortable').DataTable().clear().rows.add(result.details.runTestResult.failures).draw(); 
@@ -724,7 +734,7 @@ $(document).ready(function () {
                 $("#progressbar").progressbar({"value": 30});  
             } else if(result.stage === "retrieveCompleted") {
                 $(".retrieve").removeClass("path-running");
-                $($(".retrieve")[0].childNodes[0]).text('Retrieve Completed');
+                $($(".retrieve")[0].childNodes[0]).text(result.message);
                 $("#progressbar").progressbar({"value": 100});  
             } else if(result.stage === "deployment") {
                 $(".deployment").removeClass("path-notstarted").addClass("path-running");
@@ -819,7 +829,7 @@ $(document).ready(function () {
     });
 
     $("#compare").on('click', function (e) {
-        $("#previewerrors").text('');
+        $("#errors").text('');
         $(".spinnerlabel").text("Comparing");
         $("#spinner").show();
         let packagexml = getPackageXml();
@@ -827,7 +837,7 @@ $(document).ready(function () {
             packagexml:packagexml, destOrgId: $("#dest-org-field").val()});  
     });
 
-    $("#selecteddatatable").on('click', 'a.fileview', function (e) {
+    $("#selectedtable").on('click', 'a.fileview', function (e) {
         let filename = e.currentTarget.dataset.name;
         let parent = e.currentTarget.dataset.parent;
         let source = selectedComps.get(filename).source;
@@ -883,9 +893,9 @@ $(document).ready(function () {
             }
         });
 
-        $('#selecteddatatable').DataTable().column(5).visible(true);
+        $('#selectedtable').DataTable().column(5).visible(true);
         $('#tabs').tabs('option', 'active', 1);        
-        $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).order([[5, 'desc'],[1, 'asc'],[2, 'asc']]).draw();
+        $('#selectedtable').DataTable().clear().rows.add(Array.from(selectedComps.values())).order([[5, 'desc'],[1, 'asc'],[2, 'asc']]).draw();
     }
 
     
