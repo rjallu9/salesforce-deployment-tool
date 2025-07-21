@@ -195,7 +195,8 @@ button {
     font-size: var(--vscode-font-size) !important;
     border:none;
     padding:9px;
-}
+} 
+
 button:disabled {
     background-color: var(--vscode-button-secondaryBackground);
     color: var(--vscode-button-secondaryForeground);

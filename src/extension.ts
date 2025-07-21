@@ -756,60 +756,101 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 							</svg>
 						</a>		
 					</div>
-					<div style="display:flex;">			
-						<div id="source-org" style="margin-right:5px;display:none;">	
-							<label for="text" for="source-org-field" class="top-label">Source Org:</label>
-							<select type="text" class="source-org-field" id="source-org-field" style="height:36px;">
-							</select>		
-						</div>
-						<div>
-							<p id="source-org-refresh" style="margin-bottom:0;margin-top:25px;margin-right:5px;cursor:pointer;display:none;" title="Refresh Orgs">
-								<svg width="25" height="25" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-									<circle cx="512" cy="512" r="512" fill="#0078d4"></circle>
-									<path d="M512 281.6c71.221 0 136.396 32.619 179.2 85.526V256h51.2v204.8H537.6v-51.2h121.511c-32.857-47.165-87.235-76.8-147.111-76.8-98.97 0-179.2 80.23-179.2 179.2 0 98.97 80.23 179.2 179.2 179.2v-.02c73.665 0 138.994-44.857 166.176-111.988l47.458 19.216C690.689 684.711 606.7 742.38 512 742.38v.02c-127.246 0-230.4-103.154-230.4-230.4 0-127.246 103.154-230.4 230.4-230.4z" fill="white" fill-rule="nonzero"></path>
-								</svg>
-							</p>
-						</div>
-						<div id="actions" style="display:none;flex:1;">
-							<div class="form-panel">
-								<div>
-									<div style="float:left;" >
-										<div>	
-											<label for="text" for="dd-text-field" class="top-label">Type: </label>
-											<input type="text" class="dd-text-field" id="dd-text-field"></input>								
-											<span style="margin-left: -19px;color: #888;">
-												<svg width="15" height="15" viewBox="0 0 24 12" fill="#cccccc;" xmlns="http://www.w3.org/2000/svg" style="color: #cccccc;">
-													<path d="M6 9l6 6 6-6" stroke="#cccccc" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
-												</svg>
-											</span>
-										</div>
-										<div class="dd-option-box">
-											<div style="padding:5px 10px 5px 10px;" id="select-all-div">
-												<input type="checkbox" value="All" class="dd-select-all">
-												<label for="select-all">All</label>
+					<div style="display:flex;justify-content:space-between;flex-wrap:wrap;">	
+						<div style="display:flex;">		
+							<div id="source-org" style="margin-right:5px;display:none;">	
+								<label for="text" for="source-org-field" class="top-label">Source Org:</label>
+								<select type="text" class="source-org-field" id="source-org-field" style="height:36px;">
+								</select>		
+							</div>
+							<div>
+								<p id="source-org-refresh" style="margin-bottom:0;margin-top:25px;margin-right:5px;cursor:pointer;display:none;" title="Refresh Orgs">
+									<svg width="25" height="25" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+										<circle cx="512" cy="512" r="512" fill="#0078d4"></circle>
+										<path d="M512 281.6c71.221 0 136.396 32.619 179.2 85.526V256h51.2v204.8H537.6v-51.2h121.511c-32.857-47.165-87.235-76.8-147.111-76.8-98.97 0-179.2 80.23-179.2 179.2 0 98.97 80.23 179.2 179.2 179.2v-.02c73.665 0 138.994-44.857 166.176-111.988l47.458 19.216C690.689 684.711 606.7 742.38 512 742.38v.02c-127.246 0-230.4-103.154-230.4-230.4 0-127.246 103.154-230.4 230.4-230.4z" fill="white" fill-rule="nonzero"></path>
+									</svg>
+								</p>
+							</div>
+							<div id="actions" style="display:none;flex:1;">
+								<div class="form-panel">
+									<div>
+										<div style="float:left;" >
+											<div>	
+												<label for="text" for="dd-text-field" class="top-label">Type: </label>
+												<input type="text" class="dd-text-field" id="dd-text-field"></input>								
+												<span style="margin-left: -19px;color: #888;">
+													<svg width="15" height="15" viewBox="0 0 24 12" fill="#cccccc;" xmlns="http://www.w3.org/2000/svg" style="color: #cccccc;">
+														<path d="M6 9l6 6 6-6" stroke="#cccccc" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+													</svg>
+												</span>
 											</div>
-											<div class="dd-options">
-												<ui style="list-style-type: none;">                       
-												</ui>
+											<div class="dd-option-box">
+												<div style="padding:5px 10px 5px 10px;" id="select-all-div">
+													<input type="checkbox" value="All" class="dd-select-all">
+													<label for="select-all">All</label>
+												</div>
+												<div class="dd-options">
+													<ui style="list-style-type: none;">                       
+													</ui>
+												</div>
 											</div>
 										</div>
 									</div>
-								</div>
-								<div style="margin-top:22px;margin-left: auto;">
-									<button type="button" style="width: 75px;float:right;" id="next" disabled>Next</button>
-									<button type="button" style="width:100px;float:right;margin-right:5px" id="packagexml" disabled>Package.xml</button>
-								</div>
-							</div>					
+								</div>				
+							</div>	
 						</div>
+						<div style="display:flex;">																																			
+							<div id="dest-org" style="display:none;">
+								<label for="text" for="dest-org-field" class="top-label">Target Org: </label>
+								<select type="text" class="dest-org-field" id="dest-org-field" style="height:36px;"></select>	
+							</div>	
+							<div id="deploy-buttons" style="display:none;">
+								<div style="display:flex;">
+									<button type="button" style="margin-top:22px;margin-left:5px;width:75px;height:35px;" id="compare" disabled>Compare</button>							
+									<button type="button" style="margin-top:22px;margin-left:5px;width:75px;height:35px;" id="validate" disabled>Validate</button>												
+									<button type="button" style="margin-top:22px;margin-left:5px;width:75px;height:35px;" id="deploy" disabled>Deploy</button>
+									<div style="margin-top:2px;margin-left: 5px;">
+										<label for="text" for="testoption-field" class="top-label">Test Options:&nbsp;&nbsp;
+											<a href="#" id="view-classes" style="display:none">Classes</a>
+										</label>							
+										<select type="text" class="testoption-field" id="testoption-field" style="height:33px;width:150px;">
+											<option value="NoTestRun">Default</option>
+											<option value="RunLocalTests">Run local tests</option>
+											<option value="RunAllTestsInOrg">Run all tests</option>
+											<option value="RunSpecifiedTests">Run specified tests</option>
+										</select>	
+									</div>
+								</div>
+							</div>
+						</div>	
 					</div>
 					<p style="color:#f14c4c;margin-bottom:0;margin-top:5px;" id="errors"></p>
+					<p style="color:#f14c4c;margin-bottom:0;margin-top:5px;" id="previewerrors"></p>
+					<div id="deploystatus" style="display:none">
+						<p><span id="deploylabel">Deployment Status:</span> &nbsp;&nbsp; 
+							<a href="#" id="quick-deploy" style="display:none">Quick Deploy</a>
+							<a href="#" id="cancel-deploy" style="display:none">Cancel Deployment</a>
+						</p>
+						<ul class="path-list">
+						</ul>							
+						<div id="progressbar" class="progressbar"></div>
+						<div class="coverage-error" style="display:none;"><p class="coverage-error-label"></p></div>
+						<div id="test-classes-dialog" title="Test Classes">
+							<p>Provide the names of the test classes in a comma-seprated list.</p>
+							<textarea id="test-classes" name="test-classes" rows="15" style="line-height:20px;scrollbar-width:thin;resize:none;width:100%;"></textarea>
+							<button type="button" style="width:50px;float:right;padding: 5px;margin-right:-4px;" id="save-classes">Save</button>
+						</div>
+					</div>
 					<p id="refresh-lbl" style="display:none;">
 						<span id="refreshlabel">Last Refresh Date:</span>. Please click <a href="#" id="hard-refresh">here</a> to refresh.
 					</p>
-					<div id="selectiontabs" style="margin-top:10px;display:none;">
+					<div id="tabs" style="margin-top:10px;display:none;">
 						<ul>
 							<li class="tab" name="compsdatatable"><a href="#available" class="available">Available (0)</a></li>
 							<li class="tab" name="selecteddatatable"><a href="#selected" class="selected">Selected (0)</a></li>
+							<li class="tab" name="errortable"><a href="#deployerrors" class='deployerrors'>Deployment Errors</a></li>
+							<li class="tab" name="testcoveragestable"><a href="#testcoverages" class='testcoverages'>Test Coverage</a></li>
+							<li class="tab" name="testerrortable"><a href="#testfailures" class='testfailures'>Test Class Failures</a></li>
 						</ul>
 						<div id="available">
 							<table id="compsdatatable" class="display" style="width:100%">
@@ -823,8 +864,8 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 									</tr>
 								</thead>
 							</table>
-							<div>
-								<button type="button" style="width: 75px;" id="export" disabled>Export All</button>
+							<div id="source-actions">
+								<button type="button" id="export" style="width:75px;" disabled>Export All</button>
 								<button type="button" style="width: 110px;" id="exportselected" disabled>Export Selected</button>
 								<button type="button" style="width: 110px;" id="bulkselection" disabled>Bulk Selection</button>
 								<div id="bulkselection-dialog" title="Bulk Selection">
@@ -837,8 +878,9 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 									<button type="button" style="width:50px;float:right;padding: 5px;margin-right:-4px;" id="bulkselect">Select</button>
 									<button type="button" style="width:70px;float:right;padding: 5px;margin-right:5px;display:none;" id="bulkcontinue">Continue</button>
 								</div>
-								<button type="button" style="width: 110px;" id="download" disabled>Download</button>
-							</div>
+								<button type="button" style="width:75px;" id="download" disabled>Download</button>
+								<button type="button" style="width:100px;"  id="packagexml" disabled>Package.xml</button>
+							</div>	
 						</div>
 						<div id="selected">
 							<table id="selecteddatatable" class="display" style="width:100%">
@@ -848,110 +890,46 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 										<th>Type</th>
 										<th>Name</th>
 										<th>Last Modified By</th>
-										<th>Last Modified Date</th>
+										<th>Last Modified Date</th>	
+										<th>Compare</th>										
 									</tr>
 								</thead>
 							</table>
 						</div>
-					</div>
-					<div id="preview" style="display:none">
-						<div style="display:flex;">
-							<div style="flex:1">	
-								<label for="text" for="dest-org-field" class="top-label">Destination Org: </label>
-								<select type="text" class="dest-org-field" id="dest-org-field" style="height:36px;width:300px;">
-								</select>		
-							</div>
-							<div id="deploy-buttons">	
-								<button type="button" style="width: 75px;float:right;margin-top:22px;margin-left: 5px;" id="compare">Compare</button>											
-								<button type="button" style="width: 75px;float:right;margin-top:22px;margin-left: 5px;" id="deploy">Deploy</button>
-								<button type="button" style="width: 75px;float:right;margin-top:22px;margin-left: 5px;" id="validate">Validate</button>	
-								<div style="float:right;margin-top:2px;">
-									<label for="text" for="testoption-field" class="top-label">Test Options:&nbsp;&nbsp;
-										<a href="#" id="view-classes" style="display:none">Classes</a>
-									</label>							
-									<select type="text" class="testoption-field" id="testoption-field" style="height:33px;width:150px;">
-										<option value="NoTestRun">Default</option>
-										<option value="RunLocalTests">Run local tests</option>
-										<option value="RunAllTestsInOrg">Run all tests</option>
-										<option value="RunSpecifiedTests">Run specified tests</option>
-									</select>	
-								</div>
-							</div>							
-							<div style="margin-left: 5px;">
-								<button type="button" style="width: 75px;margin-top:22px;" id="previous">Back</button>							
-							</div>	
+						<div id="deployerrors">
+							<table id="errortable">
+								<thead>
+									<tr>	
+										<th>API Name</th>
+										<th>Type</th>
+										<th>Line</th>
+										<th>Column</th>
+										<th>Error Message</th>
+									</tr>
+								</thead>
+							</table>
 						</div>
-						<p style="color:#f14c4c;margin-bottom:0;margin-top:5px;" id="previewerrors"></p>
-						<div id="deploystatus">
-							<p><span id="deploylabel">Deployment Status:</span> &nbsp;&nbsp; 
-								<a href="#" id="quick-deploy" style="display:none">Quick Deploy</a>
-								<a href="#" id="cancel-deploy" style="display:none">Cancel Deployment</a>
-							</p>
-							<ul class="path-list">
-							</ul>							
-							<div id="progressbar" class="progressbar"></div>
-							<div class="coverage-error" style="display:none;"><p class="coverage-error-label"></p></div>
-							<div id="test-classes-dialog" title="Test Classes">
-								<p>Provide the names of the test classes in a comma-seprated list.</p>
-								<textarea id="test-classes" name="test-classes" rows="15" style="line-height:20px;scrollbar-width:thin;resize:none;width:100%;"></textarea>
-								<button type="button" style="width:50px;float:right;padding: 5px;margin-right:-4px;" id="save-classes">Save</button>
-							</div>
+						<div id="testcoverages">
+							<table id="testcoveragestable">
+								<thead>
+									<tr>	
+										<th>Class Name</th>
+										<th>Coverage</th>
+									</tr>
+								</thead>
+							</table>
 						</div>
-						<div id="previewtabs" style="margin-top:10px;">
-							<ul>
-								<li class="tab" name="previewtable"><a href="#preview" class='preview'>Selected</a></li>
-								<li class="tab" name="errortable"><a href="#deployerrors" class='deployerrors'>Deployment Errors</a></li>
-								<li class="tab" name="testcoveragestable"><a href="#testcoverages" class='testcoverages'>Test Coverage</a></li>
-								<li class="tab" name="testerrortable"><a href="#testfailures" class='testfailures'>Test Class Failures</a></li>
-							</ul>
-							<div id="preview">
-								<table id="previewtable" class="display" style="width:100%">
-									<thead>
-										<tr>	
-											<th>Type</th>
-											<th>Name</th>
-											<th>Last Modified By</th>
-											<th>Last Modified Date</th>
-											<th>Compare</th>
-										</tr>
-									</thead>
-								</table>
-							</div>
-							<div id="deployerrors">
-								<table id="errortable">
-									<thead>
-										<tr>	
-											<th>API Name</th>
-											<th>Type</th>
-											<th>Line</th>
-											<th>Column</th>
-											<th>Error Message</th>
-										</tr>
-									</thead>
-								</table>
-							</div>
-							<div id="testcoverages">
-								<table id="testcoveragestable">
-									<thead>
-										<tr>	
-											<th>Class Name</th>
-											<th>Coverage</th>
-										</tr>
-									</thead>
-								</table>
-							</div>
-							<div id="testfailures">
-								<table id="testerrortable">
-									<thead>
-										<tr>	
-											<th>Class Name</th>
-											<th>Method Name</th>
-											<th>Error Message</th>
-										</tr>
-									</thead>
-								</table>
-							</div>
-						</div>							
+						<div id="testfailures">
+							<table id="testerrortable">
+								<thead>
+									<tr>	
+										<th>Class Name</th>
+										<th>Method Name</th>
+										<th>Error Message</th>
+									</tr>
+								</thead>
+							</table>
+						</div>
 					</div>
 				</div>
 				<div id="spinner" class="spinner">

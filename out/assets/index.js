@@ -1,1 +1,914 @@
-$(document).ready((function(){const e=acquireVsCodeApi();e.postMessage({command:"getAuthOrgs",refresh:!1}),$("#selectiontabs").tabs(),$("#selectiontabs").hide(),$("#previewtabs").tabs();let t=[],a=[],s=new Set,o="",l=new Map,r=new Map,n=new Map;function d(){a=[],s.clear(),l.clear(),r.clear(),n.clear(),i(),c(),$(".selected").text("Selected (0)"),$("#selecteddatatable").DataTable().clear().draw(),$("#deleteall-row-chk").prop("checked",!1),$("#exportselected").prop("disabled",!0),$("#download").prop("disabled",!0)}function i(){$(".dd-options ui").empty();var e=0;a.forEach((function(t){t.hidden||(e++,$(".dd-options ui").append(`\n                    <li class="dd-option ${s.has(t.name)?"select-row":""}">\n                        <div class=${s.has(t.name)?"select-row":""}>\n                            <input type="checkbox" value=${t.name} id=${t.name} class="dd-option-chk" \n                                    ${s.has(t.name)?"checked":""}>\n                            <label class="dd-option-lbl" for=${t.name}>${t.name} (${t.count})</label>\n                        </div>\n                    </li>\n                `))})),$(".dd-text-field").attr("placeholder",s.size+" Type(s) selected"),a.length===e?($("#select-all-div").show(),$(".dd-select-all").prop("checked",s.size===a.length)):$("#select-all-div").hide()}function c(){let e=[];s.forEach((function(t){l.has(t)&&(e=[...e,...l.get(t)])})),$("#compsdatatable").DataTable().clear().rows.add(e).draw(),$(".available").text("Available ("+e.length+")"),$(".all-row-chk").prop("checked",!1),$("#export").prop("disabled",0===e.length),$("#bulkselection").prop("disabled",0===e.length)}function p(){$(".row-chk").each((function(e,t){$(t).prop("checked",r.has($(t).val())),r.has($(t).val())?$(t).parent().parent().addClass("select-row"):$(t).parent().parent().removeClass("select-row")})),$(".all-row-chk").prop("checked",$("#compsdatatable").DataTable().data().length===r.size),$("#next").prop("disabled",0===r.size),$("#packagexml").prop("disabled",0===r.size),$("#exportselected").prop("disabled",0===r.size),$("#download").prop("disabled",0===r.size),$(".selected").text("Selected ("+r.size+")"),$("#selecteddatatable").DataTable().clear().rows.add(Array.from(r.values())).draw(),$("#deleteall-row-chk").prop("checked",r.size>0),$("#deploystatus").hide(),$(".deployerrors").text("Deployment Errors (0)"),$(".testcoverages").text("Test Coverage (0)"),$("#errortable").DataTable().clear().draw(),$(".testfailures").text("Test Class Failures (0)"),$("#testerrortable").DataTable().clear().draw()}function h(t){let a=u(),s="";"RunSpecifiedTests"===$(".testoption-field").val()&&o.split(",").forEach((e=>{s+="<met:runTests>"+e+"</met:runTests>"})),e.postMessage({command:"deploy",packagexml:a,sourceOrgId:$("#source-org-field").val(),destOrgId:$("#dest-org-field").val(),checkOnly:t,testLevel:$(".testoption-field").val(),testClasses:s}),$("#deploystatus").show(),$("#deploy-buttons").hide(),$("#dest-org-field").prop("disabled",!0),$("#previous").prop("disabled",!0),$("#previewerrors").text(""),$(".path-list").empty(),$(".path-list").append('<li class="path path-notstarted retrieve"><p>Retrieve</p><p style="width:0px;"><span/></p></li>'),$(".path-list").append('<li class="path path-notstarted deployment"><p>'+(t?"Validation":"Deployment")+'</p><p style="width:0px;"><span/></p></li>'),$(".path-list").append('<li class="path path-notstarted testclasses"><p>Test Classes</p><p style="width:0px;"><span/></p></li>'),$("#progressbar").show()}function u(){var e=new Map;Array.from(r.values()).forEach((t=>{e.has(t.type)?e.get(t.type).push(t.name):e.set(t.type,[t.name])}));let t="";return Array.from(e.keys()).forEach((a=>{t+="\t<types>\n",e.get(a).forEach((e=>{t+="\t\t<members>"+e+"</members>\n"})),t+="\t\t<name>"+a+"</name>\n",t+="\t</types>\n"})),t}window.addEventListener("message",(e=>{"orgsList"===e.data.command?(t=e.data.orgs,$("#source-org").show(),$("#source-org-refresh").show(),$("#spinner").hide(),$("#source-org-field").empty(),$("#source-org-field").append($("<option>").val("").text("")),t.forEach((e=>{$("#source-org-field").append($("<option>").val(e.orgId).text(e.name))}))):"loading"===e.data.command?$(".spinnerlabel").text(e.data.message):"error"===e.data.command?($("#errors").text(e.data.message),$("#spinner").hide()):"previewerror"===e.data.command?($("#previewerrors").text(e.data.message),$("#deploystatus").hide(),$("#progressbar").hide(),$("#deploy-buttons").show(),$("#dest-org-field").prop("disabled",!1),$("#previous").prop("disabled",!1),$("#cancel-deploy").hide(),$("#spinner").hide()):"components"===e.data.command?l.set(e.data.type,e.data.components):"stdFields"===e.data.command?n.set(e.data.name,e.data.fields):"typesComponents"===e.data.command?(n.size>0&&l.keys().forEach((function(e){if("CustomField"===e){Array.from(n.values()).flat().forEach((t=>{l.get(e).push({name:t,type:"CustomField",lastModifiedByName:"",lastModifiedDate:"",parent:"CustomObject"})}))}})),l.keys().forEach((e=>{a.push({name:e,hidden:!1,count:l.get(e).length}),s.add(e)})),a.sort(((e,t)=>e.name.localeCompare(t.name))),i(),$("#spinner").hide(),$("#actions").show(),$("#selectiontabs").show(),$("#refresh-lbl").show(),$("#refreshlabel").text("Last Refresh Date: "+e.data.timestamp),c()):"deployStatus"===e.data.command?function(e){if($(".deployerrors").text("Deployment Errors (0)"),$(".testcoverages").text("Test Coverage (0)"),$("#errortable").DataTable().clear().draw(),$(".testfailures").text("Test Class Failures (0)"),$("#testerrortable").DataTable().clear().draw(),$(".coverage-error").hide(),$("#quick-deploy").hide(),$("#cancel-deploy").show(),"deploymentStatus"===e.stage){console.log(e);let s=Number(e.numberComponentsTotal),o=Number(e.numberComponentsDeployed),l=Number(e.numberComponentErrors);$("#progressbar").progressbar({value:(o+l)/s*100});let r=("true"===e.checkOnly?"Validation":"Deployment")+" "+e.status;if(r+=" ("+(o+l)+"/"+s+")",l>0&&(r+=" - "+l+" Errors"),$($(".deployment")[0].childNodes[0]).text(r),"true"===e.done){if($("#progressbar").hide(),$("#deploy-buttons").show(),$("#dest-org-field").prop("disabled",!1),$("#previous").prop("disabled",!1),$("#cancel-deploy").hide(),"true"===e.checkOnly&&"Succeeded"===e.status&&"true"===e.runTestsEnabled&&(m=e.id,$("#quick-deploy").show()),$(".deployment").removeClass("path-running"),e.details?.componentFailures?.length>0&&($(".deployerrors").text("Deployment Errors ("+e.details.componentFailures.length+")"),$("#errortable").DataTable().clear().rows.add(e.details.componentFailures).draw()),e.details?.runTestResult?.numFailures>0&&($(".testfailures").text("Test Class Failures ("+e.details.runTestResult.numFailures+")"),$("#testerrortable").DataTable().clear().rows.add(e.details.runTestResult.failures).draw()),e.details?.runTestResult?.codeCoverageWarnings&&"Canceled "!==e.status&&($(".coverage-error").show(),$(".coverage-error-label").text(e.details.runTestResult.codeCoverageWarnings.message)),e.details?.runTestResult?.codeCoverage&&"Canceled "!==e.status)if(e.details.runTestResult.codeCoverage instanceof Array){var t=[];e.details.runTestResult.codeCoverage.forEach((e=>{t.push({name:e.name,coverage:e.numLocations>0?Math.trunc((e.numLocations-e.numLocationsNotCovered)/e.numLocations*100)+"%":"N/A"})})),$(".testcoverages").text("Test Coverage ("+t.length+")"),$("#testcoveragestable").DataTable().clear().rows.add(t).draw()}else{var a=e.details.runTestResult.codeCoverage;$(".testcoverages").text("Test Coverage (1)"),$("#testcoveragestable").DataTable().clear().rows.add([{name:a.name,coverage:a.numLocations>0?Math.trunc((a.numLocations-a.numLocationsNotCovered)/a.numLocations*100)+"%":"N/A"}]).draw()}}else"Canceling"===e.status&&($("#cancel-deploy").hide(),$("#progressbar").hide());if(e.numberTestsTotal>0){let t=Number(e.numberTestsTotal),a=Number(e.numberTestsCompleted),s=Number(e.numberTestErrors),o=a+s;$("#progressbar").progressbar({value:o/t*100}),o===t?($($(".testclasses")[0].childNodes[0]).text("Completed Tests ("+o+"/"+t+")"+(s>0?" - "+s+" Failures":"")),$(".testclasses").removeClass("path-running")):($($(".testclasses")[0].childNodes[0]).text("Running Tests ("+o+"/"+t+")"+(s>0?" - "+s+" Failures":"")),$(".testclasses").removeClass("path-notstarted").addClass("path-running")),"Canceled"===e.status?($(".testclasses").removeClass("path-running"),$($(".testclasses")[0].childNodes[0]).text("Canceled Tests")):"Canceling"===e.status&&$($(".testclasses")[0].childNodes[0]).text("Cancelling Tests")}}else"retrieve"===e.stage?($(".retrieve").removeClass("path-notstarted").addClass("path-running"),$($(".retrieve")[0].childNodes[0]).text("Retrieve InProgress"),$("#progressbar").progressbar({value:30})):"retrieveCompleted"===e.stage?($(".retrieve").removeClass("path-running"),$($(".retrieve")[0].childNodes[0]).text("Retrieve Completed"),$("#progressbar").progressbar({value:100})):"deployment"===e.stage&&($(".deployment").removeClass("path-notstarted").addClass("path-running"),$("#progressbar").progressbar({value:0}))}(e.data.result):"compareResults"===e.data.command?($("#spinner").hide(),console.log(e.data.files),function(e){const t=new Map;e.forEach((e=>{let a=e.name;a.indexOf("/")>=0&&(a=a.substring(0,a.indexOf("/"))),t.has(a)||t.set(a,[]),t.get(a).push(e)})),Array.from(r.keys()).forEach((e=>{var a=""!==r.get(e).parent?r.get(e).parent+"."+e.split(".")[1]:e;t.has(a)&&t.get(a).forEach((t=>{var a=r.get(e);a.hasOwnProperty("source")?a.source.push(t.source):a.source=[t.source],a.hasOwnProperty("files")?a.files.push(t.name):a.files=[t.name],""!==t.dest&&(a.hasOwnProperty("dest")?a.dest.push(t.dest):a.dest=[t.dest])}))})),$("#previewtable").DataTable().column(4).visible(!0),$("#previewtable").DataTable().clear().rows.add(Array.from(r.values())).order([[4,"desc"],[0,"asc"],[1,"asc"]]).draw()}(e.data.files)):"hidespinner"===e.data.command&&$("#spinner").hide()})),$("#source-org-field").on("change",(function(a){d(),$("#actions").hide(),$("#errors").text(""),$("#selectiontabs").hide(),$("#refresh-lbl").hide(),""!==$("#source-org-field").val()&&(e.postMessage({command:"loadTypesComponents",sourceOrgId:$(this).val(),refresh:!1}),$("#spinner").show(),$(".spinnerlabel").text("Refreshing Components"),$("#dest-org-field").empty(),$("#dest-org-field").append($("<option>").val("").text("")),t.forEach((e=>{e.orgId!==$("#source-org-field").val()&&$("#dest-org-field").append($("<option>").val(e.orgId).text(e.name))})),$("#deploystatus").hide())})),$("#source-org-refresh").on("click",(function(t){d(),$("#actions").hide(),$("#errors").text(""),$("#selectiontabs").hide(),$("#refresh-lbl").hide(),e.postMessage({command:"getAuthOrgs",refresh:!0}),$("#spinner").show(),$(".spinnerlabel").text("Refreshing Orgs")})),$("#hard-refresh").on("click",(function(t){d(),e.postMessage({command:"loadTypesComponents",sourceOrgId:$("#source-org-field").val(),refresh:!0}),$("#spinner").show(),$(".spinnerlabel").text("Refreshing Components")})),$("#compsdatatable").DataTable({paging:!0,pageLength:100,lengthChange:!1,scrollY:"400px",scrollCollapse:!0,fixedColumns:!0,order:[[4,"desc"],[1,"asc"],[2,"asc"]],columns:[{data:null,sortable:!1},{data:"type"},{data:"name"},{data:"lastModifiedByName"},{data:"lastModifiedDate",type:"date",width:"200px"},{data:"parent"}],columnDefs:[{orderable:!1,render:function(e,t,a){return r.has(a.type+"."+a.name)?'<input type="checkbox" class="row-chk" value="'+a.type+"."+a.name+'" checked>':'<input type="checkbox" class="row-chk" value="'+a.type+"."+a.name+'">'},targets:0},{target:5,visible:!1}],rowCallback:function(e,t,a){if(r.has(t.type+"."+t.name)){var s=$(e).find(".row-chk");$(s).prop("checked")||$(s).prop("checked",!0),$(e).addClass("select-row")}else{s=$(e).find(".row-chk");$(s).prop("checked")&&$(s).prop("checked",!1),$(e).removeClass("select-row")}},language:{emptyTable:"No components are matched to the selected criteria",info:"Total: _TOTAL_ component(s) available"}}),$("#selecteddatatable").DataTable({paging:!0,pageLength:100,lengthChange:!1,scrollY:"400px",scrollCollapse:!0,fixedColumns:!0,order:[[0,"asc"],[1,"asc"]],columns:[{data:null,sortable:!1},{data:"type"},{data:"name"},{data:"lastModifiedByName"},{data:"lastModifiedDate",type:"date",width:"200px"}],columnDefs:[{orderable:!1,render:function(e,t,a){return'<input type="checkbox" class="delete-row-chk" value="'+a.type+"."+a.name+'" checked>'},targets:0}],language:{info:"Total: _TOTAL_ component(s)"}}),$(".dd-text-field").on("click",(function(e){e.stopPropagation(),$(".dd-option-box").is(":hidden")&&($(".dd-option-box").show(),$(".dd-option-box").css({width:$(this).outerWidth()}),a.forEach((function(e){e.hidden=!1})),i())})),$(".dd-text-field").on("input",(function(e){const t=$(this).val().toLowerCase();a.forEach((function(e){e.hidden=""!==t&&!e.name.toLowerCase().startsWith(t)})),i()})),$(".dd-option-box").on("click",(function(e){e.stopPropagation()})),$(document).on("change",".dd-select-all",(function(){$(".spinnerlabel").text("Refreshing Components"),$("#spinner").show(),$(this).is(":checked")?$(".dd-option-chk").each((function(e,t){if(!$(t).prop("checked")){$(t).prop("checked",!0),$(t).parent().addClass("select-row"),$(t).parent().parent().addClass("select-row");const e=$(t).val();s.add(e)}})):($(".dd-option-chk").each((function(e,t){$(t).prop("checked")&&($(t).prop("checked",!1),$(t).parent().removeClass("select-row"),$(t).parent().parent().removeClass("select-row"))})),s.clear()),c(),$(".dd-text-field").attr("placeholder",s.size+" Type(s) selected"),$("#spinner").hide()})),$(document).on("change",".dd-option-chk",(function(){$(this).is(":checked")?($(this).parent().addClass("select-row"),$(this).parent().parent().addClass("select-row"),s.add($(this).val())):($(this).parent().removeClass("select-row"),$(this).parent().parent().removeClass("select-row"),s.delete($(this).val())),c(),$(".dd-select-all").prop("checked",s.size===a.length),$(".dd-text-field").attr("placeholder",s.size+" Type(s) selected")})),$("body").on("click",(function(e){$(".dd-text-field").val(""),$(".dd-option-box").hide()})),$(document).keydown((function(e){"Escape"===e.key&&($(".dd-text-field").val(""),$(".dd-option-box").hide())})),$(document).mousedown((function(e){$(e.target)[0]?.classList[0]?.startsWith("dd-")||($(".dd-text-field").val(""),$(".dd-option-box").hide())})),$(document).on("change",".row-chk",(function(){let e=$(this).val();$(this).is(":checked")?r.set(e,$("#compsdatatable").DataTable().row($(this).closest("tr")).data()):r.delete(e),p()})),$(document).on("change",".delete-row-chk",(function(){$(this).is(":checked")||r.delete($(this).val()),p()})),$(document).on("change",".deleteall-row-chk",(function(){$(this).is(":checked")||r.clear(),p()})),$(".all-row-chk").on("change",(function(){$(this).is(":checked")?$("#compsdatatable").DataTable().rows({search:"applied"}).data().each((e=>{r.set(e.type+"."+e.name,e)})):r.clear(),p()})),$("#previewtable").DataTable({paging:!0,pageLength:100,lengthChange:!1,scrollY:"400px",scrollCollapse:!0,fixedColumns:!0,order:[[[0,"asc"],[1,"asc"]]],columns:[{data:"type"},{data:"name"},{data:"lastModifiedByName"},{data:"lastModifiedDate",type:"date",width:"200px"},{data:"source"}],language:{info:"Total: _TOTAL_ component(s)"},columnDefs:[{orderable:!1,render:function(e,t,a){return a.dest?'<a href="#" class="fileview" data-parent="'+a.parent+'" data-name="'+a.type+"."+a.name+'" style="color:#4daafc">View</a>':"N/A"},targets:4}]}),$("#packagexml").on("click",(function(t){let a=u();navigator.clipboard.writeText(`<?xml version="1.0" encoding="UTF-8"?>\n<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n${a}\t<version>62.0</version>\n</Package>`),e.postMessage({command:"toastMessage",message:"Package.xml copied to clipboard"})})),$("#export").on("click",(function(t){let a=[["Type","Name","Last Modified By","Last Modified Date"]];Array.from(l.values()).flat().forEach((e=>{a.push([e.type,e.name,e.lastModifiedByName,e.lastModifiedDate])})),navigator.clipboard.writeText(a.map((e=>e.join(","))).join("\n")),e.postMessage({command:"toastMessage",message:"CSV content copied to clipboard"})})),$("#exportselected").on("click",(function(t){let a=[["Type","Name","Last Modified By","Last Modified Date"]];Array.from(r.values()).forEach((e=>{a.push([e.type,e.name,e.lastModifiedByName,e.lastModifiedDate])})),navigator.clipboard.writeText(a.map((e=>e.join(","))).join("\n")),e.postMessage({command:"toastMessage",message:"CSV content copied to clipboard"})})),$("#download").on("click",(function(t){$(".spinnerlabel").text("Downloading"),$("#spinner").show();let a=u();e.postMessage({command:"download",sourceOrgId:$("#source-org-field").val(),packagexml:a})})),$("#bulkselection-dialog").dialog({autoOpen:!1,modal:!0,closeOnEscape:!0,width:500,height:"auto"}),$("#bulkselection").on("click",(function(e){$("#bulkselection-dialog").dialog("open")})),$("#commit").on("click",(function(t){e.postMessage({command:"commit"})})),$("#bulkselect").on("click",(function(e){if($("#bulkerrors").hide(),$("#bulkcontinue").hide(),""!==$("#bulk-comps").val().trim()){let e=function(e){let t=new Set;return e.forEach((e=>{l.has(e.split(".")[0])&&(s.add(e.split(".")[0]),t.add(e.split(".")[0]))})),t.forEach((t=>{l.get(t).forEach((t=>{e.indexOf(t.type+"."+t.name)>=0&&(r.set(t.type+"."+t.name,t),e.splice(e.indexOf(t.type+"."+t.name),1))}))})),i(),c(),p(),e}($("#bulk-comps").val().trim().split("\n"));if(0===e.length)$("#bulkselection-dialog").dialog("close");else{let t="";e.forEach((e=>{t+=e+"\n"})),$("#bulkerrors").show(),$("#bulkcontinue").show(),$("#bulkerrors").find(".errors").val(t);let a=$("#bulkselection-dialog");a.dialog("option","height","auto"),a.dialog("option","position",{my:"center",at:"center",of:window})}}else $("#bulkselection-dialog").dialog("close")})),$("#bulkcontinue").on("click",(function(e){$("#bulkselection-dialog").dialog("close")})),$("#next").on("click",(function(e){if(1===t.length)$("#errors").text("There are no destination orgs available to deploy.");else{$("#actions").hide(),$("#selectiontabs").hide(),$("#source-org").hide(),$("#source-org-refresh").hide(),$("#refresh-lbl").hide(),$("#preview").show(),$(".preview").text("Selected ("+r.size+")"),$("#previewtable").DataTable().clear().rows.add(Array.from(r.values())).draw(),$("#previewtable").DataTable().column(4).visible(!1),""===$("#dest-org-field").val()&&$("#deploy-buttons").hide()}})),$("#previous").on("click",(function(e){$("#actions").show(),$("#selectiontabs").show(),$("#source-org").show(),$("#source-org-refresh").show(),$("#refresh-lbl").show(),$("#preview").hide()})),$("#dest-org-field").on("change",(function(e){$("#deploystatus").hide(),$(".deployerrors").text("Deployment Errors (0)"),$("#errortable").DataTable().clear().draw(),$(".testfailures").text("Test Class Failures (0)"),$(".testcoverages").text("Test Coverage (0)"),$("#testerrortable").DataTable().clear().draw(),""===$("#dest-org-field").val()?$("#deploy-buttons").hide():$("#deploy-buttons").show()})),$("#test-classes-dialog").dialog({autoOpen:!1,modal:!0,closeOnEscape:!1,width:500}),$(".testoption-field").on("change",(function(e){"RunSpecifiedTests"===$(this).val()?($("#test-classes-dialog").dialog("open"),$("#view-classes").show(),""===o&&($("#deploy").prop("disabled",!0),$("#validate").prop("disabled",!0))):($("#view-classes").hide(),$("#deploy").prop("disabled",!1),$("#validate").prop("disabled",!1))})),$("#view-classes").on("click",(function(e){$("#test-classes-dialog").dialog("open")})),$("#save-classes").on("click",(function(e){""!==$("#test-classes").val().trim()?(o=$("#test-classes").val().trim(),$("#deploy").prop("disabled",!1),$("#validate").prop("disabled",!1),$("#test-classes").css("border",""),$("#test-classes-dialog").dialog("close")):$("#test-classes").css("border","1px solid #f00")})),$("#deploy").on("click",(function(e){h(!1)})),$("#validate").on("click",(function(e){h(!0)})),$("#progressbar").progressbar({value:0}),$("#errortable").DataTable({paging:!0,pageLength:100,lengthChange:!1,scrollY:"400px",scrollCollapse:!0,fixedColumns:!0,order:[[0,"asc"]],columns:[{data:"fullName",width:"300px"},{data:"componentType"},{data:"lineNumber"},{data:"columnNumber"},{data:"problem"}],language:{info:"Total: _TOTAL_ error(s)"}}),$("#testcoveragestable").DataTable({paging:!0,pageLength:100,lengthChange:!1,scrollY:"400px",scrollCollapse:!0,fixedColumns:!0,order:[[0,"asc"]],columns:[{data:"name",width:"300px"},{data:"coverage"}],language:{info:"Total: _TOTAL_ Classes"}}),$("#testerrortable").DataTable({paging:!0,pageLength:100,lengthChange:!1,scrollY:"400px",scrollCollapse:!0,fixedColumns:!0,columns:[{data:"name",width:"300px"},{data:"methodName"},{data:"message"}],language:{info:"Total: _TOTAL_ failure(s)"},columnDefs:[{render:function(e,t,a){return a.message+"<br> Stack Trace: "+a.stackTrace},targets:2}]});let m="";$("#quick-deploy").on("click",(function(t){e.postMessage({command:"quickDeploy",id:m,destOrgId:$("#dest-org-field").val()}),$("#deploy-buttons").hide()})),$("#cancel-deploy").on("click",(function(t){e.postMessage({command:"cancelDeploy"})})),$(".tab-link").on("click",(function(e){$(".tab-content").hide(),$(".tab-link").removeClass("active"),$("#"+e.currentTarget.name).show(),$(e).addClass("active")})),$(".tab").on("click",(function(e){0===$("#"+e.currentTarget.attributes.name.value).DataTable().page()&&$("#"+e.currentTarget.attributes.name.value).DataTable().draw()})),$("#compare").on("click",(function(t){$("#previewerrors").text(""),$(".spinnerlabel").text("Comparing"),$("#spinner").show();let a=u();e.postMessage({command:"compare",sourceOrgId:$("#source-org-field").val(),packagexml:a,destOrgId:$("#dest-org-field").val()})})),$("#previewtable").on("click","a.fileview",(function(t){let a=t.currentTarget.dataset.name,s=t.currentTarget.dataset.parent,o=r.get(a).source,l=r.get(a).dest,n=r.get(a).files,d="";""!==s&&(d=r.get(a).name.split(".")[1]),o.forEach(((t,a)=>{e.postMessage({command:"filePreview",source:t,dest:l[a],file:n[a],scrollTo:d})}))}))}));
+$(document).ready(function () {
+    const vscode = acquireVsCodeApi();
+        
+    const loadOrgs = () => {
+        vscode.postMessage({ command: 'getAuthOrgs', refresh:false });
+    };
+
+    loadOrgs();
+
+    $("#tabs").tabs();
+    $("#tabs").hide();
+
+    let orgs = [];    
+    let types = [];    
+    let selectedTypes = new Set();
+    let testClasses = '';
+    
+    let componentsMap = new Map();  
+    let selectedComps = new Map();    
+    let stdFieldsMap = new Map(); 
+
+    window.addEventListener('message', (event) => {
+        if(event.data.command === 'orgsList') {
+            orgs = event.data.orgs;
+            $("#source-org").show();
+            $("#source-org-refresh").show();
+            $("#spinner").hide();
+            loadSourceOrgs();
+        } else if(event.data.command === 'loading') {
+            $(".spinnerlabel").text(event.data.message);       
+        } else if(event.data.command === 'error') {
+            $("#errors").text(event.data.message);   
+            $("#spinner").hide();
+        } else if(event.data.command === 'previewerror') {
+            $("#previewerrors").text(event.data.message);  
+            $("#deploystatus").hide(); 
+            $("#progressbar").hide();
+            $("#deploy-buttons").show();
+            $("#dest-org-field").prop('disabled', false);
+            $("#cancel-deploy").hide(); 
+            $("#spinner").hide();
+        } else if(event.data.command === 'components') {
+            componentsMap.set(event.data.type, event.data.components);                         
+        } else if(event.data.command === 'stdFields') { 
+            stdFieldsMap.set(event.data.name, event.data.fields);
+        } else if(event.data.command === 'typesComponents') {
+            if(stdFieldsMap.size > 0) {
+                componentsMap.keys().forEach(function(type) {
+                    if(type === 'CustomField') {
+                        const stdFields = Array.from(stdFieldsMap.values()).flat();
+                        stdFields.forEach((name) => {
+                            componentsMap.get(type).push({ name, type:'CustomField', lastModifiedByName:'', lastModifiedDate:'', parent: 'CustomObject' });
+                        });
+                    }             
+                });
+            }  
+            componentsMap.keys().forEach((name) => {
+                types.push({name, hidden: false, count: componentsMap.get(name).length});
+                selectedTypes.add(name);
+            });
+            types.sort((a, b) => a.name.localeCompare(b.name));
+            refreshTypes();    
+            $("#spinner").hide();    
+            $("#actions").show();
+            $('#tabs').show();    
+            $("#refresh-lbl").show(); 
+            $("#refreshlabel").text('Last Refresh Date: '+event.data.timestamp);   
+            refreshComponents();
+        } else if(event.data.command === 'deployStatus') {
+            updateDeploymentStatus(event.data.result);
+        } else if(event.data.command === 'compareResults') {
+            $("#spinner").hide();
+            console.log(event.data.files);
+            loadCompareResults(event.data.files);
+        } else if(event.data.command === 'hidespinner') {
+            $("#spinner").hide();
+        } 
+    });
+
+    function loadSourceOrgs() {
+        $('#source-org-field').empty();
+        $('#source-org-field').append($("<option>").val('').text(''));
+        orgs.forEach(org => {
+            $('#source-org-field').append($("<option>").val(org.orgId).text(org.name));
+        });
+    } 
+
+    $('#source-org-field').on("change", function(e){    
+        resetComponents();  
+        $("#actions").hide();
+        $("#errors").text('');
+        $('#tabs').hide();
+        $("#refresh-lbl").hide();  
+        $('#dest-org').hide(); 
+        $('#deploy-buttons').hide(); 
+        if($('#source-org-field').val() !== '') {
+            vscode.postMessage({ command: 'loadTypesComponents', sourceOrgId: $(this).val(), refresh:false});
+            $("#spinner").show();   
+            $(".spinnerlabel").text("Refreshing Components");
+    
+            $('#dest-org').show();
+            $('#dest-org-field').empty();
+            $('#dest-org-field').append($("<option>").val('').text(''));
+            orgs.forEach(org => {
+                if(org.orgId !== $('#source-org-field').val()) {
+                    $('#dest-org-field').append($("<option>").val(org.orgId).text(org.name));
+                }
+            });
+            $("#deploystatus").hide();
+        }       
+    });
+
+    $("#source-org-refresh").on('click', function (e) {
+        resetComponents();
+        $("#actions").hide();
+        $("#errors").text('');
+        $('#tabs').hide();
+        $("#refresh-lbl").hide(); 
+        vscode.postMessage({ command: 'getAuthOrgs', refresh:true});
+        $("#spinner").show();   
+        $(".spinnerlabel").text("Refreshing Orgs");
+    });
+
+    $("#hard-refresh").on('click', function (e) {
+        resetComponents();
+        vscode.postMessage({ command: 'loadTypesComponents', sourceOrgId: $("#source-org-field").val(), refresh:true});
+        $("#spinner").show();   
+        $(".spinnerlabel").text("Refreshing Components");
+    });
+
+    function resetComponents() {
+        types = [];
+        selectedTypes.clear();
+        componentsMap.clear();
+        selectedComps.clear();        
+        stdFieldsMap.clear();
+
+        refreshTypes();  
+        refreshComponents();
+
+        $('.selected').text('Selected (0)');
+        $('#selecteddatatable').DataTable().clear().draw(); 
+        $('#deleteall-row-chk').prop('checked', false);
+        $('#exportselected').prop('disabled', true);
+        $('#download').prop('disabled', true);
+    }
+
+    $('#compsdatatable').DataTable({
+        paging: true,
+        pageLength: 100,
+        lengthChange: false,
+        scrollY: '400px',
+        scrollCollapse: true, 
+        fixedColumns: true,
+        order: [[4, 'desc'],[1, 'asc'],[2, 'asc']],
+        columns: [
+            { data: null, sortable: false },
+            { data: 'type' },
+            { data: 'name' },            
+            { data: 'lastModifiedByName' },
+            { data: 'lastModifiedDate', "type": "date", width:'200px' },
+            { data: 'parent' }
+        ],
+        columnDefs: [
+            {
+                orderable: false,
+                render: function (data, type, row) {
+                    if (selectedComps.has(row.type + "." + row.name)) {
+                        return '<input type="checkbox" class="row-chk" value="' + row.type + "." + row.name + '" checked>';
+                    } else {
+                        return '<input type="checkbox" class="row-chk" value="' + row.type + "." + row.name + '">';
+                    }
+                },
+                targets: 0
+            },
+            {
+                target: 5,
+                visible: false
+            }
+        ],
+        rowCallback: function(row, data, dataIndex){
+            if (selectedComps.has(data.type + "." + data.name)) {
+                var checkbox = $(row).find('.row-chk');
+                if(!$(checkbox).prop('checked')) {
+                    $(checkbox).prop('checked', true);
+                }
+                $(row).addClass('select-row');   
+            } else {
+                var checkbox = $(row).find('.row-chk');
+                if($(checkbox).prop('checked')) {
+                    $(checkbox).prop('checked', false);
+                }
+                $(row).removeClass('select-row');    
+            }
+        },
+        language: {
+            emptyTable: 'No components are matched to the selected criteria',
+            info: "Total: _TOTAL_ component(s) available"
+        }
+    });
+
+    $('#selecteddatatable').DataTable({
+        paging: true,
+        pageLength: 100,
+        lengthChange: false,
+        scrollY: '400px',
+        scrollCollapse: true, 
+        fixedColumns: true,
+        order: [[0, 'asc'],[1, 'asc']],
+        columns: [
+            { data: null, sortable: false },
+            { data: 'type' },
+            { data: 'name' },            
+            { data: 'lastModifiedByName' },
+            { data: 'lastModifiedDate', "type": "date", width:'200px' },
+            { data: 'source' }
+        ],
+        columnDefs: [
+            {
+                orderable: false,
+                render: function (data, type, row) {
+                    return '<input type="checkbox" class="delete-row-chk" value="' + row.type + "." + row.name + '" checked>';
+                },
+                targets: 0
+            },
+            {
+                orderable: false,
+                render: function (data, type, row) {
+                    if (row.dest) {
+                        return '<a href="#" class="fileview" data-parent="'+row.parent+'" data-name="'+row.type+"."+row.name+'" style="color:#4daafc">View</a>';
+                    } else {
+                        return 'N/A';
+                    }
+                },
+                targets: 5
+            }
+        ],
+        language: {
+            info: "Total: _TOTAL_ component(s)"
+        }
+    });
+
+    $(".dd-text-field").on("click", function(e){
+        e.stopPropagation();
+        if ($(".dd-option-box").is(":hidden")) {            
+            $(".dd-option-box").show();
+            $(".dd-option-box").css({width: $(this).outerWidth()});
+            types.forEach(function(type) {
+                type.hidden = false;           
+            });
+            refreshTypes();
+        }        
+	});
+
+    $(".dd-text-field").on("input", function(e){
+		const txt = $(this).val().toLowerCase();
+        types.forEach(function(type) {
+            type.hidden = txt !== '' ? !type.name.toLowerCase().startsWith(txt) : false;           
+        });
+        refreshTypes();
+    });
+
+    $('.dd-option-box').on('click', function (e) {
+        e.stopPropagation();
+    });
+
+    //'All' checkbox
+    $(document).on('change', '.dd-select-all', function() {
+        $(".spinnerlabel").text("Refreshing Components");
+        $("#spinner").show();
+        if ($(this).is(':checked')) {
+            $('.dd-option-chk').each(function(indx, chxbox) {
+                if(!$(chxbox).prop('checked')) {
+                    $(chxbox).prop('checked', true);
+                    $(chxbox).parent().addClass('select-row');
+                    $(chxbox).parent().parent().addClass('select-row');
+                    const selectedValue = $(chxbox).val();
+                    selectedTypes.add(selectedValue);
+                }                
+            });
+        } else {
+            $('.dd-option-chk').each(function(indx, chxbox) {
+                if($(chxbox).prop('checked')) {
+                    $(chxbox).prop('checked', false);
+                    $(chxbox).parent().removeClass('select-row');
+                    $(chxbox).parent().parent().removeClass('select-row');
+                }                
+            });  
+            selectedTypes.clear();
+        }
+        refreshComponents();
+        $('.dd-text-field').attr("placeholder", selectedTypes.size+' Type(s) selected');  
+        $("#spinner").hide();  
+    });
+
+    //Type checkbox
+    $(document).on('change', '.dd-option-chk', function() {
+        if ($(this).is(':checked')) {
+            $(this).parent().addClass('select-row');
+            $(this).parent().parent().addClass('select-row');
+            selectedTypes.add($(this).val());           
+        } else {
+            $(this).parent().removeClass('select-row');
+            $(this).parent().parent().removeClass('select-row');
+            selectedTypes.delete($(this).val());
+        }        
+        refreshComponents();
+        $('.dd-select-all').prop('checked', selectedTypes.size === types.length);
+        $('.dd-text-field').attr("placeholder", selectedTypes.size+ ' Type(s) selected');      
+    });
+
+	$("body").on("click",function(e){
+        $(".dd-text-field").val('');
+        $(".dd-option-box").hide();
+	});
+
+    $(document).keydown(function(e) {
+        if (e.key === "Escape") {
+           $(".dd-text-field").val('');
+           $(".dd-option-box").hide();
+        }
+    });
+    $(document).mousedown(function(e) {
+       if($(e.target)[0]?.classList[0]?.startsWith('dd-')) {
+            return;
+       } else {
+            $(".dd-text-field").val('');
+            $(".dd-option-box").hide();
+       }
+    });
+
+    function refreshTypes() {
+        $('.dd-options ui').empty();
+        var visibleTypesCount = 0;
+        types.forEach(function(type) {
+            if(!type.hidden) {
+                visibleTypesCount++;
+                $('.dd-options ui').append(`
+                    <li class="dd-option ${(selectedTypes.has(type.name)) ? 'select-row' : ''}">
+                        <div class=${(selectedTypes.has(type.name)) ? 'select-row' : ''}>
+                            <input type="checkbox" value=${type.name} id=${type.name} class="dd-option-chk" 
+                                    ${selectedTypes.has(type.name)? "checked" : ""}>
+                            <label class="dd-option-lbl" for=${type.name}>${type.name} (${type.count})</label>
+                        </div>
+                    </li>
+                `);
+            }
+        }); 
+        $('.dd-text-field').attr("placeholder", selectedTypes.size+ ' Type(s) selected');
+        if(types.length === visibleTypesCount) {
+            $('#select-all-div').show();
+            $('.dd-select-all').prop('checked', selectedTypes.size === types.length);
+        } else {
+            $('#select-all-div').hide();
+        }        
+    }
+
+    function refreshComponents() {
+        let components = [];
+        selectedTypes.forEach(function(type) {
+            if(componentsMap.has(type)) {
+                components = [...components, ...componentsMap.get(type)];
+            }
+        }); 
+        $('#compsdatatable').DataTable().clear().rows.add(components).draw();
+        $('.available').text('Available ('+components.length+')');
+        $('.all-row-chk').prop('checked', false);
+        $('#export').prop('disabled', components.length === 0);   
+        $('#bulkselection').prop('disabled', components.length === 0);  
+    }
+
+    $(document).on('change', '.row-chk', function() {
+        let val = $(this).val();
+        if ($(this).is(':checked')) {
+            selectedComps.set(val, $('#compsdatatable').DataTable().row($(this).closest('tr')).data());       
+        } else {
+            selectedComps.delete(val);
+        } 
+        refreshSelection();
+    });
+
+    $(document).on('change', '.delete-row-chk', function() {
+        if (!$(this).is(':checked')) {
+            selectedComps.delete($(this).val());
+        }
+        refreshSelection();
+    });
+
+    $(document).on('change', '.deleteall-row-chk', function() {
+        if (!$(this).is(':checked')) {
+            selectedComps.clear();
+        }
+        refreshSelection();
+    });
+
+    $('.all-row-chk').on('change', function() {
+        if ($(this).is(':checked')) {
+            $('#compsdatatable').DataTable().rows({ search: "applied" }).data().each(e => {
+                selectedComps.set(e.type+"."+e.name, e);  
+            });
+        } else {
+            selectedComps.clear();
+        }   
+        refreshSelection();
+    });
+
+    function refreshSelection() {
+        $('.row-chk').each(function(indx, chxbox) {
+            $(chxbox).prop('checked', selectedComps.has($(chxbox).val()));
+            if(selectedComps.has($(chxbox).val())) {
+                $(chxbox).parent().parent().addClass('select-row');
+            } else {
+                $(chxbox).parent().parent().removeClass('select-row');
+            }               
+        });
+
+        $('.all-row-chk').prop('checked', $('#compsdatatable').DataTable().data().length === selectedComps.size);
+        $('#packagexml').prop('disabled', selectedComps.size === 0);
+        $('#exportselected').prop('disabled', selectedComps.size === 0); 
+        $('#download').prop('disabled', selectedComps.size === 0); 
+
+        $('.selected').text('Selected ('+selectedComps.size+')');   
+        $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
+        $('#selecteddatatable').DataTable().column(5).visible(false);
+        $('#deleteall-row-chk').prop('checked', selectedComps.size > 0);
+        refreshTargetSelection();
+    }
+
+    $('#packagexml').on('click', function (e) {
+        let packagexml = getPackageXml();
+        navigator.clipboard.writeText( `<?xml version="1.0" encoding="UTF-8"?>\n<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n${packagexml}\t<version>62.0</version>\n</Package>`);
+        vscode.postMessage({ command: 'toastMessage', message: 'Package.xml copied to clipboard'});
+    });
+
+    $('#export').on('click', function (e) {
+        let components = [['Type','Name','Last Modified By','Last Modified Date']];
+        Array.from(componentsMap.values()).flat().forEach(e => {
+            components.push([e.type, e.name, e.lastModifiedByName, e.lastModifiedDate]);
+        });
+        navigator.clipboard.writeText(components.map(e => e.join(",")).join("\n"));
+        vscode.postMessage({ command: 'toastMessage', message: 'CSV content copied to clipboard'});
+    });
+
+    $('#exportselected').on('click', function (e) {
+        let components = [['Type','Name','Last Modified By','Last Modified Date']];
+        Array.from(selectedComps.values()).forEach(comp => {
+            components.push([comp.type, comp.name, comp.lastModifiedByName, comp.lastModifiedDate]);
+        });
+        navigator.clipboard.writeText(components.map(e => e.join(",")).join("\n"));
+        vscode.postMessage({ command: 'toastMessage', message: 'CSV content copied to clipboard'});
+    });
+
+    $('#download').on('click', function (e) {
+        $(".spinnerlabel").text("Downloading");
+        $("#spinner").show();
+        let packagexml = getPackageXml();
+        vscode.postMessage({ command: 'download', sourceOrgId: $('#source-org-field').val(), packagexml:packagexml});  
+    });
+
+    $('#bulkselection-dialog').dialog({autoOpen: false, modal: true, closeOnEscape: true, width: 500, height:'auto'});
+    
+    $("#bulkselection").on("click", function(e){
+        $('#bulkselection-dialog').dialog("open");
+    });
+
+    $("#commit").on("click", function(e){
+        vscode.postMessage({ command: 'commit'});
+    });
+
+    $('#bulkselect').on('click', function (e) {
+        $("#bulkerrors").hide();
+        $("#bulkcontinue").hide();
+        if($('#bulk-comps').val().trim() !== '') {
+            let comps = $('#bulk-comps').val().trim();
+            let errors = autoSelection(comps.split('\n'));
+            if(errors.length === 0){
+                $('#bulkselection-dialog').dialog("close");
+            } else {
+                let content = '';
+                errors.forEach(e => {
+                    content += e+'\n';
+                });
+                $("#bulkerrors").show();
+                $("#bulkcontinue").show();
+                $("#bulkerrors").find(".errors").val(content);
+                let dialog = $("#bulkselection-dialog");
+                dialog.dialog("option", "height", "auto");
+                dialog.dialog("option", "position", { my: "center", at: "center", of: window });
+            }            
+        } else {
+            $('#bulkselection-dialog').dialog("close");
+        }      
+    });
+
+    $('#bulkcontinue').on('click', function (e) {
+        $('#bulkselection-dialog').dialog("close");
+    });  
+
+    $('#dest-org-field').on("change", function(e){
+        refreshTargetSelection();
+        if($('#dest-org-field').val() === '') {
+            $('#deploy-buttons').hide();        
+        } else {
+            $('#deploy-buttons').show();
+            
+        }
+    });
+
+    function refreshTargetSelection() {
+        $("#deploystatus").hide(); 
+        $('.deployerrors').text('Deployment Errors (0)');
+        $('.testfailures').text('Test Class Failures (0)');
+        $('.testcoverages').text('Test Coverage (0)');        
+        $('#errortable').DataTable().clear().draw(); 
+        $('#testerrortable').DataTable().clear().draw(); 
+        $('#testcoveragestable').DataTable().clear().draw(); 
+        $('#compare').prop('disabled', selectedComps.size === 0);
+        $('#validate').prop('disabled', selectedComps.size === 0); 
+        $('#deploy').prop('disabled', selectedComps.size === 0); 
+    }
+
+    $('#test-classes-dialog').dialog({autoOpen: false, modal: true, closeOnEscape: false, width: 500});
+    
+    $(".testoption-field").on("change", function(e){
+        if($(this).val() === 'RunSpecifiedTests') {
+            $('#test-classes-dialog').dialog("open"); 
+            $('#view-classes').show(); 
+            if(testClasses === '') {
+                $('#deploy').prop('disabled', true);
+                $('#validate').prop('disabled', true);
+            }
+        } else {
+            $('#view-classes').hide();  
+            $('#deploy').prop('disabled', false);
+            $('#validate').prop('disabled', false);
+        }
+    });
+
+    $('#view-classes').on('click', function (e) {
+        $("#test-classes-dialog").dialog("open");
+    });
+
+    $('#save-classes').on('click', function (e) {
+        if($('#test-classes').val().trim() !== '') {
+            testClasses = $('#test-classes').val().trim();
+            $('#deploy').prop('disabled', false);
+            $('#validate').prop('disabled', false);
+            $('#test-classes').css('border' ,'');
+            $('#test-classes-dialog').dialog("close");
+        } else {
+            $('#test-classes').css('border' ,'1px solid #f00');
+        }        
+    });
+
+    $('#deploy').on('click', function (e) {
+        validateOrDeploy(false);
+    });
+
+    $('#validate').on('click', function (e) {
+        validateOrDeploy(true);
+    });
+
+    function validateOrDeploy(checkOnly) {
+        let packagexml = getPackageXml();
+
+        let runTests = '';
+        if($(".testoption-field").val() === 'RunSpecifiedTests') {
+            testClasses.split(',').forEach(cls => {
+                runTests += '<met:runTests>'+cls+'</met:runTests>';
+            });
+        }
+
+        vscode.postMessage({ command: 'deploy', packagexml:packagexml, sourceOrgId: $('#source-org-field').val(), destOrgId: $("#dest-org-field").val(), 
+            checkOnly: checkOnly, testLevel: $(".testoption-field").val(), testClasses: runTests});
+        $("#deploystatus").show();
+        $("#deploy-buttons").hide();
+        $("#source-org-field").prop('disabled', true);   
+        $("#source-org-refresh").hide();   
+        $("#dest-org-field").prop('disabled', true);  
+        $("#refresh-lbl").hide();   
+        $("source-actions").hide(); 
+        $('#compsdatatable').DataTable().column(0).visible(false);
+        $('#selecteddatatable').DataTable().column(0).visible(false);   
+        $("#previewerrors").text('');
+
+        $('.path-list').empty();
+        $('.path-list').append('<li class="path path-notstarted retrieve"><p>Retrieve</p><p style="width:0px;"><span/></p></li>');
+        $('.path-list').append('<li class="path path-notstarted deployment"><p>'+(checkOnly ? 'Validation' : 'Deployment')+'</p><p style="width:0px;"><span/></p></li>');
+        $('.path-list').append('<li class="path path-notstarted testclasses"><p>Test Classes</p><p style="width:0px;"><span/></p></li>');  
+        $("#progressbar").show();
+    }
+
+    function getPackageXml() {
+        var comps = new Map();
+        Array.from(selectedComps.values()).forEach(comp => {
+            if(comps.has(comp.type)) {
+                comps.get(comp.type).push(comp.name);
+            } else {
+                comps.set(comp.type, [comp.name]);
+            }
+        });
+        let packagexml = '';
+        Array.from(comps.keys()).forEach(type => {
+            packagexml += '\t<types>\n';
+            comps.get(type).forEach(e => {
+                packagexml += '\t\t<members>'+e+'</members>\n';
+            });
+            packagexml += '\t\t<name>'+type+'</name>\n';
+            packagexml += '\t</types>\n';
+        });
+        return packagexml;
+    }
+
+    $("#progressbar").progressbar({"value": 0}); 
+
+    function updateDeploymentStatus(result) {
+        $('.deployerrors').text('Deployment Errors (0)');
+        $('.testcoverages').text('Test Coverage (0)');
+        $('#errortable').DataTable().clear().draw(); 
+        $('.testfailures').text('Test Class Failures (0)');
+        $('#testerrortable').DataTable().clear().draw(); 
+        $(".coverage-error").hide();
+        $("#quick-deploy").hide();
+        $("#cancel-deploy").show();
+
+        if(result.stage === "deploymentStatus") {
+            console.log(result);
+            let total = Number(result.numberComponentsTotal);
+            let completed = Number(result.numberComponentsDeployed);
+            let errors = Number(result.numberComponentErrors);
+            $("#progressbar").progressbar({"value": (completed + errors) / total*100});  
+            
+            let progressLabel = (result.checkOnly === 'true' ? "Validation" : "Deployment") + " "+ result.status;
+            progressLabel += " ("+ (completed + errors) + "/" + total + ")";
+            if(errors > 0) {
+                progressLabel += " - "+errors+" Errors";
+            }
+
+            $($(".deployment")[0].childNodes[0]).text(progressLabel);
+
+            if(result.done === 'true') {
+                $("#progressbar").hide();
+                $("#deploy-buttons").show();
+                $("#dest-org-field").prop('disabled', false); 
+                $("#source-org-field").prop('disabled', false);   
+                $("#source-org-refresh").show();   
+                $("#refresh-lbl").show();  
+                $("source-actions").show();    
+                $('#compsdatatable').DataTable().column(0).visible(true);
+                $('#selecteddatatable').DataTable().column(0).visible(true);           
+                $("#cancel-deploy").hide();
+                if(result.checkOnly === 'true' && result.status === 'Succeeded' && result.runTestsEnabled === 'true') {
+                    quickdeployId = result.id;
+                    $("#quick-deploy").show();
+                }  
+                $(".deployment").removeClass("path-running");
+                if(result.details?.componentFailures?.length > 0) {
+                    $('.deployerrors').text('Deployment Errors ('+result.details.componentFailures.length+')');
+                    $('#errortable').DataTable().clear().rows.add(result.details.componentFailures).draw(); 
+                } 
+                if(result.details?.runTestResult?.numFailures > 0) {
+                    $('.testfailures').text('Test Class Failures ('+result.details.runTestResult.numFailures+')');
+                    $('#testerrortable').DataTable().clear().rows.add(result.details.runTestResult.failures).draw(); 
+                }    
+                if(result.details?.runTestResult?.codeCoverageWarnings && result.status !== "Canceled ") {
+                    $(".coverage-error").show();
+                    $(".coverage-error-label").text(result.details.runTestResult.codeCoverageWarnings.message);
+                }   
+                if(result.details?.runTestResult?.codeCoverage && result.status !== "Canceled ") {
+                    if(result.details.runTestResult.codeCoverage instanceof Array) {
+                        var recs = [];
+                        result.details.runTestResult.codeCoverage.forEach(e => {
+                            recs.push({
+                                name: e.name,
+                                coverage: e.numLocations > 0 ? Math.trunc((e.numLocations-e.numLocationsNotCovered) / e.numLocations*100)+'%' : 'N/A',
+                            });
+                        });
+                        $('.testcoverages').text('Test Coverage ('+recs.length+')');
+                        $('#testcoveragestable').DataTable().clear().rows.add(recs).draw(); 
+                    } else {
+                        var rec = result.details.runTestResult.codeCoverage;
+                        $('.testcoverages').text('Test Coverage (1)');
+                        $('#testcoveragestable').DataTable().clear().rows.add([{
+                            name: rec.name,
+                            coverage: rec.numLocations > 0 ? Math.trunc((rec.numLocations-rec.numLocationsNotCovered) / rec.numLocations*100)+'%' : 'N/A',
+                        }]).draw(); 
+                    }                   
+                }         
+            } else {
+                if(result.status === "Canceling") {
+                    $("#cancel-deploy").hide();
+                    $("#progressbar").hide(); 
+                }
+            }
+
+            if(result.numberTestsTotal > 0) {
+                let totaltcs = Number(result.numberTestsTotal);
+                let completedtcs = Number(result.numberTestsCompleted);
+                let errorstcs = Number(result.numberTestErrors);                    
+                let processtcs = completedtcs + errorstcs;
+                $("#progressbar").progressbar({"value": (processtcs) / totaltcs*100});  
+                if(processtcs === totaltcs) {
+                    $($(".testclasses")[0].childNodes[0]).text("Completed Tests ("+processtcs+ "/" + totaltcs + ")"+(errorstcs > 0 ? " - "+errorstcs+" Failures" : ""));
+                    $(".testclasses").removeClass("path-running");
+                    /*if(errorstcs > 0) {
+                        $(".testclasses").addClass("path-failed");
+                    }*/
+                } else {
+                    $($(".testclasses")[0].childNodes[0]).text("Running Tests ("+processtcs+ "/" + totaltcs + ")"+(errorstcs > 0 ? " - "+errorstcs+" Failures" : ""));
+                    $(".testclasses").removeClass("path-notstarted").addClass("path-running");
+                }
+
+                if(result.status === "Canceled") {
+                    $(".testclasses").removeClass("path-running");
+                    $($(".testclasses")[0].childNodes[0]).text("Canceled Tests");
+                } else if (result.status === "Canceling") {
+                    $($(".testclasses")[0].childNodes[0]).text("Cancelling Tests");
+                }
+            }
+        } else {                      
+            if(result.stage === "retrieve") {
+                $(".retrieve").removeClass("path-notstarted").addClass("path-running");
+                $($(".retrieve")[0].childNodes[0]).text('Retrieve InProgress');               
+                $("#progressbar").progressbar({"value": 30});  
+            } else if(result.stage === "retrieveCompleted") {
+                $(".retrieve").removeClass("path-running");
+                $($(".retrieve")[0].childNodes[0]).text('Retrieve Completed');
+                $("#progressbar").progressbar({"value": 100});  
+            } else if(result.stage === "deployment") {
+                $(".deployment").removeClass("path-notstarted").addClass("path-running");
+                $("#progressbar").progressbar({"value": 0});  
+            }
+        } 
+    }   
+
+    $('#errortable').DataTable({
+        paging: true,
+        pageLength: 100,
+        lengthChange: false,
+        scrollY: '400px',
+        scrollCollapse: true, 
+        fixedColumns: true,
+        order: [[0, 'asc']],
+        columns: [
+            { data: 'fullName', width:'300px' },
+            { data: 'componentType' },            
+            { data: 'lineNumber' },
+            { data: 'columnNumber'},
+            { data: 'problem'}
+        ],
+        language: {
+            info: "Total: _TOTAL_ error(s)"
+        }
+    }); 
+    
+    $('#testcoveragestable').DataTable({
+        paging: true,
+        pageLength: 100,
+        lengthChange: false,
+        scrollY: '400px',
+        scrollCollapse: true, 
+        fixedColumns: true,
+        order: [[0, 'asc']],
+        columns: [
+            { data: 'name', width:'300px' },
+            { data: 'coverage' }
+        ],
+        language: {
+            info: "Total: _TOTAL_ Classes"
+        }
+    });  
+    
+    $('#testerrortable').DataTable({
+        paging: true,
+        pageLength: 100,
+        lengthChange: false,
+        scrollY: '400px',
+        scrollCollapse: true, 
+        fixedColumns: true,
+        columns: [
+            { data: 'name', width:'300px' },
+            { data: 'methodName' },            
+            { data: 'message' }
+        ],
+        language: {
+            info: "Total: _TOTAL_ failure(s)"
+        },
+        columnDefs: [
+            {
+                render: function (data, type, row) {
+                    return row.message +'<br> Stack Trace: '+ row.stackTrace;
+                },
+                targets: 2
+            }
+        ]
+    });  
+    
+    let quickdeployId = '';
+    $("#quick-deploy").on('click', function (e) {
+        vscode.postMessage({ command: 'quickDeploy', id: quickdeployId, destOrgId: $("#dest-org-field").val()});
+        $("#deploy-buttons").hide();
+    });
+
+    $("#cancel-deploy").on('click', function (e) {
+        vscode.postMessage({ command: 'cancelDeploy'});        
+    });
+
+    $(".tab-link").on('click', function (e) {
+        $('.tab-content').hide();
+        $('.tab-link').removeClass('active');
+        $('#'+e.currentTarget.name).show();
+        $(e).addClass('active');
+    });
+
+    $(".tab").on('click', function (e) {
+        if($('#'+e.currentTarget.attributes.name.value).DataTable().page() === 0) {
+            $('#'+e.currentTarget.attributes.name.value).DataTable().draw(); 
+        }        
+    });
+
+    $("#compare").on('click', function (e) {
+        $("#previewerrors").text('');
+        $(".spinnerlabel").text("Comparing");
+        $("#spinner").show();
+        let packagexml = getPackageXml();
+        vscode.postMessage({ command: 'compare', sourceOrgId: $('#source-org-field').val(), 
+            packagexml:packagexml, destOrgId: $("#dest-org-field").val()});  
+    });
+
+    $("#selecteddatatable").on('click', 'a.fileview', function (e) {
+        let filename = e.currentTarget.dataset.name;
+        let parent = e.currentTarget.dataset.parent;
+        let source = selectedComps.get(filename).source;
+        let dest = selectedComps.get(filename).dest;
+        let files = selectedComps.get(filename).files;
+        let scrollTo = '';
+        if(parent !== '') {
+            scrollTo = selectedComps.get(filename).name.split('.')[1];
+        }
+        source.forEach((element, index) => {
+            vscode.postMessage({ command: 'filePreview', source: element,  dest: dest[index], file: files[index], 
+                scrollTo: scrollTo
+            }); 
+        }); 
+    });
+
+    function loadCompareResults(files) {
+        const filesLst = new Map();
+        files.forEach(file => {
+            let filename = file.name;
+            if(filename.indexOf("/") >= 0){
+                filename = filename.substring(0, filename.indexOf('/'));
+            }  
+            if(!filesLst.has(filename)) {
+                filesLst.set(filename, []);   
+            }
+            filesLst.get(filename).push(file);       
+        });
+
+        Array.from(selectedComps.keys()).forEach(c => {
+            var cmp = selectedComps.get(c).parent !== '' ? selectedComps.get(c).parent+'.'+c.split('.')[1] : c;
+            if(filesLst.has(cmp)) {
+                filesLst.get(cmp).forEach(file => {
+                    var comp = selectedComps.get(c);
+                    if(comp.hasOwnProperty('source')) {
+                        comp.source.push(file.source);
+                    } else {
+                        comp['source'] = [file.source];
+                    }
+                    if(comp.hasOwnProperty('files')) {
+                        comp.files.push(file.name);
+                    } else {
+                        comp['files'] = [file.name];
+                    }
+                    if(file.dest !== '') {
+                        if(comp.hasOwnProperty('dest')) {
+                            comp.dest.push(file.dest);
+                        } else {
+                            comp['dest'] = [file.dest];
+                        }
+                    }      
+                });
+            }
+        });
+
+        $('#selecteddatatable').DataTable().column(5).visible(true);
+        $('#tabs').tabs('option', 'active', 1);        
+        $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).order([[5, 'desc'],[1, 'asc'],[2, 'asc']]).draw();
+    }
+
+    
+    function autoSelection(components) {
+        let types = new Set();
+        components.forEach(comp => {
+            if(componentsMap.has(comp.split('.')[0])) {
+                selectedTypes.add(comp.split('.')[0]);       
+                types.add(comp.split('.')[0]);
+            }        
+        });
+        types.forEach(type => {
+            componentsMap.get(type).forEach(cmp => {
+                if(components.indexOf(cmp.type+"."+cmp.name) >= 0) {
+                    selectedComps.set(cmp.type+"."+cmp.name, cmp);
+                    components.splice(components.indexOf(cmp.type+"."+cmp.name), 1);
+                }
+            });
+        });
+        refreshTypes();
+        refreshComponents();
+        refreshSelection();
+        return components;
+    }
+});
+

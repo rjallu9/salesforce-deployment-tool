@@ -7,9 +7,8 @@ $(document).ready(function () {
 
     loadOrgs();
 
-    $("#selectiontabs").tabs();
-    $("#selectiontabs").hide();
-    $("#previewtabs").tabs();
+    $("#tabs").tabs();
+    $("#tabs").hide();
 
     let orgs = [];    
     let types = [];    
@@ -38,7 +37,6 @@ $(document).ready(function () {
             $("#progressbar").hide();
             $("#deploy-buttons").show();
             $("#dest-org-field").prop('disabled', false);
-            $("#previous").prop('disabled', false);
             $("#cancel-deploy").hide(); 
             $("#spinner").hide();
         } else if(event.data.command === 'components') {
@@ -64,7 +62,7 @@ $(document).ready(function () {
             refreshTypes();    
             $("#spinner").hide();    
             $("#actions").show();
-            $('#selectiontabs').show();    
+            $('#tabs').show();    
             $("#refresh-lbl").show(); 
             $("#refreshlabel").text('Last Refresh Date: '+event.data.timestamp);   
             refreshComponents();
@@ -91,13 +89,16 @@ $(document).ready(function () {
         resetComponents();  
         $("#actions").hide();
         $("#errors").text('');
-        $('#selectiontabs').hide();
-        $("#refresh-lbl").hide();   
+        $('#tabs').hide();
+        $("#refresh-lbl").hide();  
+        $('#dest-org').hide(); 
+        $('#deploy-buttons').hide(); 
         if($('#source-org-field').val() !== '') {
             vscode.postMessage({ command: 'loadTypesComponents', sourceOrgId: $(this).val(), refresh:false});
             $("#spinner").show();   
             $(".spinnerlabel").text("Refreshing Components");
     
+            $('#dest-org').show();
             $('#dest-org-field').empty();
             $('#dest-org-field').append($("<option>").val('').text(''));
             orgs.forEach(org => {
@@ -113,7 +114,7 @@ $(document).ready(function () {
         resetComponents();
         $("#actions").hide();
         $("#errors").text('');
-        $('#selectiontabs').hide();
+        $('#tabs').hide();
         $("#refresh-lbl").hide(); 
         vscode.postMessage({ command: 'getAuthOrgs', refresh:true});
         $("#spinner").show();   
@@ -211,7 +212,8 @@ $(document).ready(function () {
             { data: 'type' },
             { data: 'name' },            
             { data: 'lastModifiedByName' },
-            { data: 'lastModifiedDate', "type": "date", width:'200px' }
+            { data: 'lastModifiedDate', "type": "date", width:'200px' },
+            { data: 'source' }
         ],
         columnDefs: [
             {
@@ -220,6 +222,17 @@ $(document).ready(function () {
                     return '<input type="checkbox" class="delete-row-chk" value="' + row.type + "." + row.name + '" checked>';
                 },
                 targets: 0
+            },
+            {
+                orderable: false,
+                render: function (data, type, row) {
+                    if (row.dest) {
+                        return '<a href="#" class="fileview" data-parent="'+row.parent+'" data-name="'+row.type+"."+row.name+'" style="color:#4daafc">View</a>';
+                    } else {
+                        return 'N/A';
+                    }
+                },
+                targets: 5
             }
         ],
         language: {
@@ -402,54 +415,16 @@ $(document).ready(function () {
         });
 
         $('.all-row-chk').prop('checked', $('#compsdatatable').DataTable().data().length === selectedComps.size);
-        $('#next').prop('disabled', selectedComps.size === 0);
         $('#packagexml').prop('disabled', selectedComps.size === 0);
         $('#exportselected').prop('disabled', selectedComps.size === 0); 
         $('#download').prop('disabled', selectedComps.size === 0); 
 
         $('.selected').text('Selected ('+selectedComps.size+')');   
         $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
+        $('#selecteddatatable').DataTable().column(5).visible(false);
         $('#deleteall-row-chk').prop('checked', selectedComps.size > 0);
-        $("#deploystatus").hide();
-        $('.deployerrors').text('Deployment Errors (0)');
-        $('.testcoverages').text('Test Coverage (0)');
-        $('#errortable').DataTable().clear().draw(); 
-        $('.testfailures').text('Test Class Failures (0)');
-        $('#testerrortable').DataTable().clear().draw(); 
+        refreshTargetSelection();
     }
-
-    $('#previewtable').DataTable({
-        paging: true,
-        pageLength: 100,
-        lengthChange: false,
-        scrollY: '400px',
-        scrollCollapse: true, 
-        fixedColumns: true,
-        order: [[[0, 'asc'],[1, 'asc']]],
-        columns: [
-            { data: 'type' },
-            { data: 'name' },            
-            { data: 'lastModifiedByName' },
-            { data: 'lastModifiedDate', "type": "date", width:'200px' },
-            { data: 'source' }
-        ],
-        language: {
-            info: "Total: _TOTAL_ component(s)"
-        },
-        columnDefs: [
-            {
-                orderable: false,
-                render: function (data, type, row) {
-                    if (row.dest) {
-                        return '<a href="#" class="fileview" data-parent="'+row.parent+'" data-name="'+row.type+"."+row.name+'" style="color:#4daafc">View</a>';
-                    } else {
-                        return 'N/A';
-                    }
-                },
-                targets: 4
-            }
-        ],
-    });
 
     $('#packagexml').on('click', function (e) {
         let packagexml = getPackageXml();
@@ -519,51 +494,30 @@ $(document).ready(function () {
 
     $('#bulkcontinue').on('click', function (e) {
         $('#bulkselection-dialog').dialog("close");
-    });
-
-
-    $('#next').on('click', function (e) {        
-        if(orgs.length === 1) {
-            $("#errors").text('There are no destination orgs available to deploy.');    
-        } else {
-            $("#actions").hide();
-            $('#selectiontabs').hide();
-            $("#source-org").hide();
-            $("#source-org-refresh").hide();
-            $("#refresh-lbl").hide(); 
-            $("#preview").show();
-            $('.preview').text('Selected ('+selectedComps.size+')');            
-            $('#previewtable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
-            let column = $('#previewtable').DataTable().column(4); //Compare Results Column
-            column.visible(false);
-            if($('#dest-org-field').val() === '') {
-                $('#deploy-buttons').hide();        
-            }
-        }
-    });
-
-    $('#previous').on('click', function (e) {
-        $("#actions").show();        
-        $('#selectiontabs').show();
-        $("#source-org").show();
-        $("#source-org-refresh").show();
-        $("#refresh-lbl").show(); 
-        $("#preview").hide();
-    });    
+    });  
 
     $('#dest-org-field').on("change", function(e){
-        $("#deploystatus").hide(); 
-        $('.deployerrors').text('Deployment Errors (0)');
-        $('#errortable').DataTable().clear().draw(); 
-        $('.testfailures').text('Test Class Failures (0)');
-        $('.testcoverages').text('Test Coverage (0)');
-        $('#testerrortable').DataTable().clear().draw(); 
+        refreshTargetSelection();
         if($('#dest-org-field').val() === '') {
             $('#deploy-buttons').hide();        
         } else {
             $('#deploy-buttons').show();
+            
         }
     });
+
+    function refreshTargetSelection() {
+        $("#deploystatus").hide(); 
+        $('.deployerrors').text('Deployment Errors (0)');
+        $('.testfailures').text('Test Class Failures (0)');
+        $('.testcoverages').text('Test Coverage (0)');        
+        $('#errortable').DataTable().clear().draw(); 
+        $('#testerrortable').DataTable().clear().draw(); 
+        $('#testcoveragestable').DataTable().clear().draw(); 
+        $('#compare').prop('disabled', selectedComps.size === 0);
+        $('#validate').prop('disabled', selectedComps.size === 0); 
+        $('#deploy').prop('disabled', selectedComps.size === 0); 
+    }
 
     $('#test-classes-dialog').dialog({autoOpen: false, modal: true, closeOnEscape: false, width: 500});
     
@@ -620,8 +574,14 @@ $(document).ready(function () {
             checkOnly: checkOnly, testLevel: $(".testoption-field").val(), testClasses: runTests});
         $("#deploystatus").show();
         $("#deploy-buttons").hide();
-        $("#dest-org-field").prop('disabled', true);
-        $("#previous").prop('disabled', true);
+        $("#source-org-field").prop('disabled', true);   
+        $("#source-org-refresh").hide();   
+        $("#dest-org-field").prop('disabled', true);  
+        $("#refresh-lbl").hide();   
+        $("#source-actions").hide(); 
+        $('#compsdatatable').DataTable().column(0).visible(false);
+        $('#selecteddatatable').DataTable().column(0).visible(false); 
+        $("#dd-text-field").prop('disabled', true);   
         $("#previewerrors").text('');
 
         $('.path-list').empty();
@@ -682,8 +642,14 @@ $(document).ready(function () {
             if(result.done === 'true') {
                 $("#progressbar").hide();
                 $("#deploy-buttons").show();
-                $("#dest-org-field").prop('disabled', false);
-                $("#previous").prop('disabled', false);
+                $("#dest-org-field").prop('disabled', false); 
+                $("#source-org-field").prop('disabled', false);   
+                $("#source-org-refresh").show();   
+                $("#refresh-lbl").show();  
+                $("#source-actions").show();    
+                $('#compsdatatable').DataTable().column(0).visible(true);
+                $('#selecteddatatable').DataTable().column(0).visible(true);  
+                $("#dd-text-field").prop('disabled', false);            
                 $("#cancel-deploy").hide();
                 if(result.checkOnly === 'true' && result.status === 'Succeeded' && result.runTestsEnabled === 'true') {
                     quickdeployId = result.id;
@@ -863,7 +829,7 @@ $(document).ready(function () {
             packagexml:packagexml, destOrgId: $("#dest-org-field").val()});  
     });
 
-    $("#previewtable").on('click', 'a.fileview', function (e) {
+    $("#selecteddatatable").on('click', 'a.fileview', function (e) {
         let filename = e.currentTarget.dataset.name;
         let parent = e.currentTarget.dataset.parent;
         let source = selectedComps.get(filename).source;
@@ -919,9 +885,9 @@ $(document).ready(function () {
             }
         });
 
-        let column = $('#previewtable').DataTable().column(4); //Compare Results Column
-        column.visible(true);
-        $('#previewtable').DataTable().clear().rows.add(Array.from(selectedComps.values())).order([[4, 'desc'],[0, 'asc'],[1, 'asc']]).draw();
+        $('#selecteddatatable').DataTable().column(5).visible(true);
+        $('#tabs').tabs('option', 'active', 1);        
+        $('#selecteddatatable').DataTable().clear().rows.add(Array.from(selectedComps.values())).order([[5, 'desc'],[1, 'asc'],[2, 'asc']]).draw();
     }
 
     
