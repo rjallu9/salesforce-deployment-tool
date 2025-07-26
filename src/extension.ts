@@ -53,6 +53,8 @@ export function activate(context: vscode.ExtensionContext) {
 								}	
 								fs.writeFile(orgsListPath, JSON.stringify(orgsList, null, 2), 'utf8', (err:any) => {
 								}); 			
+							}).catch((error) => {
+								panel.webview.postMessage({ command: 'error', message:`Unable to load authorized orgs. ${error}`});
 							});	
 						}				
 						break;
@@ -87,7 +89,7 @@ export function activate(context: vscode.ExtensionContext) {
 								}	
 							}
 						}).catch((error) => {
-							panel.webview.postMessage({ command: 'error', message:'Unable to connect to the Org.' });
+							panel.webview.postMessage({ command: 'error', message:`Unable to connect to the Org. ${error}` });
 						});				
 						break;				
 					case 'deploy':
@@ -140,7 +142,7 @@ export function activate(context: vscode.ExtensionContext) {
 								});
 							}
 						}).catch((error) => {
-							panel.webview.postMessage({ command: 'previewerror', message:'Unable to connect to the Org.' });
+							panel.webview.postMessage({ command: 'previewerror', message:`Unable to connect to the Org. ${error}` });
 						});
 						
 						break;
@@ -214,7 +216,7 @@ export function activate(context: vscode.ExtensionContext) {
 								});
 							}
 						}).catch((error) => {
-							panel.webview.postMessage({ command: 'previewerror', message:'Unable to connect to the Org.' });
+							panel.webview.postMessage({ command: 'previewerror', message:`Unable to connect to the Org. ${error}`});
 						});
 
 						let responseIntervalId = setInterval(() => {
@@ -358,7 +360,10 @@ function validateSession(accessToken:string, endPoint:string, orgId:string) {
 								}
 							}
 						);
-					});					  
+					}).catch((error) => {
+						reject(error);
+					});	
+
 				}
 				retry();
 			}

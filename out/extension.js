@@ -78,6 +78,8 @@ function activate(context) {
                             }
                             fs.writeFile(orgsListPath, JSON.stringify(orgsList, null, 2), 'utf8', (err) => {
                             });
+                        }).catch((error) => {
+                            panel.webview.postMessage({ command: 'error', message: `Unable to load authorized orgs. ${error}` });
                         });
                     }
                     break;
@@ -112,7 +114,7 @@ function activate(context) {
                             }
                         }
                     }).catch((error) => {
-                        panel.webview.postMessage({ command: 'error', message: 'Unable to connect to the Org.' });
+                        panel.webview.postMessage({ command: 'error', message: `Unable to connect to the Org. ${error}` });
                     });
                     break;
                 case 'deploy':
@@ -164,7 +166,7 @@ function activate(context) {
                             });
                         }
                     }).catch((error) => {
-                        panel.webview.postMessage({ command: 'previewerror', message: 'Unable to connect to the Org.' });
+                        panel.webview.postMessage({ command: 'previewerror', message: `Unable to connect to the Org. ${error}` });
                     });
                     break;
                 case 'quickDeploy':
@@ -235,7 +237,7 @@ function activate(context) {
                             });
                         }
                     }).catch((error) => {
-                        panel.webview.postMessage({ command: 'previewerror', message: 'Unable to connect to the Org.' });
+                        panel.webview.postMessage({ command: 'previewerror', message: `Unable to connect to the Org. ${error}` });
                     });
                     let responseIntervalId = setInterval(() => {
                         if (sourceProcess && destProcess) {
@@ -367,6 +369,8 @@ function validateSession(accessToken, endPoint, orgId) {
                                 reject(new Error('Max retries reached. Session validation failed.'));
                             }
                         });
+                    }).catch((error) => {
+                        reject(error);
                     });
                 }
                 retry();

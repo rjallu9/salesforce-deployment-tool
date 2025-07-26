@@ -519,9 +519,9 @@ $(document).ready(function () {
         $('#errortable').DataTable().clear().draw(); 
         $('#testerrortable').DataTable().clear().draw(); 
         $('#testcoveragestable').DataTable().clear().draw(); 
-        $('#compare').prop('disabled', selectedComps.size === 0);
-        $('#validate').prop('disabled', selectedComps.size === 0); 
-        $('#deploy').prop('disabled', selectedComps.size === 0); 
+        $('#compare').prop('disabled', selectedComps.size === 0 || $('#dest-org-field').val() === '');
+        $('#validate').prop('disabled', selectedComps.size === 0 || $('#dest-org-field').val() === ''); 
+        $('#deploy').prop('disabled', selectedComps.size === 0 || $('#dest-org-field').val() === ''); 
     }
 
     $('#test-classes-dialog').dialog({autoOpen: false, modal: true, closeOnEscape: false, width: 500});
@@ -870,25 +870,14 @@ $(document).ready(function () {
         Array.from(selectedComps.keys()).forEach(c => {
             var cmp = selectedComps.get(c).parent !== '' ? selectedComps.get(c).parent+'.'+c.split('.')[1] : c;
             if(filesLst.has(cmp)) {
+                var comp = selectedComps.get(c);  
+                comp['source'] = [];   
+                comp['files'] = [];  
+                comp['dest'] = [];                
                 filesLst.get(cmp).forEach(file => {
-                    var comp = selectedComps.get(c);
-                    if(comp.hasOwnProperty('source')) {
-                        comp.source.push(file.source);
-                    } else {
-                        comp['source'] = [file.source];
-                    }
-                    if(comp.hasOwnProperty('files')) {
-                        comp.files.push(file.name);
-                    } else {
-                        comp['files'] = [file.name];
-                    }
-                    if(file.dest !== '') {
-                        if(comp.hasOwnProperty('dest')) {
-                            comp.dest.push(file.dest);
-                        } else {
-                            comp['dest'] = [file.dest];
-                        }
-                    }      
+                    comp.source.push(file.source);
+                    comp.files.push(file.name);
+                    comp.dest.push(file.dest);     
                 });
             }
         });
