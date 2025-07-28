@@ -9,6 +9,7 @@ $(document).ready(function () {
 
     $("#tabs").tabs();
     $("#tabs").hide();
+    $('#dest-org-section').hide(); 
 
     let orgs = [];    
     let types = [];    
@@ -90,14 +91,13 @@ $(document).ready(function () {
         $("#errors").text('');
         $('#tabs').hide();
         $("#refresh-lbl").hide();  
-        $('#dest-org').hide(); 
-        $('#deploy-buttons').hide(); 
+        $('#dest-org-section').hide(); 
         if($('#source-org-field').val() !== '') {
             vscode.postMessage({ command: 'loadTypesComponents', sourceOrgId: $(this).val(), refresh:false});
             $("#spinner").show();   
             $(".spinnerlabel").text("Refreshing Components");
     
-            $('#dest-org').show();
+            $('#dest-org-section').show();
             $('#dest-org-field').empty();
             $('#dest-org-field').append($("<option>").val('').text(''));
             orgs.forEach(org => {
@@ -116,8 +116,7 @@ $(document).ready(function () {
         $('#tabs').hide();
         $("#refresh-lbl").hide(); 
         $("#deploystatus").hide();
-        $('#dest-org').hide(); 
-        $('#deploy-buttons').hide(); 
+        $('#dest-org-section').hide(); 
         vscode.postMessage({ command: 'getAuthOrgs', refresh:true});
         $("#spinner").show();   
         $(".spinnerlabel").text("Refreshing Orgs");
@@ -658,7 +657,7 @@ $(document).ready(function () {
                     quickdeployId = result.id;
                     $("#quick-deploy").show();
                 }  
-                $(".deployment").removeClass("path-running");
+                $(".deployment").removeClass("path-notstarted").removeClass("path-running");
                 if(result.details?.componentFailures) {
                     if(result.details?.componentFailures?.length > 0) {
                         $('.deployerrors').text('Deployment Errors ('+result.details.componentFailures.length+')');
@@ -711,7 +710,7 @@ $(document).ready(function () {
                 $("#progressbar").progressbar({"value": (processtcs) / totaltcs*100});  
                 if(processtcs === totaltcs) {
                     $($(".testclasses")[0].childNodes[0]).text("Completed Tests ("+processtcs+ "/" + totaltcs + ")"+(errorstcs > 0 ? " - "+errorstcs+" Failures" : ""));
-                    $(".testclasses").removeClass("path-running");
+                    $(".testclasses").removeClass("path-notstarted").removeClass("path-running");
                     /*if(errorstcs > 0) {
                         $(".testclasses").addClass("path-failed");
                     }*/
@@ -733,7 +732,7 @@ $(document).ready(function () {
                 $($(".retrieve")[0].childNodes[0]).text('Retrieve InProgress');               
                 $("#progressbar").progressbar({"value": 30});  
             } else if(result.stage === "retrieveCompleted") {
-                $(".retrieve").removeClass("path-running");
+                $(".retrieve").removeClass("path-notstarted").removeClass("path-running");
                 $($(".retrieve")[0].childNodes[0]).text(result.message);
                 $("#progressbar").progressbar({"value": 100});  
             } else if(result.stage === "deployment") {

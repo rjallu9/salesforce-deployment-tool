@@ -1,5 +1,9 @@
 # Change Log
 
+### [1.1.0] - 2025-07-27
+- Single Page View changes
+- Download and Delete components features
+
 ### [1.0.1] - 2025-06-28
 - Bug Fixes
 - Removed Snapshots

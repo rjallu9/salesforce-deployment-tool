@@ -858,12 +858,12 @@ function getWebviewContent(basedpath:string, scriptUri:vscode.Uri, cssUri:vscode
 								</div>				
 							</div>	
 						</div>
-						<div style="display:flex;">																																			
-							<div id="dest-org" style="display:none;">
+						<div style="display:flex;" id="dest-org-section">																																			
+							<div id="dest-org">
 								<label for="text" for="dest-org-field" class="top-label">Target Org: </label>
 								<select type="text" class="dest-org-field" id="dest-org-field" style="height:36px;"></select>	
 							</div>	
-							<div id="deploy-buttons" style="display:none;">
+							<div id="deploy-buttons">
 								<div style="display:flex;">
 									<button type="button" style="margin-top:22px;margin-left:5px;width:75px;height:35px;" id="compare" disabled>Compare</button>							
 									<button type="button" style="margin-top:22px;margin-left:5px;width:75px;height:35px;" id="validate" disabled>Validate</button>												
