@@ -12,6 +12,7 @@ let tmpDirectory = '';
 let STD_VALUE_SET = stdValueSet;
 let orgsList: any[] = [];
 var orgsListPath = '';
+var fsPath = '';
 
 export function activate(context: vscode.ExtensionContext) {
 	const disposable = vscode.commands.registerCommand('salesforce-deployment-suite.build', () => {
@@ -35,6 +36,7 @@ export function activate(context: vscode.ExtensionContext) {
 			let isCancelDeploy = false;
 
 			tmpDirectory = context.globalStorageUri.fsPath+"/tmp";
+			fsPath = context.globalStorageUri.fsPath;
 			orgsListPath = path.join(context.globalStorageUri.fsPath, 'orgsListV2.json');
 
 			panel.webview.onDidReceiveMessage((message) => {
@@ -565,47 +567,64 @@ function getTypesComponents(orgId:string, globalStorageUri:string, panel:vscode.
 							components.set(e.name, results);
 							panel.webview.postMessage({ command: 'components', components:results, type:e.name });
 							const mdobjects = new Set(results.map(obj => obj.name));
+
+							var fieldsPath = path.join(fsPath+"/"+orgId, 'stdFields.json');
+							if (fs.existsSync(fieldsPath)) {
+								sobjects = new Map(JSON.parse(fs.readFileSync(fieldsPath, 'utf-8')));
+							}
+
 							return sendSoapAPIRequest(orgId, '<urn:describeGlobal/>')
 								.then((result:any) => {
 									const comps = result['describeGlobalResponse']['result']['sobjects'];
 									let objects:string[] = [];	
 									comps.forEach((e:any) => {
 										if(e['custom'] === 'false' && e['layoutable'] === 'true' && mdobjects.has(e['name'])) {
-											objects.push(e['name']);
+											if(sobjects.has(e['name'])) {
+												panel.webview.postMessage({ command: 'stdFields', name:e['name'], fields: sobjects.get(e['name'])});
+											} else {
+												objects.push(e['name']);
+											}											
 										}
 									});
-									const chunks = [];
-									for (let i = 0; i < objects.length; i += 100) {
-										chunks.push(objects.slice(i, i + 100));
-									}
-									return Promise.all(chunks.map((chunk:string[]) => {
-										var payload = '';
-										chunk.forEach((e:any) => {
-											payload += '<urn:sObjectType>'+e+'</urn:sObjectType>';
-										});
-										return sendSoapAPIRequest(orgId, '<urn:describeSObjects>'+ payload + '</urn:describeSObjects>')
-										.then((result:any) => {
-											const objs = result['describeSObjectsResponse']['result'];
-											const exclFields = new Set(['Id', 'IsDeleted', 'CreatedById', 'CreatedDate', 'LastModifiedById', 'LastModifiedDate', 
-												'LastReferencedDate', 'LastViewedDate', 'SystemModstamp', 'MasterRecordId', 'LastActivityDate']);
-											objs.forEach((obj:any) => {
-												let tmp:string[] = [];
-												obj['fields'].forEach((e:any) => {
-													if(e['custom'] === 'false' && !exclFields.has(e['name']) && (e['compoundFieldName'] === undefined || e['compoundFieldName'] === 'Name')) {
-														tmp.push(obj['name']+'.'+e['name']);
-													}
-												});
-												sobjects.set(obj['name'], tmp);
-												panel.webview.postMessage({ command: 'stdFields', name:obj['name'], fields: tmp});
-											});	
+									if(objects.length > 0) {
+										const chunks = [];
+										for (let i = 0; i < objects.length; i += 100) {
+											chunks.push(objects.slice(i, i + 100));
+										}
+										return Promise.all(chunks.map((chunk:string[]) => {
+											var payload = '';
+											chunk.forEach((e:any) => {
+												payload += '<urn:sObjectType>'+e+'</urn:sObjectType>';
+											});
+											return sendSoapAPIRequest(orgId, '<urn:describeSObjects>'+ payload + '</urn:describeSObjects>')
+											.then((result:any) => {
+												const objs = result['describeSObjectsResponse']['result'];
+												const exclFields = new Set(['Id', 'IsDeleted', 'CreatedById', 'CreatedDate', 'LastModifiedById', 'LastModifiedDate', 
+													'LastReferencedDate', 'LastViewedDate', 'SystemModstamp', 'MasterRecordId', 'LastActivityDate']);
+												objs.forEach((obj:any) => {
+													let tmp:string[] = [];
+													obj['fields'].forEach((e:any) => {
+														if(e['custom'] === 'false' && !exclFields.has(e['name']) && (e['compoundFieldName'] === undefined || e['compoundFieldName'] === 'Name')) {
+															tmp.push(obj['name']+'.'+e['name']);
+														}
+													});
+													sobjects.set(obj['name'], tmp);
+													panel.webview.postMessage({ command: 'stdFields', name:obj['name'], fields: tmp});
+												});	
+											}).catch(error => {
+												vscode.window.showErrorMessage(`Error ${error}`);
+											});
+										}))
+										.then(() => {
+											const dir = path.dirname(fieldsPath);
+											if (!fs.existsSync(dir)) {
+												fs.mkdirSync(dir, { recursive: true });
+											}	
+											fs.writeFile(fieldsPath, JSON.stringify(Array.from(sobjects), null, 2), 'utf8', (err:any) => {});  
 										}).catch(error => {
 											vscode.window.showErrorMessage(`Error ${error}`);
-										});
-									}))
-									.then(() => {
-									}).catch(error => {
-										vscode.window.showErrorMessage(`Error ${error}`);
-									});			
+										});	
+									}	
 								}
 							).catch(error => {
 								vscode.window.showErrorMessage(`Error ${error}`);
