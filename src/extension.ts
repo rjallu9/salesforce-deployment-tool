@@ -70,7 +70,7 @@ export function activate(context: vscode.ExtensionContext) {
 									panel.webview.postMessage({ command: 'typesComponents', components: '', timestamp });
 								} else {
 									const now = new Date();
-									getTypesComponents(sourceOrg.accessToken, sourceOrg.instanceUrl, context.globalStorageUri.fsPath, panel)
+									getTypesComponents(message.sourceOrgId, context.globalStorageUri.fsPath, panel)
 									.then((data:any) => {
 										panel.webview.postMessage({ command: 'typesComponents', components: data,
 											timestamp: `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`});
@@ -83,33 +83,30 @@ export function activate(context: vscode.ExtensionContext) {
 						});				
 						break;				
 					case 'deploy':
-						panel.webview.postMessage({ command: 'deployStatus', result: {stage:"retrieve", message: 'Retrieve Initiated'}});
-						var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);		
-						var destOrg = orgsList.find((org:any) => org.orgId === message.destOrgId);	
-						
+						panel.webview.postMessage({ command: 'deployStatus', result: {stage:"retrieve", message: 'Retrieve Initiated'}});						
 						validateSession(message.destOrgId)
 						.then((result:any) => {
 							if(result.valid) {
-								retrieve(sourceOrg.accessToken, sourceOrg.instanceUrl, message.packagexml).then((result:any) => {	
+								retrieve(message.sourceOrgId, message.packagexml).then((result:any) => {	
 									panel.webview.postMessage({ command: 'deployStatus', result: {stage:"retrieve", message: 'Retrieve Inprogress'}});	
 									let retrieveJobId = result;
 									let intervalId = setInterval(() => {
-										retrieveStatus(sourceOrg.accessToken, sourceOrg.instanceUrl, retrieveJobId).then((result:any) => {	
+										retrieveStatus(message.sourceOrgId, retrieveJobId).then((result:any) => {	
 											if(result.done	=== 'true') {
 												panel.webview.postMessage({ command: 'deployStatus', result: {stage:"retrieveCompleted", message: 'Retrieve Completed'}});
 												clearInterval(intervalId);
 												if(!isCancelDeploy) {
 													panel.webview.postMessage({ command: 'deployStatus', result: {stage:"deployment", 
 														message: message.checkOnly ? 'Validation Initiated' : 'Deployment Initiated'}});
-													deploy(destOrg.accessToken, destOrg.instanceUrl, result.zipFile, message.checkOnly, 
+													deploy(message.destOrgId, result.zipFile, message.checkOnly, 
 															message.testLevel, message.testClasses).then((result:any) => {
 														let deployJobId = result;
 														let deployIntervalId = setInterval(() => {
 															if(isCancelDeploy) {
-																cancelDeploy(destOrg.accessToken, destOrg.instanceUrl, deployJobId);
+																cancelDeploy(message.destOrgId, deployJobId);
 																isCancelDeploy = false;
 															}
-															deployStatus(destOrg.accessToken, destOrg.instanceUrl, deployJobId).then((result:any) => {	
+															deployStatus(message.destOrgId, deployJobId).then((result:any) => {	
 																if(result.done	=== 'true') {
 																	clearInterval(deployIntervalId);	
 																}	
@@ -136,13 +133,12 @@ export function activate(context: vscode.ExtensionContext) {
 						});
 						
 						break;
-					case 'quickDeploy':
-						var destOrg = orgsList.find((org:any) => org.orgId === message.destOrgId);		
+					case 'quickDeploy':	
 						panel.webview.postMessage({ command: 'deployStatus', result: {stage:"deployment", message: 'Deployment Initiated'}});
-						quickDeploy(destOrg.accessToken, destOrg.instanceUrl, message.id).then((result:any) => {
+						quickDeploy(message.destOrgId, message.id).then((result:any) => {
 							let deployJobId = result;
 							let intervalId = setInterval(() => {
-								deployStatus(destOrg.accessToken, destOrg.instanceUrl, deployJobId).then((result:any) => {	
+								deployStatus(message.destOrgId, deployJobId).then((result:any) => {	
 									if(result.done	=== 'true') {
 										clearInterval(intervalId);	
 									}	
@@ -168,10 +164,10 @@ export function activate(context: vscode.ExtensionContext) {
 						var time = Date.now();	
 						let sourceProcess=false, destProcess = false;
 
-						retrieve(sourceOrg.accessToken, sourceOrg.instanceUrl, message.packagexml).then((result:any) => {	
+						retrieve(message.sourceOrgId, message.packagexml).then((result:any) => {	
 							let retrieveJobId = result;
 							let intervalId = setInterval(() => {
-								retrieveStatus(sourceOrg.accessToken, sourceOrg.instanceUrl, retrieveJobId).then((result:any) => {	
+								retrieveStatus(message.sourceOrgId, retrieveJobId).then((result:any) => {	
 									if(result.done	=== 'true') {
 										clearInterval(intervalId);	
 										sourceOrgFiles = result.fileNames;
@@ -188,10 +184,10 @@ export function activate(context: vscode.ExtensionContext) {
 						validateSession(message.destOrgId)
 						.then((result:any) => {
 							if(result.valid) {
-								retrieve(destOrg.accessToken, destOrg.instanceUrl, message.packagexml).then((result:any) => {	
+								retrieve(message.destOrgId, message.packagexml).then((result:any) => {	
 									let destRetrieveJobId = result;
 									let destIntervalId = setInterval(() => {
-										retrieveStatus(destOrg.accessToken, destOrg.instanceUrl, destRetrieveJobId).then((result:any) => {		
+										retrieveStatus(message.destOrgId, destRetrieveJobId).then((result:any) => {		
 											if(result.done	=== 'true') {
 												clearInterval(destIntervalId);	
 												destOrgFiles = result.fileNames;
@@ -226,11 +222,10 @@ export function activate(context: vscode.ExtensionContext) {
 						}						
 						break;	
 					case 'download':
-						var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);	
-						retrieve(sourceOrg.accessToken, sourceOrg.instanceUrl, message.packagexml).then((result:any) => {	
+						retrieve(message.sourceOrgId, message.packagexml).then((result:any) => {	
 							let retrieveJobId = result;
 							let intervalId = setInterval(() => {
-								retrieveStatus(sourceOrg.accessToken, sourceOrg.instanceUrl, retrieveJobId).then((result:any) => {	
+								retrieveStatus(message.sourceOrgId, retrieveJobId).then((result:any) => {	
 									if(result.done	=== 'true') {
 										const buffer = Buffer.from(result.zipFile, 'base64');
 										const downloadsPath = path.join(os.homedir(), 'Downloads');
@@ -264,19 +259,18 @@ export function activate(context: vscode.ExtensionContext) {
 							}, 1000);			
 						});
 						break;
-					case 'delete':
-						var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);	
+					case 'delete':	
 						panel.webview.postMessage({ command: 'deployStatus', result: {stage:"retrieve", message: 'Preperation Started'}});
 						panel.webview.postMessage({ command: 'deployStatus', result: {stage:"retrieveCompleted", message: 'Preperation Completed'}});	
-						deleteMD(sourceOrg.accessToken, sourceOrg.instanceUrl, message.packagexml).then((result:any) => {
+						deleteMD(message.sourceOrgId, message.packagexml).then((result:any) => {
 							panel.webview.postMessage({ command: 'deployStatus', result: {stage:"deployment",  message: 'Deployment Initiated'}});	
 							let deployJobId = result;
 							let deployIntervalId = setInterval(() => {
 								if(isCancelDeploy) {
-									cancelDeploy(sourceOrg.accessToken, sourceOrg.instanceUrl, deployJobId);
+									cancelDeploy(message.sourceOrgId, deployJobId);
 									isCancelDeploy = false;
 								}
-								deployStatus(sourceOrg.accessToken, sourceOrg.instanceUrl, deployJobId).then((result:any) => {	
+								deployStatus(message.sourceOrgId, deployJobId).then((result:any) => {	
 									if(result.done	=== 'true') {
 										clearInterval(deployIntervalId);	
 									}	
@@ -329,7 +323,7 @@ async function scrollTo(text: string) {
 function validateSession(orgId:string) {
 	var org = orgsList.find((org:any) => org.orgId === orgId);	
 	return new Promise((resolve, reject) => {
-		sendSoapAPIRequest(org.accessToken, org.instanceUrl, '<urn:getUserInfo/>')
+		sendSoapAPIRequest(orgId, '<urn:getUserInfo/>')
 		.then((result:any) => {
 			resolve({valid: true});
 		}).catch((error:any) => {
@@ -341,7 +335,7 @@ function validateSession(orgId:string) {
 			).then((response:any) => {
 				org.accessToken = response.data.access_token;
 				fs.writeFile(orgsListPath, JSON.stringify(orgsList, null, 2), 'utf8', (err:any) => {}); 	
-				sendSoapAPIRequest(response.data.access_token, org.instanceUrl, '<urn:getUserInfo/>')
+				sendSoapAPIRequest(orgId, '<urn:getUserInfo/>')
 				.then((result:any) => {
 					resolve({valid: true});
 				});
@@ -394,9 +388,9 @@ function extractComponents(zipfile:string, directory:string, alias:string) {
 	zip.extractAllTo(directory+"/"+alias, true);
 }
 
-function cancelDeploy(accessToken:string, instanceUrl:string, deployJobId:string) {
+function cancelDeploy(orgId:string, deployJobId:string) {
     return new Promise((resolve, reject) => {
-		sendSoapMDRequest(accessToken, instanceUrl, '<met:cancelDeploy><met:String>'+deployJobId+'</met:String></met:cancelDeploy>')
+		sendSoapMDRequest(orgId, '<met:cancelDeploy><met:String>'+deployJobId+'</met:String></met:cancelDeploy>')
 		.then((result:any) => {
 			const res = result['cancelDeployResponse']['result'];	
 			resolve(res);	
@@ -408,9 +402,9 @@ function cancelDeploy(accessToken:string, instanceUrl:string, deployJobId:string
     });
 }
 
-function quickDeploy(accessToken:string, instanceUrl:string, deployJobId:string) {
+function quickDeploy(orgId:string, deployJobId:string) {
     return new Promise((resolve, reject) => {
-		sendSoapMDRequest(accessToken, instanceUrl, '<met:deployRecentValidation><met:validationId>'+deployJobId+
+		sendSoapMDRequest(orgId, '<met:deployRecentValidation><met:validationId>'+deployJobId+
 			'</met:validationId></met:deployRecentValidation>')
 		.then((result:any) => {
 			const res = result['deployRecentValidationResponse']['result'];	
@@ -422,9 +416,9 @@ function quickDeploy(accessToken:string, instanceUrl:string, deployJobId:string)
     });
 }
 
-function deployStatus(accessToken:string, instanceUrl:string, deployJobId:string) {
+function deployStatus(orgId:string, deployJobId:string) {
     return new Promise((resolve, reject) => {
-		sendSoapMDRequest(accessToken, instanceUrl, '<met:checkDeployStatus><met:asyncProcessId>'+deployJobId+
+		sendSoapMDRequest(orgId, '<met:checkDeployStatus><met:asyncProcessId>'+deployJobId+
 			'</met:asyncProcessId><met:includeDetails>true</met:includeDetails></met:checkDeployStatus>')
 		.then((result:any) => {
 			const res = result['checkDeployStatusResponse']['result'];	
@@ -436,9 +430,9 @@ function deployStatus(accessToken:string, instanceUrl:string, deployJobId:string
     });
 }
 
-function deploy(accessToken:string, instanceUrl:string, zipfile:string, checkOnly:boolean, testLevel:string, testClasses:string) {
+function deploy(orgId:string, zipfile:string, checkOnly:boolean, testLevel:string, testClasses:string) {
     return new Promise((resolve, reject) => {
-		sendSoapMDRequest(accessToken, instanceUrl, '<met:deploy><met:ZipFile>'+zipfile+'</met:ZipFile><met:DeployOptions>'+
+		sendSoapMDRequest(orgId, '<met:deploy><met:ZipFile>'+zipfile+'</met:ZipFile><met:DeployOptions>'+
 			'<met:checkOnly>'+checkOnly+'</met:checkOnly><met:testLevel>'+testLevel+'</met:testLevel>'+testClasses+
 			'<met:singlePackage>true</met:singlePackage></met:DeployOptions></met:deploy>')
 		.then((result:any) => {
@@ -451,16 +445,17 @@ function deploy(accessToken:string, instanceUrl:string, zipfile:string, checkOnl
     });
 }
 
-function deleteMD(accessToken:string, instanceUrl:string, packagexml:string) {
+function deleteMD(orgId:string, packagexml:string) {
+	var org = orgsList.find((org:any) => org.orgId === orgId);	
 	const zip = new AdmZip();
 	const emptypackage = `<?xml version="1.0" encoding="UTF-8"?>
 							<Package xmlns="http://soap.sforce.com/2006/04/metadata">
-								<version>62.0</version>
+								<version>${org.apiVersion}</version>
 							</Package>`;
 	const packagefull = `<?xml version="1.0" encoding="UTF-8"?>
 							<Package xmlns="http://soap.sforce.com/2006/04/metadata">
 								${packagexml}
-								<version>62.0</version>
+								<version>${org.apiVersion}</version>
 							</Package>`;
 	zip.addFile("destructiveChanges.xml", Buffer.from(packagefull, "utf8"));
 	zip.addFile("package.xml", Buffer.from(emptypackage, "utf8"));
@@ -468,7 +463,7 @@ function deleteMD(accessToken:string, instanceUrl:string, packagexml:string) {
 	const base64Zip = zipBuffer.toString("base64");
 
     return new Promise((resolve, reject) => {
-		sendSoapMDRequest(accessToken, instanceUrl, '<met:deploy><met:ZipFile>'+base64Zip+'</met:ZipFile><met:DeployOptions>'+
+		sendSoapMDRequest(orgId, '<met:deploy><met:ZipFile>'+base64Zip+'</met:ZipFile><met:DeployOptions>'+
 			'<met:purgeOnDelete>true</met:purgeOnDelete>'+
 			'<met:singlePackage>true</met:singlePackage></met:DeployOptions></met:deploy>')
 		.then((result:any) => {
@@ -481,9 +476,9 @@ function deleteMD(accessToken:string, instanceUrl:string, packagexml:string) {
     });
 }
 
-function retrieveStatus(accessToken:string, instanceUrl:string, retrieveJobId:string) {
+function retrieveStatus(orgId:string, retrieveJobId:string) {
     return new Promise((resolve, reject) => {
-		sendSoapMDRequest(accessToken, instanceUrl, '<met:checkRetrieveStatus><met:asyncProcessId>'+retrieveJobId+
+		sendSoapMDRequest(orgId, '<met:checkRetrieveStatus><met:asyncProcessId>'+retrieveJobId+
 			'</met:asyncProcessId><met:includeZip>true</met:includeZip></met:checkRetrieveStatus>')
 		.then((result:any) => {
 			const res = result['checkRetrieveStatusResponse']['result'];	
@@ -506,9 +501,9 @@ function retrieveStatus(accessToken:string, instanceUrl:string, retrieveJobId:st
     });
 }
 
-function retrieve(accessToken:string, instanceUrl:string, packagexml:string) {
+function retrieve(orgId:string, packagexml:string) {
     return new Promise((resolve, reject) => {
-		sendSoapMDRequest(accessToken, instanceUrl, '<met:retrieve><met:retrieveRequest><met:apiVersion>62.0</met:apiVersion>'+
+		sendSoapMDRequest(orgId, '<met:retrieve><met:retrieveRequest><met:apiVersion>62.0</met:apiVersion>'+
 			'<met:singlePackage>true</met:singlePackage><met:unpackaged>'+packagexml+'</met:unpackaged></met:retrieveRequest></met:retrieve>')
 		.then((result:any) => {
 			const retrieveId = result['retrieveResponse']['result']['id'];	
@@ -520,11 +515,12 @@ function retrieve(accessToken:string, instanceUrl:string, packagexml:string) {
     });
 }
 
-function getTypesComponents(accessToken:string, instanceUrl:string, globalStorageUri:string, panel:vscode.WebviewPanel) {
+function getTypesComponents(orgId:string, globalStorageUri:string, panel:vscode.WebviewPanel) {
+	var org = orgsList.find((org:any) => org.orgId === orgId);	
     return new Promise((resolve, reject) => {
 		let components = new Map();
 		let sobjects = new Map();
-		sendSoapMDRequest(accessToken, instanceUrl, '<met:describeMetadata><met:asOfVersion>62.0</met:asOfVersion></met:describeMetadata>')
+		sendSoapMDRequest(orgId, '<met:describeMetadata><met:asOfVersion>'+org.apiVersion+'</met:asOfVersion></met:describeMetadata>')
 		.then((result:any) => {
 			const types = result['describeMetadataResponse']['result']['metadataObjects'];			
 			const typesList:{name:string; inFolder:string; parent:string;}[] = [];
@@ -540,7 +536,7 @@ function getTypesComponents(accessToken:string, instanceUrl:string, globalStorag
 			panel.webview.postMessage({ command: 'loading', message: 'Refreshing Components(0/'+typesList.length+')'});	
 
 			Promise.all(typesList.map((e:{name:string; inFolder:string; parent:string;}) => {				
-				return sendSoapMDRequest(accessToken, instanceUrl, '<met:listMetadata><met:queries><met:type>'
+				return sendSoapMDRequest(orgId, '<met:listMetadata><met:queries><met:type>'
 											+(e.inFolder === 'true' ? (e.name === 'EmailTemplate' ? 'EmailFolder' : e.name+'Folder') : e.name)
 											+'</met:type></met:queries></met:listMetadata>')
 					.then((result:any) => {
@@ -549,7 +545,7 @@ function getTypesComponents(accessToken:string, instanceUrl:string, globalStorag
 						if(e.inFolder === 'true') {
 							let folderresults:Object[] = [];	
 							return Promise.all(results.map((element:any) => {
-								return sendSoapMDRequest(accessToken, instanceUrl, '<met:listMetadata><met:queries><met:type>'+e.name+
+								return sendSoapMDRequest(orgId, '<met:listMetadata><met:queries><met:type>'+e.name+
 									'</met:type><met:folder>'+element.name+'</met:folder></met:queries></met:listMetadata>')
 								.then((result:any) => {
 									const comps = result['listMetadataResponse'];
@@ -569,7 +565,7 @@ function getTypesComponents(accessToken:string, instanceUrl:string, globalStorag
 							components.set(e.name, results);
 							panel.webview.postMessage({ command: 'components', components:results, type:e.name });
 							const mdobjects = new Set(results.map(obj => obj.name));
-							return sendSoapAPIRequest(accessToken, instanceUrl, '<urn:describeGlobal/>')
+							return sendSoapAPIRequest(orgId, '<urn:describeGlobal/>')
 								.then((result:any) => {
 									const comps = result['describeGlobalResponse']['result']['sobjects'];
 									let objects:string[] = [];	
@@ -587,7 +583,7 @@ function getTypesComponents(accessToken:string, instanceUrl:string, globalStorag
 										chunk.forEach((e:any) => {
 											payload += '<urn:sObjectType>'+e+'</urn:sObjectType>';
 										});
-										return sendSoapAPIRequest(accessToken, instanceUrl, '<urn:describeSObjects>'+ payload + '</urn:describeSObjects>')
+										return sendSoapAPIRequest(orgId, '<urn:describeSObjects>'+ payload + '</urn:describeSObjects>')
 										.then((result:any) => {
 											const objs = result['describeSObjectsResponse']['result'];
 											const exclFields = new Set(['Id', 'IsDeleted', 'CreatedById', 'CreatedDate', 'LastModifiedById', 'LastModifiedDate', 
@@ -662,14 +658,15 @@ function buildComponents(comps:any, parent:string) {
 	return results;
 }
 
-function sendSoapMDRequest(accessToken:string,  instanceUrl:string, body:string) {
+function sendSoapMDRequest(orgId:string, body:string) {
+	let org = orgsList.find((org:any) => org.orgId === orgId);
 	const parser = new xml2js.Parser({ explicitArray: false, ignoreAttrs: true });	
 	let reuest =  '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:met="http://soap.sforce.com/2006/04/metadata">'+
-		'<soapenv:Header><met:SessionHeader><met:sessionId>'+accessToken+'</met:sessionId></met:SessionHeader></soapenv:Header>'+
+		'<soapenv:Header><met:SessionHeader><met:sessionId>'+org.accessToken+'</met:sessionId></met:SessionHeader></soapenv:Header>'+
 		'<soapenv:Body>'+body+'</soapenv:Body></soapenv:Envelope>';
 	
 	return new Promise((resolve, reject) => {
-		axios.post(instanceUrl+"/services/Soap/m/62.0", reuest, { headers: {
+		axios.post(org.instanceUrl+"/services/Soap/m/"+org.apiVersion, reuest, { headers: {
 					'Content-Type': 'text/xml; charset=utf-8',
 					'SOAPAction': 'Update',
 				},
@@ -691,14 +688,15 @@ function sendSoapMDRequest(accessToken:string,  instanceUrl:string, body:string)
 	});
 }
 
-function sendSoapAPIRequest(accessToken:string,  instanceUrl:string, body:string) {
+function sendSoapAPIRequest(orgId:string, body:string) {
+	let org = orgsList.find((org:any) => org.orgId === orgId);
 	const parser = new xml2js.Parser({ explicitArray: false, ignoreAttrs: true });	
 	let request =  '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:partner.soap.sforce.com">'+
-		'<soapenv:Header><urn:SessionHeader><urn:sessionId>'+accessToken+'</urn:sessionId></urn:SessionHeader></soapenv:Header>'+
+		'<soapenv:Header><urn:SessionHeader><urn:sessionId>'+org.accessToken+'</urn:sessionId></urn:SessionHeader></soapenv:Header>'+
 		'<soapenv:Body>'+body+'</soapenv:Body></soapenv:Envelope>';
 	
 	return new Promise((resolve, reject) => {
-		axios.post(instanceUrl+"/services/Soap/u/62.0", request, { headers: {
+		axios.post(org.instanceUrl+"/services/Soap/u/"+org.apiVersion, request, { headers: {
 					'Content-Type': 'text/xml; charset=utf-8',
 					'SOAPAction': 'Update',
 				},

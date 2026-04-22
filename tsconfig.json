@@ -6,6 +6,9 @@
 		"lib": [
 			"ES2022"
 		],
+		"types": [
+            "node"    // ← make sure this is present
+        ],
 		"sourceMap": true,
 		"rootDir": "src",
 		"resolveJsonModule": true,
