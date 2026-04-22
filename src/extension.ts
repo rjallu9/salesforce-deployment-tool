@@ -504,8 +504,9 @@ function retrieveStatus(orgId:string, retrieveJobId:string) {
 }
 
 function retrieve(orgId:string, packagexml:string) {
+	var org = orgsList.find((org:any) => org.orgId === orgId);	
     return new Promise((resolve, reject) => {
-		sendSoapMDRequest(orgId, '<met:retrieve><met:retrieveRequest><met:apiVersion>62.0</met:apiVersion>'+
+		sendSoapMDRequest(orgId, '<met:retrieve><met:retrieveRequest><met:apiVersion>'+org.apiVersion+'</met:apiVersion>'+
 			'<met:singlePackage>true</met:singlePackage><met:unpackaged>'+packagexml+'</met:unpackaged></met:retrieveRequest></met:retrieve>')
 		.then((result:any) => {
 			const retrieveId = result['retrieveResponse']['result']['id'];	
