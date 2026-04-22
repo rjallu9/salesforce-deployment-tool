@@ -10,6 +10,8 @@ const AdmZip = require('adm-zip');
 
 let tmpDirectory = '';
 let STD_VALUE_SET = stdValueSet;
+let orgsList: any[] = [];
+var orgsListPath = '';
 
 export function activate(context: vscode.ExtensionContext) {
 	const disposable = vscode.commands.registerCommand('salesforce-deployment-suite.build', () => {
@@ -30,29 +32,23 @@ export function activate(context: vscode.ExtensionContext) {
 
 			panel.webview.html = getWebviewContent(context.extensionPath, scriptUri, cssUri);
 
-			let orgsList: any[] = [];
-
 			let isCancelDeploy = false;
 
 			tmpDirectory = context.globalStorageUri.fsPath+"/tmp";
+			orgsListPath = path.join(context.globalStorageUri.fsPath, 'orgsListV2.json');
 
 			panel.webview.onDidReceiveMessage((message) => {
 				switch (message.command) {
-					case 'getAuthOrgs':			
-						var orgsListPath = path.join(context.globalStorageUri.fsPath, 'orgsList.json');
+					case 'getAuthOrgs':	
 						if (fs.existsSync(orgsListPath) && !message.refresh) {
 							orgsList = JSON.parse(fs.readFileSync(orgsListPath, 'utf-8'));
 							panel.webview.postMessage({ command: 'orgsList', orgs: orgsList});
 						} else {
+							if(fs.existsSync(orgsListPath)) {
+								orgsList = JSON.parse(fs.readFileSync(orgsListPath, 'utf-8'));
+							}
 							getAuthOrgs().then((result:any) => {
-								orgsList = result;	
-								panel.webview.postMessage({command: 'orgsList', orgs: result});	
-								const dir = path.dirname(orgsListPath);
-								if (!fs.existsSync(dir)) {
-									fs.mkdirSync(dir, { recursive: true });
-								}	
-								fs.writeFile(orgsListPath, JSON.stringify(orgsList, null, 2), 'utf8', (err:any) => {
-								}); 			
+								panel.webview.postMessage({command: 'orgsList', orgs: orgsList});		
 							}).catch((error) => {
 								panel.webview.postMessage({ command: 'error', message:`Unable to load authorized orgs. ${error}`});
 							});	
@@ -60,15 +56,9 @@ export function activate(context: vscode.ExtensionContext) {
 						break;
 					case 'loadTypesComponents':
 						var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);	
-						validateSession(sourceOrg.accessToken, sourceOrg.instanceUrl, message.sourceOrgId)
+						validateSession(message.sourceOrgId)
 						.then((result:any) => {
 							if(result.valid) {
-								if(result.orgsList) {
-									orgsList = result.orgsList;
-									sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);	
-									fs.writeFile(context.globalStorageUri.fsPath+"/orgsList.json", JSON.stringify(orgsList, null, 2), 'utf8', (err:any) => {}); 
-								}
-
 								var metdataPath = path.join(context.globalStorageUri.fsPath+"/"+sourceOrg.orgId, 'metadata.json');
 								if (fs.existsSync(metdataPath) && !message.refresh) {
 									const metadata = new Map(JSON.parse(fs.readFileSync(metdataPath, 'utf-8')));
@@ -97,7 +87,7 @@ export function activate(context: vscode.ExtensionContext) {
 						var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);		
 						var destOrg = orgsList.find((org:any) => org.orgId === message.destOrgId);	
 						
-						validateSession(destOrg.accessToken, destOrg.instanceUrl, message.destOrgId)
+						validateSession(message.destOrgId)
 						.then((result:any) => {
 							if(result.valid) {
 								retrieve(sourceOrg.accessToken, sourceOrg.instanceUrl, message.packagexml).then((result:any) => {	
@@ -195,7 +185,7 @@ export function activate(context: vscode.ExtensionContext) {
 							}, 1000);			
 						});
 
-						validateSession(destOrg.accessToken, destOrg.instanceUrl, message.destOrgId)
+						validateSession(message.destOrgId)
 						.then((result:any) => {
 							if(result.valid) {
 								retrieve(destOrg.accessToken, destOrg.instanceUrl, message.packagexml).then((result:any) => {	
@@ -336,37 +326,29 @@ async function scrollTo(text: string) {
     editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
 }
 
-function validateSession(accessToken:string, endPoint:string, orgId:string) {
+function validateSession(orgId:string) {
+	var org = orgsList.find((org:any) => org.orgId === orgId);	
 	return new Promise((resolve, reject) => {
-		sendSoapAPIRequest(accessToken, endPoint, '<urn:getUserInfo/>')
+		sendSoapAPIRequest(org.accessToken, org.instanceUrl, '<urn:getUserInfo/>')
 		.then((result:any) => {
 			resolve({valid: true});
 		}).catch((error:any) => {
-			if(error.indexOf('INVALID_SESSION_ID') >= 0) {
-				let attempts = 0;
-				function retry() {
-					attempts++;
-					getAuthOrgs().then((orgsList:any) => {
-						let org = orgsList.find((org:any) => org.orgId === orgId);
-						return sendSoapAPIRequest(org.accessToken, org.instanceUrl, '<urn:getUserInfo/>')
-							.then((res) => {
-								resolve({ valid: true, orgsList });
-							})
-							.catch((err) => {
-								if (attempts < 5) {
-									retry();
-								} else {
-									reject(new Error('Max retries reached. Session validation failed.'));
-								}
-							}
-						);
-					}).catch((error) => {
-						reject(error);
-					});	
-
+			axios({method: 'POST', url: org.instanceUrl+'/services/oauth2/token?client_id=PlatformCLI&grant_type=refresh_token&refresh_token='+org.refreshToken, data: {}, 
+					headers: {
+						'Content-Type': 'application/x-www-form-urlencoded'
+					}
 				}
-				retry();
-			}
+			).then((response:any) => {
+				org.accessToken = response.data.access_token;
+				fs.writeFile(orgsListPath, JSON.stringify(orgsList, null, 2), 'utf8', (err:any) => {}); 	
+				sendSoapAPIRequest(response.data.access_token, org.instanceUrl, '<urn:getUserInfo/>')
+				.then((result:any) => {
+					resolve({valid: true});
+				});
+			})
+			.catch((error:any) => {
+				reject(error);
+			});
         });;
     });
 }
@@ -412,9 +394,9 @@ function extractComponents(zipfile:string, directory:string, alias:string) {
 	zip.extractAllTo(directory+"/"+alias, true);
 }
 
-function cancelDeploy(accessToken:string, endPoint:string, deployJobId:string) {
+function cancelDeploy(accessToken:string, instanceUrl:string, deployJobId:string) {
     return new Promise((resolve, reject) => {
-		sendSoapMDRequest(accessToken, endPoint, '<met:cancelDeploy><met:String>'+deployJobId+'</met:String></met:cancelDeploy>')
+		sendSoapMDRequest(accessToken, instanceUrl, '<met:cancelDeploy><met:String>'+deployJobId+'</met:String></met:cancelDeploy>')
 		.then((result:any) => {
 			const res = result['cancelDeployResponse']['result'];	
 			resolve(res);	
@@ -426,9 +408,9 @@ function cancelDeploy(accessToken:string, endPoint:string, deployJobId:string) {
     });
 }
 
-function quickDeploy(accessToken:string, endPoint:string, deployJobId:string) {
+function quickDeploy(accessToken:string, instanceUrl:string, deployJobId:string) {
     return new Promise((resolve, reject) => {
-		sendSoapMDRequest(accessToken, endPoint, '<met:deployRecentValidation><met:validationId>'+deployJobId+
+		sendSoapMDRequest(accessToken, instanceUrl, '<met:deployRecentValidation><met:validationId>'+deployJobId+
 			'</met:validationId></met:deployRecentValidation>')
 		.then((result:any) => {
 			const res = result['deployRecentValidationResponse']['result'];	
@@ -440,9 +422,9 @@ function quickDeploy(accessToken:string, endPoint:string, deployJobId:string) {
     });
 }
 
-function deployStatus(accessToken:string, endPoint:string, deployJobId:string) {
+function deployStatus(accessToken:string, instanceUrl:string, deployJobId:string) {
     return new Promise((resolve, reject) => {
-		sendSoapMDRequest(accessToken, endPoint, '<met:checkDeployStatus><met:asyncProcessId>'+deployJobId+
+		sendSoapMDRequest(accessToken, instanceUrl, '<met:checkDeployStatus><met:asyncProcessId>'+deployJobId+
 			'</met:asyncProcessId><met:includeDetails>true</met:includeDetails></met:checkDeployStatus>')
 		.then((result:any) => {
 			const res = result['checkDeployStatusResponse']['result'];	
@@ -454,9 +436,9 @@ function deployStatus(accessToken:string, endPoint:string, deployJobId:string) {
     });
 }
 
-function deploy(accessToken:string, endPoint:string, zipfile:string, checkOnly:boolean, testLevel:string, testClasses:string) {
+function deploy(accessToken:string, instanceUrl:string, zipfile:string, checkOnly:boolean, testLevel:string, testClasses:string) {
     return new Promise((resolve, reject) => {
-		sendSoapMDRequest(accessToken, endPoint, '<met:deploy><met:ZipFile>'+zipfile+'</met:ZipFile><met:DeployOptions>'+
+		sendSoapMDRequest(accessToken, instanceUrl, '<met:deploy><met:ZipFile>'+zipfile+'</met:ZipFile><met:DeployOptions>'+
 			'<met:checkOnly>'+checkOnly+'</met:checkOnly><met:testLevel>'+testLevel+'</met:testLevel>'+testClasses+
 			'<met:singlePackage>true</met:singlePackage></met:DeployOptions></met:deploy>')
 		.then((result:any) => {
@@ -469,7 +451,7 @@ function deploy(accessToken:string, endPoint:string, zipfile:string, checkOnly:b
     });
 }
 
-function deleteMD(accessToken:string, endPoint:string, packagexml:string) {
+function deleteMD(accessToken:string, instanceUrl:string, packagexml:string) {
 	const zip = new AdmZip();
 	const emptypackage = `<?xml version="1.0" encoding="UTF-8"?>
 							<Package xmlns="http://soap.sforce.com/2006/04/metadata">
@@ -486,7 +468,7 @@ function deleteMD(accessToken:string, endPoint:string, packagexml:string) {
 	const base64Zip = zipBuffer.toString("base64");
 
     return new Promise((resolve, reject) => {
-		sendSoapMDRequest(accessToken, endPoint, '<met:deploy><met:ZipFile>'+base64Zip+'</met:ZipFile><met:DeployOptions>'+
+		sendSoapMDRequest(accessToken, instanceUrl, '<met:deploy><met:ZipFile>'+base64Zip+'</met:ZipFile><met:DeployOptions>'+
 			'<met:purgeOnDelete>true</met:purgeOnDelete>'+
 			'<met:singlePackage>true</met:singlePackage></met:DeployOptions></met:deploy>')
 		.then((result:any) => {
@@ -499,9 +481,9 @@ function deleteMD(accessToken:string, endPoint:string, packagexml:string) {
     });
 }
 
-function retrieveStatus(accessToken:string, endPoint:string, retrieveJobId:string) {
+function retrieveStatus(accessToken:string, instanceUrl:string, retrieveJobId:string) {
     return new Promise((resolve, reject) => {
-		sendSoapMDRequest(accessToken, endPoint, '<met:checkRetrieveStatus><met:asyncProcessId>'+retrieveJobId+
+		sendSoapMDRequest(accessToken, instanceUrl, '<met:checkRetrieveStatus><met:asyncProcessId>'+retrieveJobId+
 			'</met:asyncProcessId><met:includeZip>true</met:includeZip></met:checkRetrieveStatus>')
 		.then((result:any) => {
 			const res = result['checkRetrieveStatusResponse']['result'];	
@@ -524,9 +506,9 @@ function retrieveStatus(accessToken:string, endPoint:string, retrieveJobId:strin
     });
 }
 
-function retrieve(accessToken:string, endPoint:string, packagexml:string) {
+function retrieve(accessToken:string, instanceUrl:string, packagexml:string) {
     return new Promise((resolve, reject) => {
-		sendSoapMDRequest(accessToken, endPoint, '<met:retrieve><met:retrieveRequest><met:apiVersion>62.0</met:apiVersion>'+
+		sendSoapMDRequest(accessToken, instanceUrl, '<met:retrieve><met:retrieveRequest><met:apiVersion>62.0</met:apiVersion>'+
 			'<met:singlePackage>true</met:singlePackage><met:unpackaged>'+packagexml+'</met:unpackaged></met:retrieveRequest></met:retrieve>')
 		.then((result:any) => {
 			const retrieveId = result['retrieveResponse']['result']['id'];	
@@ -538,11 +520,11 @@ function retrieve(accessToken:string, endPoint:string, packagexml:string) {
     });
 }
 
-function getTypesComponents(accessToken:string, endPoint:string, globalStorageUri:string, panel:vscode.WebviewPanel) {
+function getTypesComponents(accessToken:string, instanceUrl:string, globalStorageUri:string, panel:vscode.WebviewPanel) {
     return new Promise((resolve, reject) => {
 		let components = new Map();
 		let sobjects = new Map();
-		sendSoapMDRequest(accessToken, endPoint, '<met:describeMetadata><met:asOfVersion>62.0</met:asOfVersion></met:describeMetadata>')
+		sendSoapMDRequest(accessToken, instanceUrl, '<met:describeMetadata><met:asOfVersion>62.0</met:asOfVersion></met:describeMetadata>')
 		.then((result:any) => {
 			const types = result['describeMetadataResponse']['result']['metadataObjects'];			
 			const typesList:{name:string; inFolder:string; parent:string;}[] = [];
@@ -558,7 +540,7 @@ function getTypesComponents(accessToken:string, endPoint:string, globalStorageUr
 			panel.webview.postMessage({ command: 'loading', message: 'Refreshing Components(0/'+typesList.length+')'});	
 
 			Promise.all(typesList.map((e:{name:string; inFolder:string; parent:string;}) => {				
-				return sendSoapMDRequest(accessToken, endPoint, '<met:listMetadata><met:queries><met:type>'
+				return sendSoapMDRequest(accessToken, instanceUrl, '<met:listMetadata><met:queries><met:type>'
 											+(e.inFolder === 'true' ? (e.name === 'EmailTemplate' ? 'EmailFolder' : e.name+'Folder') : e.name)
 											+'</met:type></met:queries></met:listMetadata>')
 					.then((result:any) => {
@@ -567,7 +549,7 @@ function getTypesComponents(accessToken:string, endPoint:string, globalStorageUr
 						if(e.inFolder === 'true') {
 							let folderresults:Object[] = [];	
 							return Promise.all(results.map((element:any) => {
-								return sendSoapMDRequest(accessToken, endPoint, '<met:listMetadata><met:queries><met:type>'+e.name+
+								return sendSoapMDRequest(accessToken, instanceUrl, '<met:listMetadata><met:queries><met:type>'+e.name+
 									'</met:type><met:folder>'+element.name+'</met:folder></met:queries></met:listMetadata>')
 								.then((result:any) => {
 									const comps = result['listMetadataResponse'];
@@ -587,7 +569,7 @@ function getTypesComponents(accessToken:string, endPoint:string, globalStorageUr
 							components.set(e.name, results);
 							panel.webview.postMessage({ command: 'components', components:results, type:e.name });
 							const mdobjects = new Set(results.map(obj => obj.name));
-							return sendSoapAPIRequest(accessToken, endPoint, '<urn:describeGlobal/>')
+							return sendSoapAPIRequest(accessToken, instanceUrl, '<urn:describeGlobal/>')
 								.then((result:any) => {
 									const comps = result['describeGlobalResponse']['result']['sobjects'];
 									let objects:string[] = [];	
@@ -605,7 +587,7 @@ function getTypesComponents(accessToken:string, endPoint:string, globalStorageUr
 										chunk.forEach((e:any) => {
 											payload += '<urn:sObjectType>'+e+'</urn:sObjectType>';
 										});
-										return sendSoapAPIRequest(accessToken, endPoint, '<urn:describeSObjects>'+ payload + '</urn:describeSObjects>')
+										return sendSoapAPIRequest(accessToken, instanceUrl, '<urn:describeSObjects>'+ payload + '</urn:describeSObjects>')
 										.then((result:any) => {
 											const objs = result['describeSObjectsResponse']['result'];
 											const exclFields = new Set(['Id', 'IsDeleted', 'CreatedById', 'CreatedDate', 'LastModifiedById', 'LastModifiedDate', 
@@ -680,14 +662,14 @@ function buildComponents(comps:any, parent:string) {
 	return results;
 }
 
-function sendSoapMDRequest(accessToken:string,  endPoint:string, body:string) {
+function sendSoapMDRequest(accessToken:string,  instanceUrl:string, body:string) {
 	const parser = new xml2js.Parser({ explicitArray: false, ignoreAttrs: true });	
 	let reuest =  '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:met="http://soap.sforce.com/2006/04/metadata">'+
 		'<soapenv:Header><met:SessionHeader><met:sessionId>'+accessToken+'</met:sessionId></met:SessionHeader></soapenv:Header>'+
 		'<soapenv:Body>'+body+'</soapenv:Body></soapenv:Envelope>';
 	
 	return new Promise((resolve, reject) => {
-		axios.post(endPoint+"/services/Soap/m/62.0", reuest, { headers: {
+		axios.post(instanceUrl+"/services/Soap/m/62.0", reuest, { headers: {
 					'Content-Type': 'text/xml; charset=utf-8',
 					'SOAPAction': 'Update',
 				},
@@ -709,14 +691,14 @@ function sendSoapMDRequest(accessToken:string,  endPoint:string, body:string) {
 	});
 }
 
-function sendSoapAPIRequest(accessToken:string,  endPoint:string, body:string) {
+function sendSoapAPIRequest(accessToken:string,  instanceUrl:string, body:string) {
 	const parser = new xml2js.Parser({ explicitArray: false, ignoreAttrs: true });	
 	let request =  '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:partner.soap.sforce.com">'+
 		'<soapenv:Header><urn:SessionHeader><urn:sessionId>'+accessToken+'</urn:sessionId></urn:SessionHeader></soapenv:Header>'+
 		'<soapenv:Body>'+body+'</soapenv:Body></soapenv:Envelope>';
 	
 	return new Promise((resolve, reject) => {
-		axios.post(endPoint+"/services/Soap/u/62.0", request, { headers: {
+		axios.post(instanceUrl+"/services/Soap/u/62.0", request, { headers: {
 					'Content-Type': 'text/xml; charset=utf-8',
 					'SOAPAction': 'Update',
 				},
@@ -745,46 +727,69 @@ function getAuthOrgs() {
                 reject(`Error: ${error}`);
             } else {
                 try {
-                    const data = JSON.parse(stdout).result;					
-					const orgList:Object[] = [];
+                    const data = JSON.parse(stdout).result;	
 					const orgs = [];
 					const orgIds:string[] = [];
-					orgs.push(...data.other, ...data.sandboxes, ...data.nonScratchOrgs, ...data.devHubs, ...data.scratchOrgs);
-					orgs.forEach((org:any) => {
-						if((org.connectedStatus === 'Connected' || org.status === 'Active') && orgIds.indexOf(org['orgId']) < 0) {
-							orgList.push({
-								name: org['alias']+'('+org['username']+')',
-								alias: org['alias'],
-								orgId: org['orgId'],
-								accessToken: org['accessToken'],
-								instanceUrl: org['instanceUrl']
-							});
-							orgIds.push(org['orgId']);
-						}						
+					orgs.push(...(data.other || []), ...(data.sandboxes || []), ...(data.nonScratchOrgs || []), ...(data.devHubs || []), ...(data.scratchOrgs || []));
+					const newOrgs = orgs.filter((org: any) => {
+						const isConnected = org.connectedStatus === 'Connected' || org.status === 'Active';
+						const isNew = !orgsList.find((o: any) => o.orgId === org.orgId);
+						const isUnique = !orgIds.includes(org.orgId);
+						if (isConnected && isNew && isUnique) {
+							orgIds.push(org.orgId);
+							return true;
+						}
+						return false;
 					});
-                    resolve(orgList);
+					if (newOrgs.length === 0) {
+						resolve(orgsList); // nothing new to fetch
+						return;
+					}
+
+					// Run all org display calls in parallel
+					const displayPromises = newOrgs.map((org: any) => {
+						return new Promise<void>((res) => {
+							exec(`sf org display --target-org ${org.username} --verbose --json`, (err: any, out: any) => {
+									if (err) {
+										res(); // don't reject — skip this org
+										return;
+									}
+									try {
+										const display = JSON.parse(out).result;
+										const sfdxAuthUrl = display.sfdxAuthUrl || '';
+										const refreshToken = sfdxAuthUrl.substring(sfdxAuthUrl.indexOf('::') + 2, sfdxAuthUrl.lastIndexOf('@'));
+										if (refreshToken) {
+											orgsList.push({
+												name: `${org.alias}(${org.username})`,
+												alias: org.alias,
+												orgId: org.orgId,
+												accessToken: display.accessToken,
+												instanceUrl: display.instanceUrl,
+												refreshToken,
+												apiVersion: display.apiVersion
+											});
+										}
+									} catch (e) {
+									}
+									res();
+								}
+							);
+						});
+					});
+					// Wait for ALL display calls to finish, then resolve
+					Promise.all(displayPromises).then(() => {							
+						const dir = path.dirname(orgsListPath);
+						if (!fs.existsSync(dir)) {
+							fs.mkdirSync(dir, { recursive: true });
+						}	
+						fs.writeFile(orgsListPath, JSON.stringify(orgsList, null, 2), 'utf8', (err:any) => {}); 	
+						resolve(orgsList);
+					});
                 } catch (parseError:any) {
                     reject(`Parse Error: ${parseError.message}`);
                 }
             }
         });
-    });
-}
-
-function refreshOrgs() {
-    return new Promise((resolve, reject) => {
-        const orgsDir = path.join(process.env.HOME || process.env.USERPROFILE || '', '.sfdx');    
-		const alias = JSON.parse(fs.readFileSync(orgsDir+'/alias.json', 'utf-8'));
-		console.log(alias.orgs);
-		/*fs.readFil(orgsDir+'/alias.json', (err, files) => {
-			if (err) {
-				console.error("Error reading orgs directory:", err);
-				return;
-			}
-
-			const orgs = files.map(file => path.basename(file, '.json'));
-			console.log("Authorized Orgs:", orgs);
-		});*/
     });
 }
 
