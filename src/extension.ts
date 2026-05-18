@@ -216,7 +216,9 @@ export function activate(context: vscode.ExtensionContext) {
 						}, 1000);	
 						break;
 					case 'filePreview':
-						let title = message.file+': Source ↔ Target';
+						var sourceOrg = orgsList.find((org:any) => org.orgId === message.sourceOrgId);	
+						var destOrg = orgsList.find((org:any) => org.orgId === message.destOrgId);
+						let title = message.file+': '+sourceOrg.alias+' ↔ '+destOrg.alias;
 						vscode.commands.executeCommand('vscode.diff',  vscode.Uri.file(message.source),  
 								vscode.Uri.file(message.dest), title, { preview: false });
 						if(message.scrollTo !== '') {

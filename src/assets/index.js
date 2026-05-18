@@ -229,7 +229,7 @@ $(document).ready(function () {
             {
                 orderable: false,
                 render: function (data, type, row) {
-                    if (row.dest) {
+                    if (row.dest && row.dest.length > 0 && row.dest[0] !== '') {
                         return '<a href="#" class="fileview" data-parent="'+row.parent+'" data-name="'+row.type+"."+row.name+'" style="color:#4daafc">View</a>';
                     } else {
                         return 'N/A';
@@ -848,7 +848,7 @@ $(document).ready(function () {
         }
         source.forEach((element, index) => {
             vscode.postMessage({ command: 'filePreview', source: element,  dest: dest[index], file: files[index], 
-                scrollTo: scrollTo
+                scrollTo: scrollTo, sourceOrgId: $('#source-org-field').val(), destOrgId: $("#dest-org-field").val()
             }); 
         }); 
     });
