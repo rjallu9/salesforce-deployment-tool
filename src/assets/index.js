@@ -146,6 +146,7 @@ $(document).ready(function () {
         $('#exportselected').prop('disabled', true);
         $('#download').prop('disabled', true);
         $('#deleteCmps').prop('disabled', true);
+        $('#deleteCmps').css('background-color', '');
     }
 
     $('#availabletable').DataTable({
@@ -422,6 +423,11 @@ $(document).ready(function () {
         $('#exportselected').prop('disabled', selectedComps.size === 0); 
         $('#download').prop('disabled', selectedComps.size === 0); 
         $('#deleteCmps').prop('disabled', selectedComps.size === 0);
+        if(selectedComps.size > 0) {
+            $('#deleteCmps').css('background-color', 'darkred');
+        } else {
+            $('#deleteCmps').css('background-color', '');
+        }
 
         $('.selected').text('Selected ('+selectedComps.size+')');   
         $('#selectedtable').DataTable().clear().rows.add(Array.from(selectedComps.values())).draw(); 
@@ -432,7 +438,8 @@ $(document).ready(function () {
 
     $('#packagexml').on('click', function (e) {
         let packagexml = getPackageXml();
-        navigator.clipboard.writeText( `<?xml version="1.0" encoding="UTF-8"?>\n<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n${packagexml}\t<version>62.0</version>\n</Package>`);
+        var org = orgs.find((org) => org.orgId === $('#source-org-field').val());	
+        navigator.clipboard.writeText( `<?xml version="1.0" encoding="UTF-8"?>\n<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n${packagexml}\t<version>${org.apiVersion}</version>\n</Package>`);
         vscode.postMessage({ command: 'toastMessage', message: 'Package.xml copied to clipboard'});
     });
 
